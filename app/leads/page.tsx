@@ -6,7 +6,7 @@ import {
   getLeads, addLeads, updateLead, deleteLead, clearLeads,
   getSettings, incrementTodaySent, getTodayStats,
 } from '@/lib/storage'
-import { CITY_COORDINATES, BUSINESS_CATEGORIES, JUDETE, HIGH_CONVERSION_CATEGORIES } from '@/lib/constants'
+import { CITY_COORDINATES, BUSINESS_CATEGORIES, JUDETE, HIGH_CONVERSION_CATEGORIES , MEGYEK, HU_CITIES } from '@/lib/constants'
 import type { Business, Settings } from '@/lib/types'
 
 const CITIES = Object.keys(CITY_COORDINATES).sort()
@@ -216,7 +216,7 @@ Returnează DOAR HTML complet începând cu <!DOCTYPE html>`
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
           <div>
             <div style={{ fontWeight:800, color:'#f1f5f9', fontSize:17 }}>{biz.name}</div>
-            <div style={{ fontSize:12, color:'#64748b', marginTop:2 }}>{biz.category_label} · {biz.city.replace(' 🏘️','')}</div>
+            <div style={{ fontSize:12, color:'#64748b', marginTop:2 }}>{biz.category_label} · {HU_CITIES.includes(biz.city.replace(' 🏘️','').trim()) ? '🇭🇺 ' : ''}{biz.city.replace(' 🏘️','')}</div>
             <div style={{ display:'flex', gap:8, marginTop:6, flexWrap:'wrap', alignItems:'center' }}>
               <span style={{ fontSize:12, color:'#94a3b8' }}>📞 {biz.phone}</span>
               {biz.rating>0 && <Stars r={biz.rating} />}
@@ -793,7 +793,7 @@ function LeadCard({ biz, settings, onUpdate, onDelete }:
                 `${sl} ${ssl}`
               )}
             </div>
-            <div style={{ fontSize:12, color:'#64748b' }}>{biz.category_label} · {biz.city.replace(' 🏘️','')}</div>
+            <div style={{ fontSize:12, color:'#64748b' }}>{biz.category_label} · {HU_CITIES.includes(biz.city.replace(' 🏘️','').trim()) ? '🇭🇺 ' : ''}{biz.city.replace(' 🏘️','')}</div>
           </div>
           <button onClick={()=>onDelete(biz.place_id)} style={{ background:'none',border:'none',color:'#2d3f5a',cursor:'pointer',fontSize:16 }}>✕</button>
         </div>
@@ -876,8 +876,10 @@ export default function LeadsPage() {
   const [settings, setSettings] = useState<Settings>({} as Settings)
   const [city, setCity]         = useState('Câmpia Turzii 🏘️')
   const [category, setCategory] = useState('beauty_salon')
-  const [searchMode, setSearchMode] = useState<'city'|'judet'>('city')
+  const [searchMode, setSearchMode] = useState<'city'|'judet'|'megye'>('city')
   const [judet, setJudet]       = useState('Cluj')
+  const [megye, setMegye]       = useState('Budapest')
+  const [country, setCountry]   = useState<'ro'|'hu'>('ro')
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState('')
   const [filter, setFilter]     = useState<'all'|'hot'|'found'|'sent'|'replied'|'demo'|'won'>('all')
@@ -965,7 +967,7 @@ export default function LeadsPage() {
     try {
       let all: Business[] = []
       let aggMarket = { totalFound:0, withWebsite:0, withoutWebsite:0, saturationPct:0, opportunityPct:0, verdict: {label:'',emoji:'',color:'',msg:''} }
-      const cities = searchMode==='judet'&&judet ? JUDETE[judet]||[] : [city]
+      const cities = searchMode==='judet'&&judet ? JUDETE[judet]||[] : searchMode==='megye'&&megye ? MEGYEK[megye]||[] : [city]
       for (const c of cities) {
         try {
           const { businesses, market } = await searchCityCategory(c, category)
@@ -1062,45 +1064,111 @@ export default function LeadsPage() {
         <div style={{ width:260, flexShrink:0 }}>
           {/* Search */}
           <div style={{ background:'rgba(13,22,41,0.85)', border:'1px solid rgba(99,179,237,0.12)', borderRadius:14, padding:16, marginBottom:12 }}>
-            <div style={{ fontWeight:700, color:'#f1f5f9', fontSize:14, marginBottom:14 }}>🔍 Caută leads</div>
 
-            <div style={{ display:'flex', gap:4, marginBottom:12, background:'rgba(0,0,0,0.3)', borderRadius:9, padding:3 }}>
-              {(['city','judet'] as const).map(m=>(
-                <button key={m} onClick={()=>setSearchMode(m)} style={{ flex:1, padding:'6px 0', borderRadius:7, border:'none', fontWeight:700, fontSize:11, cursor:'pointer', background:searchMode===m?'rgba(99,179,237,0.2)':'transparent', color:searchMode===m?'#63b3ed':'#475569' }}>
-                  {m==='city'?'🏙️ Oraș':'🗺️ Județ'}
-                </button>
-              ))}
+            {/* Country switcher */}
+            <div style={{ display:'flex', gap:4, marginBottom:14, background:'rgba(0,0,0,0.4)', borderRadius:10, padding:3 }}>
+              <button onClick={()=>{ setCountry('ro'); setSearchMode('city'); setCity('Câmpia Turzii 🏘️') }}
+                style={{ flex:1, padding:'8px 4px', borderRadius:8, border:'none', cursor:'pointer', fontWeight:800, fontSize:13,
+                  background: country==='ro' ? 'linear-gradient(135deg,rgba(0,122,204,0.3),rgba(0,122,204,0.15))' : 'transparent',
+                  color: country==='ro' ? '#63b3ed' : '#475569',
+                  boxShadow: country==='ro' ? 'inset 0 0 0 1px rgba(99,179,237,0.3)' : 'none' }}>
+                🇷🇴 România
+              </button>
+              <button onClick={()=>{ setCountry('hu'); setSearchMode('megye'); setMegye('Budapest') }}
+                style={{ flex:1, padding:'8px 4px', borderRadius:8, border:'none', cursor:'pointer', fontWeight:800, fontSize:13,
+                  background: country==='hu' ? 'linear-gradient(135deg,rgba(239,68,68,0.25),rgba(234,179,8,0.15))' : 'transparent',
+                  color: country==='hu' ? '#fbbf24' : '#475569',
+                  boxShadow: country==='hu' ? 'inset 0 0 0 1px rgba(251,191,36,0.3)' : 'none' }}>
+                🇭🇺 Magyarország
+              </button>
             </div>
 
+            {/* Search mode tabs — Romania */}
+            {country==='ro' && (
+              <div style={{ display:'flex', gap:4, marginBottom:12, background:'rgba(0,0,0,0.3)', borderRadius:9, padding:3 }}>
+                {(['city','judet'] as const).map(m=>(
+                  <button key={m} onClick={()=>setSearchMode(m)}
+                    style={{ flex:1, padding:'6px 0', borderRadius:7, border:'none', fontWeight:700, fontSize:11, cursor:'pointer',
+                      background:searchMode===m?'rgba(99,179,237,0.2)':'transparent',
+                      color:searchMode===m?'#63b3ed':'#475569' }}>
+                    {m==='city'?'🏙️ Oraș':'🗺️ Județ'}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Search mode tabs — Hungary */}
+            {country==='hu' && (
+              <div style={{ display:'flex', gap:4, marginBottom:12, background:'rgba(0,0,0,0.3)', borderRadius:9, padding:3 }}>
+                {(['megye','city'] as const).map(m=>(
+                  <button key={m} onClick={()=>setSearchMode(m)}
+                    style={{ flex:1, padding:'6px 0', borderRadius:7, border:'none', fontWeight:700, fontSize:11, cursor:'pointer',
+                      background:searchMode===m?'rgba(251,191,36,0.2)':'transparent',
+                      color:searchMode===m?'#fbbf24':'#475569' }}>
+                    {m==='megye'?'🗺️ Megye':'🏙️ Város'}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Location selector */}
             <div style={{ marginBottom:10 }}>
-              <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:'.08em', display:'block', marginBottom:5 }}>{searchMode==='city'?'Oraș':'Județ'}</label>
-              {searchMode==='city'
-                ? <select value={city} onChange={e=>setCity(e.target.value)} style={{ width:'100%', background:'rgba(6,13,26,0.8)', border:'1px solid rgba(99,179,237,0.15)', borderRadius:9, padding:'9px 12px', color:'#e2e8f0', fontSize:13, outline:'none' }}>
+              <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:'.08em', display:'block', marginBottom:5 }}>
+                {searchMode==='city'?(country==='hu'?'Város':'Oraș'):searchMode==='judet'?'Județ':'Megye'}
+              </label>
+              {searchMode==='megye'
+                ? <select value={megye} onChange={e=>setMegye(e.target.value)}
+                    style={{ width:'100%', background:'rgba(6,13,26,0.8)', border:'1px solid rgba(251,191,36,0.2)', borderRadius:9, padding:'9px 12px', color:'#e2e8f0', fontSize:13, outline:'none' }}>
+                    {Object.keys(MEGYEK).map(m=><option key={m} value={m}>{m} ({MEGYEK[m].length} város)</option>)}
+                  </select>
+                : searchMode==='city' && country==='hu'
+                ? <select value={city} onChange={e=>setCity(e.target.value)}
+                    style={{ width:'100%', background:'rgba(6,13,26,0.8)', border:'1px solid rgba(251,191,36,0.2)', borderRadius:9, padding:'9px 12px', color:'#e2e8f0', fontSize:13, outline:'none' }}>
+                    {HU_CITIES.map(c=><option key={c} value={c}>{c}</option>)}
+                  </select>
+                : searchMode==='city'
+                ? <select value={city} onChange={e=>setCity(e.target.value)}
+                    style={{ width:'100%', background:'rgba(6,13,26,0.8)', border:'1px solid rgba(99,179,237,0.15)', borderRadius:9, padding:'9px 12px', color:'#e2e8f0', fontSize:13, outline:'none' }}>
                     {CITIES.map(c=><option key={c} value={c}>{c}</option>)}
                   </select>
-                : <select value={judet} onChange={e=>setJudet(e.target.value)} style={{ width:'100%', background:'rgba(6,13,26,0.8)', border:'1px solid rgba(99,179,237,0.15)', borderRadius:9, padding:'9px 12px', color:'#e2e8f0', fontSize:13, outline:'none' }}>
+                : <select value={judet} onChange={e=>setJudet(e.target.value)}
+                    style={{ width:'100%', background:'rgba(6,13,26,0.8)', border:'1px solid rgba(99,179,237,0.15)', borderRadius:9, padding:'9px 12px', color:'#e2e8f0', fontSize:13, outline:'none' }}>
                     {Object.keys(JUDETE).map(j=><option key={j} value={j}>{j} ({JUDETE[j].length} orașe)</option>)}
                   </select>
               }
             </div>
 
+            {/* Category */}
             <div style={{ marginBottom:12 }}>
-              <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:'.08em', display:'block', marginBottom:5 }}>Categorie</label>
-              <select value={category} onChange={e=>setCategory(e.target.value)} style={{ width:'100%', background:'rgba(6,13,26,0.8)', border:'1px solid rgba(99,179,237,0.15)', borderRadius:9, padding:'9px 12px', color:'#e2e8f0', fontSize:13, outline:'none' }}>
-                <optgroup label="⭐ Conversie maximă">
+              <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:'.08em', display:'block', marginBottom:5 }}>
+                {country==='hu'?'Kategória':'Categorie'}
+              </label>
+              <select value={category} onChange={e=>setCategory(e.target.value)}
+                style={{ width:'100%', background:'rgba(6,13,26,0.8)', border:`1px solid ${country==='hu'?'rgba(251,191,36,0.2)':'rgba(99,179,237,0.15)'}`, borderRadius:9, padding:'9px 12px', color:'#e2e8f0', fontSize:13, outline:'none' }}>
+                <optgroup label={country==='hu'?'⭐ Legjobb konverzió':'⭐ Conversie maximă'}>
                   {HIGH_CONVERSION_CATEGORIES.map(k=><option key={k} value={k}>{BUSINESS_CATEGORIES[k]}</option>)}
                 </optgroup>
-                <optgroup label="Toate">
+                <optgroup label={country==='hu'?'Összes kategória':'Toate'}>
                   {CATEGORIES.filter(([k])=>!HIGH_CONVERSION_CATEGORIES.includes(k)).map(([k,v])=><option key={k} value={k}>{v}</option>)}
                 </optgroup>
               </select>
             </div>
 
-            {searchError && <div style={{ background:'rgba(252,129,129,0.1)', border:'1px solid rgba(252,129,129,0.3)', color:'#fc8181', borderRadius:8, padding:'8px 11px', fontSize:12, marginBottom:10 }}>⚠️ {searchError}</div>}
+            {searchError && (
+              <div style={{ background:'rgba(252,129,129,0.1)', border:'1px solid rgba(252,129,129,0.3)', color:'#fc8181', borderRadius:8, padding:'8px 11px', fontSize:12, marginBottom:10 }}>
+                ⚠️ {searchError}
+              </div>
+            )}
 
             <button onClick={handleSearch} disabled={searching}
-              style={{ width:'100%', padding:'11px', border:'none', borderRadius:10, cursor:'pointer', background:'linear-gradient(135deg,#63b3ed,#3b82f6)', color:'#fff', fontWeight:700, fontSize:13, opacity:searching?0.7:1 }}>
-              {searching?'⏳ Caut...':'🔍 Caută afaceri fără site'}
+              style={{ width:'100%', padding:'11px', border:'none', borderRadius:10, cursor:'pointer', fontWeight:700, fontSize:13, opacity:searching?0.7:1,
+                background: country==='hu'
+                  ? 'linear-gradient(135deg,#ef4444,#b91c1c)'
+                  : 'linear-gradient(135deg,#63b3ed,#3b82f6)',
+                color:'#fff' }}>
+              {searching
+                ? (country==='hu'?'⏳ Keresés...':'⏳ Caut...')
+                : (country==='hu'?'🔍 Weboldal nélküli vállalkozások':'🔍 Caută afaceri fără site')}
             </button>
           </div>
 
