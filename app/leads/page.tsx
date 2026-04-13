@@ -472,7 +472,7 @@ Adresă: ${biz.address||biz.city.replace(' 🏘️','')}
               const telRaw = biz.phone?.replace(/\s/g,'') || ''
               const year = new Date().getFullYear()
 
-              const prompt = `Generează un site web demo COMPLET, single-file HTML, nivel senior front-end developer + senior UX/UI designer 2026. Site-ul trebuie să arate WOW — ca un produs livrat de o agenție premium internațională, nu un template generic AI.
+              const prompt = `Generează un site web demo COMPLET, single-file HTML, nivel senior front-end developer + senior UX/UI designer 2026. Site-ul trebuie să arate WOW — ca un produs livrat de o agenție premium internațională din 2026, nu un template generic.
 
 ━━━ DATELE AFACERII ━━━
 Nume: ${biz.name}
@@ -486,10 +486,9 @@ Domeniu sugerat: ${domainSlug}.ro
 Telefon href: tel:${telRaw}
 ${waLink ? `WhatsApp: ${waLink}` : ''}
 
-━━━ DATELE TALE ━━━
-Realizat de: ${sName}${sPhone ? ' · ' + sPhone : ''}
-Preț de la: ${pFrom} RON | Livrare: ${days} zile
-${port ? `Portofoliu: ${port}` : ''}
+━━━ BRANDING FOOTER/BANNER ━━━
+Footer și banner: "Site creat de localhost" (fără prețuri, fără număr de telefon al freelancerului)
+${port ? `Portfolio link: ${port}` : ''}
 
 ━━━ IMAGINI — OBLIGATORIU Pexels CDN ━━━
 Format: https://images.pexels.com/photos/[ID]/pexels-photo-[ID].jpeg?auto=compress&cs=tinysrgb&w=[W]
@@ -605,54 +604,91 @@ ${(() => {
   return aesthetics[biz.category] || aesthetics['default']
 })()}
 
-━━━ STRUCTURA COMPLETĂ ━━━
+━━━ COPY TEXT ULTRA-PERSONALIZAT ━━━
+Toate textele (tagline hero, descrieri servicii, paragraf despre noi, CTA-uri) trebuie să fie:
+- Scrise SPECIFIC pentru "${biz.name}" din "${cityClean}", nu generic
+- Bazate pe tipul real al afacerii: "${biz.category_label}"
+- Dacă au rating: menționează că sunt "una dintre cele mai apreciate ${biz.category_label} din ${cityClean} cu ${biz.rating > 0 ? biz.rating + '★' : ''}"
+- Tonul și vocabularul să se potrivească domeniului (luxury pt beauty, tehnic pt auto, cald pt restaurant etc.)
+- ZERO texte placeholder gen "Lorem ipsum" sau "Descriere serviciu"
 
-1. DEMO BANNER: gradient shimmer animat, text "Demo · ${biz.name} · ${cityClean} · ${days} zile de la ${pFrom} RON · ${sName}"
+━━━ STRUCTURA COMPLETĂ (12 secțiuni) ━━━
 
-2. NAVBAR glassmorphism: logo display font, links 11px uppercase letter-spacing, CTA button, hamburger → X animat
+1. DEMO BANNER: gradient shimmer animat
+   Text: "Demo personalizat · ${biz.name} · ${cityClean} — site creat de localhost"
+   (fără prețuri, fără date contact freelancer)
 
-3. MOBILE MENU: overlay dark, links display font 36-44px italic, fade-in animat
+2. NAVBAR glassmorphism: logo display font, links 11px uppercase, CTA button, hamburger → X animat
+
+3. MOBILE MENU: overlay dark fullscreen, links display font 36-44px italic, fade-in animat
 
 4. HERO (adaptat aesthetic-ului ales):
-   - Foto Pexels full-bleed sau split-screen
-   - Ken Burns zoom pe imagine (scale 1.08→1.15, 16s infinite)
-   - Eyebrow label 11px uppercase
-   - H1 clamp(48px, 8vw, 96px) font display, weight 300, italic em
-   - Subtitlu 14px, opacity 0.65
-   - 2 butoane: primary solid + ghost
+   - Foto Pexels full-bleed sau split-screen cu Ken Burns zoom (scale 1.08→1.15, 16s)
+   - Eyebrow label 11px uppercase cu orașul și tipul afacerii
+   - H1 mare cu tagline ULTRA-PERSONALIZAT scris specific pentru ${biz.name}
+   - Subtitlu convingător, specific domeniului
+   - 2 butoane: primary CTA + ghost
    ${biz.rating > 0 ? `- Rating badge glassmorphism: ${biz.rating}★ · ${biz.reviews_count} recenzii` : ''}
-   - Scroll indicator animat (linie verticală + text rotit)
-   - fadeUp staggered pe toate elementele
+   - Scroll indicator animat
 
-5. MARQUEE STRIP: dark background, serviciile iterate, font serif italic, animație continuă
+5. MARQUEE STRIP: serviciile specifice ${biz.name}, dark background, serif italic
 
-6. STATS BAR: translateY(-52px) overlapping, border grid, numere display font mari
-   Stats relevante: ${biz.rating > 0 ? `${biz.reviews_count}+ recenzii, ${biz.rating}★ rating` : '4 statistici relevanate domeniului'}
+6. STATS BAR: translateY(-52px) overlapping, border grid
+   Stats REALE relevante: ${biz.rating > 0 ? `${biz.reviews_count}+ recenzii, ${biz.rating}★` : '4 statistici relevante domeniului'}
 
-7. SERVICII editorial: 6 servicii specifice domeniului "${biz.category_label}"
-   - Layout grid asimetric (primul card span 2 rânduri)
-   - Foto Pexels + zoom hover + overlay
-   - Numerotare 01-06, ZERO emoji, "Descoperă →" link
+7. SERVICII editorial: 6 servicii REALE specifice "${biz.category_label}"
+   - Grid asimetric (primul card span 2 rânduri)
+   - Foto Pexels + zoom hover + overlay gradient
+   - Numerotare 01-06, descrieri personalizate, "Descoperă →"
 
-8. DESPRE NOI split: foto cu 2 floating badges animate + text cu 4 features linie decorativă
+8. DESPRE NOI split: foto + 2 floating badges animate + text PERSONALIZAT despre ${biz.name}
 
-9. GALERIE masonry: 3 col × 2 rânduri, prima foto span 2, caption italic hover
+9. GALERIE/SLIDER CAROUSEL — OBLIGATORIU MODERN:
+   Implementează un carousel/slider ultra-modern cu:
+   - Minim 5 imagini Pexels relevante
+   - Navigare cu săgeți SVG custom (nu emoji)
+   - Dots indicator animat jos
+   - Auto-play la 4 secunde cu pause on hover
+   - Tranziție: fade crossfade SAU slide cu easing cubic-bezier
+   - Touch/swipe support pe mobile (touchstart/touchend events)
+   - Overlay gradient pe imagine + caption text italic în colțul stânga-jos
+   - Design integrat în aesthetic-ul ales (nu un widget generic)
 
-10. RECENZII: hero foto full-width cu rating suprapus + grid 3 cards cu foto mică sus
+10. RECENZII: hero foto full-width cu rating suprapus + grid 3 cards cu foto + text personalizat
 
-11. CONTACT split: foto stânga, dark dreapta, telefon mare, WhatsApp SVG (fără emoji), 3 info rows
+11. CONTACT — COMPLET CU TOATE ELEMENTELE:
+    a) HARTĂ INTERACTIVĂ MODERNĂ (fără Google Maps API — CSS/JS pur):
+       - Container cu aspect ratio 16:9, border-radius generos
+       - Fundal: gradient mesh care simulează o hartă (culori topografice: verde, bej, albastru)
+       - Pin animat pulsating în centru (CSS keyframes, culoarea accent)
+       - Grid de linii subtile care simulează străzi
+       - Overlay cu adresa și numele afacerii
+       - Buton "Deschide în Google Maps" care face href la:
+         https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((biz.address || cityClean) + ' ' + biz.name)}
+         (se deschide direct în Google Maps / aplicație)
+    b) Formular de contact modern:
+       - Câmpuri: Nume, Telefon, Mesaj (textarea)
+       - Design integrat în aesthetic (dark sau light după temă)
+       - Butoane styled, hover animations
+       - NO backend necesar — action="https://formspree.io/f/demo" sau similar
+       - Validare vizuală CSS (required, :valid/:invalid states)
+    c) Telefon mare clickabil + WhatsApp SVG button
+    d) Info grid: Adresă, Program, Instagram
 
-12. FOOTER dark: 4 coloane grid, brand italic, links, contact, bottom bar cu domeniu
+12. FOOTER dark: 4 coloane, brand, links, contact
+    Bottom bar: "${domainSlug}.ro · ${biz.name} © ${year} · Site creat de localhost"
 
 ━━━ TEHNICI OBLIGATORII ━━━
-- Google Fonts import (fonturile din aesthetic)
-- Custom cursor cu lag (desktop, mix-blend-mode:difference)
-- IntersectionObserver reveal: .rv fadeUp, .rv-left, .rv-right
+- Google Fonts import
+- Custom cursor cu lag (mix-blend-mode:difference)
+- IntersectionObserver reveal (.rv fadeUp, .rv-left, .rv-right)
 - Navbar .scrolled shadow
-- Image fade-in on load (opacity 0→1) + error fallback gradient
+- Image fade-in (opacity 0→1) + error fallback gradient
 - Smooth scroll cu offset navbar
-- ZERO emoji în conținut (linii decorative, numere, SVG în loc)
-- WhatsApp cu SVG logo inline, nu emoji
+- ZERO emoji în conținut
+- WhatsApp SVG inline
+- Carousel JS: auto-play, touch events, dots, arrows
+- Harta CSS: pin pulsating, buton Google Maps
 
 ━━━ OUTPUT ━━━
 Returnează DOAR HTML complet. Prima linie: <!DOCTYPE html>
