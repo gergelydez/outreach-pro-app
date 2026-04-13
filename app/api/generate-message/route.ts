@@ -344,14 +344,7 @@ Returnează DOAR mesajul.`
     } catch {
       results.whatsapp = isHU
         ? `Köszönöm a választ!\n\nAhogy mondtam, készthetek egy ingyenes demót "${business.name}" nevével — pontosan látja hogyan nézne ki a weboldal, semmilyen kötelezettség nélkül.\n\nKüldjek?\n\n${name}${phone ? '\n' + phone : ''}`
-        : `Buna ziua! Multumesc pentru raspuns.
-
-Am demo-ul personalizat gata pentru ${business.name} — un site creat cu numele si profilul vostru real. Pretul il discutam dupa ce il vedeti.
-
-Vi-l trimit?
-
-${name}${phone ? '
-' + phone : ''}`
+        : `Buna ziua! Multumesc pentru raspuns.\n\nAm demo-ul personalizat gata pentru ${business.name} — un site creat cu numele si profilul vostru real. Pretul il discutam dupa ce il vedeti.\n\nVi-l trimit?\n\n${name}${phone ? '\n' + phone : ''}`
     }
   }
 
