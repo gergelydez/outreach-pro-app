@@ -153,92 +153,82 @@ export async function POST(req: NextRequest) {
     const toneVariants = isHU ? toneVariantsHU : toneVariantsRO
     const { tone, greeting } = toneVariants[variant % 4]
 
-    const waPromptHU = `Ön egy weboldal-késztő szabadúszó aki helyi magyar vállalkozásoknak készt weboldalakat és már tucatnyi tulajdonosnak segtett több ügyfelet szerezni online.
+    const waPromptHU = `Te egy weboldal-készítő szabadúszó vagy aki magyar helyi vállalkozásoknak készít weboldalakat.
 
-━━━ A VÁLLALKOZÁS ADATAI ━━━
-Név: ${business.name}
-Tpus: ${business.category_label}
-Város: ${cityClean}
-Helyzet: ${personalContext}
-Versenyhelyzet: ${competitionContext}
+FELADAT: Írj egy rövid, természetes WhatsApp/Messenger üzenetet az alábbi vállalkozásnak.
 
-━━━ MIT KÍNÁL ━━━
-- Teljes professzionális weboldal ${days} nap alatt
-- Megfizethető ár: ${pFromHU} Ft-tól (minden benne: domain, tárhely 1 év, SEO, mobilbarát)
-- INGYENES személyre szabott demo az ő nevükkel — látják mielőtt bármit döntenek
-- Fő előny NEKIK: ${emotionalBenefit}
-${portfolio ? `- Portfólió példák: ${portfolio}` : ''}
+VÁLLALKOZÁS ADATAI:
+- Név: ${business.name}
+- Típus: ${business.category_label}
+- Város: ${cityClean}
+${hasGoodRating ? `- Google értékelés: ${business.reviews_count} vélemény, ${business.rating}★` : ''}
+${isSmall ? `- Kontextus: ${cityClean}-ban nincs hasonló vállalkozás weboldallal — az első nyer` : `- Kontextus: a weboldallal rendelkező versenytársak jelennek meg először Google-n`}
 
-━━━ AZ ÜZENET KÖTELEZŐ SZERKEZETE ━━━
-Írja meg az üzenetet PONTOSAN ebben a sorrendben:
+REFERENCIA ÜZENET STÍLUS (pontosan ilyen stílusban és hosszban):
+---
+Jó napot! 😊
 
-1. KÖSZÖNTÉS: Kezdje "${greeting} [cégnév]!" — egyszerű, természetes, udvarias
+Gyors észrevétel: a [CÉGNÉV] nagyon erős értékelésekkel rendelkezik ([ÉRTÉKELÉS]⭐), viszont saját weboldal nélkül jelenleg nem használják ki ezt az előnyt.
 
-2. KÖZVETLEN MEGFIGYELÉS (1 sor): Mondja el hogy épp kereste [vállalkozástpus] ${cityClean}-ban Google-n és látta hogy ${business.name}-nak nincs weboldala. Legyen közvetlen, ne dramatizálja.
+Aki ma rákeres egy [TÍPUS]-ra, az általában azt választja, akit online a legkönnyebb megtalálni és megnézni — így most valószínűleg több új vendég is a konkurenciához kerül.
 
-3. ELŐNYÖK ÉS ÉRZÉSEK (2-3 sor):
-   - Mutassa meg mit vesztenek konkrétan: ügyfelek akik online keresik és a konkurenciához mennek
-   - Adja el az ÉRZÉST: több ügyfél, csörgő telefon, foglalások amik maguktól jönnek
-   - Képzeltesse el: "Képzelje el hogy valaki ${cityClean}-ban keres [tpus]-t és a ${business.name} jön fel elsőként"
-   ${hasGoodRating ? `- Emltse meg a véleményeiket: ${business.reviews_count} vélemény ${business.rating}★ megérdemel egy méltó online jelenlétet` : ''}
+Én kifejezetten olyan egyszerű, modern weboldalakat készítek, amik segítenek új vendégeket hozni és megkönnyítik a kapcsolatfelvételt.
 
-4. EGYÉRTELMŰ AJÁNLAT ÁRRAL (1-2 sor):
-   - Mondja el világosan hogy weboldalt készt ${pFromHU} Ft-tól, minden benne (domain, tárhely, mobil, SEO)
-   - Átadás ${days} nap alatt
-   - Ingyenes demo: "Készthetek egy ingyenes demót az Ön nevével hogy pontosan lássa hogyan nézne ki, semmilyen kötelezettség nélkül"
+Szívesen készítek egy rövid, ingyenes demót a [CÉGNÉV]-nek, hogy lássák, hogyan működne ez a gyakorlatban.
 
-5. ZÁRÓ KÉRDÉS (1 sor): Kérdezze meg közvetlenül hogy érdekli-e az ingyenes demo. Egyszerűen, nyomás nélkül.
+Érdekli? 🙂
+---
 
-6. ALÁÍRÁS: Csak "${name}"${phone ? ` és a telefonszám ${phone}` : ''}
+INSTRUKCIÓK:
+1. Pontosan ezt a struktúrát kövesd, de a szöveget teljesen írd át ${business.name}-re szabva
+2. Az első bekezdés MINDIG emelje ki a konkrét erősséget:
+   ${hasGoodRating ? `- Emeld ki: ${business.reviews_count} vélemény és ${business.rating}★ értékelés = erős, de online láthatatlan` : `- Emeld ki: aktív, helyi vállalkozás online jelenlét nélkül`}
+3. A második bekezdés legyen a típusra specifikus: ki keresi ${cityClean}-ban a ${business.category_label}-t és miért megy a konkurenciához
+4. A harmadik bekezdés maradjon rövid és személyes — te ilyen weboldalakat készítesz
+5. A negyedik bekezdés: ingyenes demo ajánlat, ${business.name} nevére szabva
+6. NINCS ár az üzenetben. NINCS technikai részlet. NINCS "megoldás/csomag/szolgáltatás" szó.
+7. Pontosan 2 emoji: 😊 a köszöntésnél, 🙂 a végén (vagy hasonló természetes emoji)
+8. Aláírás: ${name}${phone ? '\n' + phone : ''}
 
-━━━ HANGNEM SZABÁLYOK ━━━
-- Hangnem: ${tone}
-- Írjon "Önnek/Önök" — udvarias forma
-- Nincs vállalati szöveg: "szolgáltatások", "megoldások", "csomagok", "promóció"
-- Nincs "Tisztelt Uram/Hölgyem", "Üdvözlettel", "Remélem jól van"
-- Természetes, mint egy kézzel rt üzenet, nem mint egy sablon
-- Rövid bekezdések — maximum 2-3 sor
-- ÖSSZES üzenet: maximum 150-180 szó — tömör és lényegre törő
+Csak a kész üzenetet add vissza, idézőjelek és magyarázat nélkül.`
 
-Csak a kész üzenetet adja vissza, idézőjelek és magyarázat nélkül.`
+    const waPromptRO = `Ești un freelancer care face site-uri web pentru afaceri locale din România.
 
-    const waPromptRO = `Ești un freelancer care face site-uri web și trimiți un mesaj WhatsApp scurt și eficient unui proprietar de afacere.
+SARCINA: Scrie un mesaj WhatsApp scurt, natural, personalizat pentru această afacere.
 
-━━━ DATELE AFACERII ━━━
-Nume: ${business.name}
-Tip: ${business.category_label}
-Oraș: ${cityClean}
-${hasGoodRating ? `Recenzii: ${business.reviews_count} recenzii cu ${business.rating}★ pe Google` : ''}
-${isSmall ? `Context: În ${cityClean} nicio afacere similară nu are site — primul câștigă tot` : `Context: Concurenții cu site apar primii pe Google`}
+DATELE AFACERII:
+- Nume: ${business.name}
+- Tip: ${business.category_label}
+- Oraș: ${cityClean}
+${hasGoodRating ? `- Google: ${business.reviews_count} recenzii, ${business.rating}★` : ''}
+${isSmall ? `- Context: în ${cityClean} nicio afacere similară nu are site — primul câștigă tot` : `- Context: concurenții cu site apar primii pe Google`}
 
-━━━ REGULA #1 — FĂRĂ PREȚ ━━━
-NU menciona niciun preț, nicio sumă în RON. Prețul se discută DUPĂ ce văd demo-ul.
+MESAJ DE REFERINȚĂ (urmează exact acest stil și lungime):
+---
+Bună ziua! 👋
 
-━━━ STRUCTURA MESAJULUI (max 80-90 cuvinte total) ━━━
+O observație rapidă: ${business.name} are recenzii foarte bune${hasGoodRating ? ` (${business.rating}⭐ din ${business.reviews_count} recenzii)` : ''}, dar fără un site propriu, acest avantaj nu se vede online.
 
-1. SALUT (1 rând): "Bună ziua!" — simplu
+Cine caută azi un ${business.category_label.toLowerCase()} în ${cityClean} alege de obicei pe cel mai ușor de găsit și de văzut online — așa că probabil câțiva clienți noi ajung acum la concurență.
 
-2. OBSERVAȚIE (1 rând): Ai văzut că ${business.name} nu are site web.
-${hasGoodRating ? `Menționează surpriza: cu ${business.reviews_count} recenzii de ${business.rating}★ e surprinzător că nu au site.` : ''}
+Eu fac site-uri simple și moderne care ajută la atragerea de clienți noi și ușurează contactul.
 
-3. MIZA (1-2 rânduri scurte): Ce pierd concret — clienți care caută acum online și ajung la altcineva. Fii specific, vizual, emoțional. Fă-i să simtă pierderea.
+Aș putea face un demo scurt și gratuit pentru ${business.name}, să vedeți cum ar funcționa asta în practică.
 
-4. DEMO (1-2 rânduri — CENTRUL MESAJULUI):
-   Spune că ai pregătit / poți pregăti un DEMO personalizat — un site gata făcut special pentru ${business.name}, cu numele și profilul lor real.
-   Subliniază că e personalizat PE EI, nu un template generic.
-   Folosește formulări de genul: "am pregătit deja un demo cu numele vostru", "un site creat special pentru ${business.name}", "să vedeți cum arată exact".
-   Prețul și detaliile — după ce văd.
+Vă interesează? 🙂
+---
 
-5. ÎNTREBARE (1 rând): Scurtă, directă, fără presiune. "Vreți să-l vedeți?" sau "Vi-l trimit?"
-
-6. SEMNĂTURĂ: ${name}${phone ? '\n' + phone : ''}
-
-━━━ TON ━━━
-- ${tone}
-- "Dumneavoastră" — respectuos
-- Scurt ca un SMS, nu ca un email
-- Fără cuvinte corporatiste, fără liste, fără bullet points
-- Natural, ca un mesaj scris de mână
+INSTRUCȚIUNI:
+1. Urmează exact această structură, dar rescrie textul complet personalizat pentru ${business.name}
+2. Primul paragraf: evidențiază concret punctul forte:
+   ${hasGoodRating ? `- Recenziile: ${business.reviews_count} recenzii cu ${business.rating}★ = reputație bună, dar invizibili online` : `- Afacere activă, prezentă în Google Maps, dar fără site`}
+3. Al doilea paragraf: specific pe tipul afacerii — cine caută ${business.category_label.toLowerCase()} în ${cityClean} și de ce merge la concurență
+4. Al treilea paragraf: scurt și personal — tu faci astfel de site-uri
+5. Al patrulea paragraf: demo gratuit, menționează explicit ${business.name}
+6. FĂRĂ preț în mesaj. FĂRĂ detalii tehnice. FĂRĂ "soluții/pachete/servicii"
+7. Exact 2 emoji: 👋 la salut, 🙂 la final (sau similar natural)
+8. "Dumneavoastră" — ton respectuos
+9. Semnătură: ${name}${phone ? '\n' + phone : ''}
 
 Returnează DOAR mesajul final. Fără ghilimele, fără explicații.`
 
@@ -251,8 +241,8 @@ Returnează DOAR mesajul final. Fără ghilimele, fără explicații.`
       results.whatsapp = msg.content[0].type === 'text' ? msg.content[0].text.trim() : ''
     } catch {
       results.whatsapp = isHU
-        ? `${greeting} ${business.name}!\n\nÉpp Google-on kerestem ${business.category_label.toLowerCase()}-t ${cityClean}-ban és láttam hogy Önöknek nincs weboldaluk.\n\nMinden nap vannak emberek akik pontosan azt keresik amit Önök knálnak — és a konkurenciához mennek mert online nem találják meg Önöket. Weboldallal ${emotionalBenefit}.\n\nProfesszionális weboldalakat késztek ${pFromHU} Ft-tól, minden benne (domain, tárhely, mobil, SEO), ${days} nap alatt. Készthetek egy ingyenes demót az Ön nevével hogy pontosan lássa hogyan nézne ki, kötelezettség nélkül.\n\nÉrdekli az ingyenes demo?\n\n${name}${phone ? '\n' + phone : ''}`
-        : `Bună ziua!\n\nAm văzut că ${business.name} nu are site web${hasGoodRating ? ` — surprinzător pentru ${business.reviews_count} recenzii de ${business.rating}★` : ' în ' + cityClean}.\n\nÎn fiecare zi, oameni care caută ${business.category_label.toLowerCase()} în ${cityClean} ajung la concurență — doar pentru că nu vă găsesc online.\n\nAm pregătit un demo personalizat special pentru ${business.name} — un site creat cu numele și profilul vostru real, să vedeți exact cum ar arăta. Prețul și detaliile le discutăm după ce îl vedeți.\n\nVreți să vi-l trimit?\n\n${name}${phone ? '\n' + phone : ''}`
+        ? `Jó napot! 😊\n\nGyors észrevétel: a ${business.name}${hasGoodRating ? ` nagyon erős értékelésekkel rendelkezik (${business.rating}⭐, ${business.reviews_count} vélemény)` : ' aktív vállalkozás ' + cityClean + '-ban'}, viszont saját weboldal nélkül ezt az előnyt jelenleg nem használják ki.\n\nAki ma rákeres egy ${business.category_label.toLowerCase()}-re ${cityClean}-ban, az általában azt választja, akit online a legkönnyebb megtalálni — így valószínűleg több ügyfél is a konkurenciához kerül.\n\nÉn kifejezetten olyan egyszerű, modern weboldalakat készítek, amik segítenek új ügyfeleket hozni.\n\nSzívesen készítek egy ingyenes demót a ${business.name}-nek, hogy lássák, hogyan működne ez a gyakorlatban.\n\nÉrdekli? 🙂\n\n${name}${phone ? '\n' + phone : ''}`
+        : `Bună ziua! 👋\n\nO observație rapidă: ${business.name}${hasGoodRating ? ` are recenzii excelente (${business.rating}⭐ din ${business.reviews_count} recenzii)` : ' este o afacere activă în ' + cityClean}, dar fără un site propriu, acest avantaj nu se vede online.\n\nCine caută azi ${business.category_label.toLowerCase()} în ${cityClean} alege de obicei pe cel mai ușor de găsit online — probabil câțiva clienți noi ajung acum la concurență.\n\nEu fac site-uri simple și moderne care ajută la atragerea de clienți noi.\n\nAș putea face un demo gratuit pentru ${business.name}, să vedeți cum ar arăta în practică.\n\nVă interesează? 🙂\n\n${name}${phone ? '\n' + phone : ''}`
     }
   }
 
