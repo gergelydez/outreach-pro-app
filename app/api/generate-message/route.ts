@@ -114,10 +114,10 @@ export async function POST(req: NextRequest) {
     ? (hasGoodRating
         ? hasManyReviews
           ? `${business.reviews_count} vélemény ${business.rating}★ — az egyik legjobb értékelésű vállalkozás ${cityClean}-ban, de teljesen láthatatlan online.`
-          : `${business.reviews_count} Google vélemény ${business.rating}★ — jó hírnév, de nincs weboldal.`
+          : `${business.reviews_count} Google vélemény ${business.rating}★ — jó hrnév, de nincs weboldal.`
         : business.reviews_count >= 3
         ? `${business.reviews_count} Google Maps vélemény, de nincs weboldal.`
-        : `Aktív vállalkozás ${cityClean}-ban, de nincs online jelenlét.`)
+        : `Aktv vállalkozás ${cityClean}-ban, de nincs online jelenlét.`)
     : (hasGoodRating
         ? hasManyReviews
           ? `Au ${business.reviews_count} recenzii cu ${business.rating}★ — una din cele mai apreciate afaceri din ${cityClean}, dar complet invizibili online.`
@@ -146,18 +146,18 @@ export async function POST(req: NextRequest) {
     const toneVariantsHU = [
       { tone: 'meleg és közvetlen, mint egy barát aki őszinte tanácsot ad', greeting: 'Tisztelt' },
       { tone: 'professzionális de emberi, mint egy tanácsadó aki konkrét ajánlattal jön', greeting: 'Jó napot' },
-      { tone: 'lelkes és pozitív, mint aki épp lehetőséget fedezett fel számukra', greeting: 'Tisztelt' },
-      { tone: 'empatikus és megértő, mutatva hogy érti egy vállalkozó kihívásait', greeting: 'Jó napot' },
+      { tone: 'lelkes és pozitv, mint aki épp lehetőséget fedezett fel számukra', greeting: 'Tisztelt' },
+      { tone: 'empatikus és megértő, mutatva hogy érti egy vállalkozó kihvásait', greeting: 'Jó napot' },
     ]
 
     const toneVariants = isHU ? toneVariantsHU : toneVariantsRO
     const { tone, greeting } = toneVariants[variant % 4]
 
-    const waPromptHU = `Ön egy weboldal-készítő szabadúszó aki helyi magyar vállalkozásoknak készít weboldalakat és már tucatnyi tulajdonosnak segített több ügyfelet szerezni online.
+    const waPromptHU = `Ön egy weboldal-késztő szabadúszó aki helyi magyar vállalkozásoknak készt weboldalakat és már tucatnyi tulajdonosnak segtett több ügyfelet szerezni online.
 
 ━━━ A VÁLLALKOZÁS ADATAI ━━━
 Név: ${business.name}
-T�pus: ${business.category_label}
+Tpus: ${business.category_label}
 Város: ${cityClean}
 Helyzet: ${personalContext}
 Versenyhelyzet: ${competitionContext}
@@ -174,18 +174,18 @@ ${portfolio ? `- Portfólió példák: ${portfolio}` : ''}
 
 1. KÖSZÖNTÉS: Kezdje "${greeting} [cégnév]!" — egyszerű, természetes, udvarias
 
-2. KÖZVETLEN MEGFIGYELÉS (1 sor): Mondja el hogy épp kereste [vállalkozástípus] ${cityClean}-ban Google-n és látta hogy ${business.name}-nak nincs weboldala. Legyen közvetlen, ne dramatizálja.
+2. KÖZVETLEN MEGFIGYELÉS (1 sor): Mondja el hogy épp kereste [vállalkozástpus] ${cityClean}-ban Google-n és látta hogy ${business.name}-nak nincs weboldala. Legyen közvetlen, ne dramatizálja.
 
 3. ELŐNYÖK ÉS ÉRZÉSEK (2-3 sor):
-   - Mutassa meg mit veszítenek konkrétan: ügyfelek akik online keresik és a konkurenciához mennek
+   - Mutassa meg mit vesztenek konkrétan: ügyfelek akik online keresik és a konkurenciához mennek
    - Adja el az ÉRZÉST: több ügyfél, csörgő telefon, foglalások amik maguktól jönnek
-   - Képzeltesse el: "Képzelje el hogy valaki ${cityClean}-ban keres [típus]-t és a ${business.name} jön fel elsőként"
-   ${hasGoodRating ? `- Említse meg a véleményeiket: ${business.reviews_count} vélemény ${business.rating}★ megérdemel egy méltó online jelenlétet` : ''}
+   - Képzeltesse el: "Képzelje el hogy valaki ${cityClean}-ban keres [tpus]-t és a ${business.name} jön fel elsőként"
+   ${hasGoodRating ? `- Emltse meg a véleményeiket: ${business.reviews_count} vélemény ${business.rating}★ megérdemel egy méltó online jelenlétet` : ''}
 
 4. EGYÉRTELMŰ AJÁNLAT ÁRRAL (1-2 sor):
-   - Mondja el világosan hogy weboldalt készít ${pFromHU} Ft-tól, minden benne (domain, tárhely, mobil, SEO)
+   - Mondja el világosan hogy weboldalt készt ${pFromHU} Ft-tól, minden benne (domain, tárhely, mobil, SEO)
    - Átadás ${days} nap alatt
-   - Ingyenes demo: "Készíthetek egy ingyenes demót az Ön nevével hogy pontosan lássa hogyan nézne ki, semmilyen kötelezettség nélkül"
+   - Ingyenes demo: "Készthetek egy ingyenes demót az Ön nevével hogy pontosan lássa hogyan nézne ki, semmilyen kötelezettség nélkül"
 
 5. ZÁRÓ KÉRDÉS (1 sor): Kérdezze meg közvetlenül hogy érdekli-e az ingyenes demo. Egyszerűen, nyomás nélkül.
 
@@ -196,39 +196,51 @@ ${portfolio ? `- Portfólió példák: ${portfolio}` : ''}
 - Írjon "Önnek/Önök" — udvarias forma
 - Nincs vállalati szöveg: "szolgáltatások", "megoldások", "csomagok", "promóció"
 - Nincs "Tisztelt Uram/Hölgyem", "Üdvözlettel", "Remélem jól van"
-- Természetes, mint egy kézzel írt üzenet, nem mint egy sablon
+- Természetes, mint egy kézzel rt üzenet, nem mint egy sablon
 - Rövid bekezdések — maximum 2-3 sor
 - ÖSSZES üzenet: maximum 150-180 szó — tömör és lényegre törő
 
 Csak a kész üzenetet adja vissza, idézőjelek és magyarázat nélkül.`
 
-    const waPromptRO = `Ești un freelancer român care face site-uri web pentru afaceri locale și ai ajutat zeci de proprietari să obțină mai mulți clienți online.
+    const waPromptRO = `Ești un freelancer care face site-uri web și trimiți un mesaj WhatsApp scurt și eficient unui proprietar de afacere.
 
 ━━━ DATELE AFACERII ━━━
 Nume: ${business.name}
 Tip: ${business.category_label}
 Oraș: ${cityClean}
-Situație: ${personalContext}
-Concurență: ${competitionContext}
+${hasGoodRating ? `Recenzii: ${business.reviews_count} recenzii cu ${business.rating}★ pe Google` : ''}
+${isSmall ? `Context: În ${cityClean} nicio afacere similară nu are site — primul câștigă tot` : `Context: Concurenții cu site apar primii pe Google`}
 
-━━━ CE OFERI TU ━━━
-- Site web profesional complet în ${days} zile
-- Preț accesibil: între ${pFrom} și ${pTo} RON (tot inclus: domeniu .ro, hosting 1 an, SEO, mobil)
-- Demo GRATUIT personalizat cu numele lor — îl văd înainte să decidă orice
-- Beneficiul principal pentru EI: ${emotionalBenefit}
-${portfolio ? `- Portofoliu exemple: ${portfolio}` : ''}
+━━━ REGULA #1 — FĂRĂ PREȚ ━━━
+NU menciona niciun preț, nicio sumă în RON. Prețul se discută DUPĂ ce văd demo-ul.
 
-━━━ STRUCTURA OBLIGATORIE A MESAJULUI ━━━
-1. SALUT: Începe cu "Bună ziua!" — simplu, natural, politicos
-2. OBSERVAȚIE DIRECTĂ (1 rând): Ai văzut că ${business.name} nu are site web în ${cityClean}
-3. BENEFICII ȘI SENTIMENTE (2-3 rânduri): ce pierd, sentimentul, vizualizare
-   ${hasGoodRating ? `- Menționează recenziile: ${business.reviews_count} recenzii de ${business.rating}★` : ''}
-4. OFERTĂ CLARĂ: de la ${pFrom} RON, ${days} zile, tot inclus + demo GRATUIT
-5. ÎNTREBARE FINALĂ: simplu, fără presiune
+━━━ STRUCTURA MESAJULUI (max 80-90 cuvinte total) ━━━
+
+1. SALUT (1 rând): "Bună ziua!" — simplu
+
+2. OBSERVAȚIE (1 rând): Ai văzut că ${business.name} nu are site web.
+${hasGoodRating ? `Menționează surpriza: cu ${business.reviews_count} recenzii de ${business.rating}★ e surprinzător că nu au site.` : ''}
+
+3. MIZA (1-2 rânduri scurte): Ce pierd concret — clienți care caută acum online și ajung la altcineva. Fii specific, vizual, emoțional. Fă-i să simtă pierderea.
+
+4. DEMO (1-2 rânduri — CENTRUL MESAJULUI):
+   Spune că ai pregătit / poți pregăti un DEMO personalizat — un site gata făcut special pentru ${business.name}, cu numele și profilul lor real.
+   Subliniază că e personalizat PE EI, nu un template generic.
+   Folosește formulări de genul: "am pregătit deja un demo cu numele vostru", "un site creat special pentru ${business.name}", "să vedeți cum arată exact".
+   Prețul și detaliile — după ce văd.
+
+5. ÎNTREBARE (1 rând): Scurtă, directă, fără presiune. "Vreți să-l vedeți?" sau "Vi-l trimit?"
+
 6. SEMNĂTURĂ: ${name}${phone ? '\n' + phone : ''}
 
-REGULI: ton ${tone}, "dumneavoastră", max 150 cuvinte, natural nu template.
-Returnează DOAR mesajul final.`
+━━━ TON ━━━
+- ${tone}
+- "Dumneavoastră" — respectuos
+- Scurt ca un SMS, nu ca un email
+- Fără cuvinte corporatiste, fără liste, fără bullet points
+- Natural, ca un mesaj scris de mână
+
+Returnează DOAR mesajul final. Fără ghilimele, fără explicații.`
 
     try {
       const msg = await client.messages.create({
@@ -239,17 +251,17 @@ Returnează DOAR mesajul final.`
       results.whatsapp = msg.content[0].type === 'text' ? msg.content[0].text.trim() : ''
     } catch {
       results.whatsapp = isHU
-        ? `${greeting} ${business.name}!\n\nÉpp Google-on kerestem ${business.category_label.toLowerCase()}-t ${cityClean}-ban és láttam hogy Önöknek nincs weboldaluk.\n\nMinden nap vannak emberek akik pontosan azt keresik amit Önök kínálnak — és a konkurenciához mennek mert online nem találják meg Önöket. Weboldallal ${emotionalBenefit}.\n\nProfesszionális weboldalakat készítek ${pFromHU} Ft-tól, minden benne (domain, tárhely, mobil, SEO), ${days} nap alatt. Készíthetek egy ingyenes demót az Ön nevével hogy pontosan lássa hogyan nézne ki, kötelezettség nélkül.\n\nÉrdekli az ingyenes demo?\n\n${name}${phone ? '\n' + phone : ''}`
-        : `Bună ziua!\n\nTocmai am căutat ${business.category_label.toLowerCase()} în ${cityClean} pe Google și am observat că ${business.name} nu are site web.\n\nÎn fiecare zi există oameni care caută exact ce oferiți voi — și ajung la concurență. Cu un site, ${emotionalBenefit}.\n\nFac site-uri profesionale de la ${pFrom} RON, tot inclus, livrat în ${days} zile. Pot să vă fac un demo gratuit cu numele vostru, fără nicio obligație.\n\nSunteți interesați să vedeți demo-ul?\n\n${name}${phone ? '\n' + phone : ''}`
+        ? `${greeting} ${business.name}!\n\nÉpp Google-on kerestem ${business.category_label.toLowerCase()}-t ${cityClean}-ban és láttam hogy Önöknek nincs weboldaluk.\n\nMinden nap vannak emberek akik pontosan azt keresik amit Önök knálnak — és a konkurenciához mennek mert online nem találják meg Önöket. Weboldallal ${emotionalBenefit}.\n\nProfesszionális weboldalakat késztek ${pFromHU} Ft-tól, minden benne (domain, tárhely, mobil, SEO), ${days} nap alatt. Készthetek egy ingyenes demót az Ön nevével hogy pontosan lássa hogyan nézne ki, kötelezettség nélkül.\n\nÉrdekli az ingyenes demo?\n\n${name}${phone ? '\n' + phone : ''}`
+        : `Bună ziua!\n\nAm văzut că ${business.name} nu are site web${hasGoodRating ? ` — surprinzător pentru ${business.reviews_count} recenzii de ${business.rating}★` : ' în ' + cityClean}.\n\nÎn fiecare zi, oameni care caută ${business.category_label.toLowerCase()} în ${cityClean} ajung la concurență — doar pentru că nu vă găsesc online.\n\nAm pregătit un demo personalizat special pentru ${business.name} — un site creat cu numele și profilul vostru real, să vedeți exact cum ar arăta. Prețul și detaliile le discutăm după ce îl vedeți.\n\nVreți să vi-l trimit?\n\n${name}${phone ? '\n' + phone : ''}`
     }
   }
 
   // ── EMAIL ─────────────────────────────────────────────────────────────────
   if (mode === 'email' || mode === 'both') {
-    const emailPromptHU = `Ön egy profi értékesítési szövegíró a magyar piacon. Írjon egy cold outreach emailt maximális konverzióval.
+    const emailPromptHU = `Ön egy profi értékestési szövegró a magyar piacon. Írjon egy cold outreach emailt maximális konverzióval.
 
 VÁLLALKOZÁS ADATAI:
-Név: ${business.name} | Típus: ${business.category_label} | Város: ${cityClean}
+Név: ${business.name} | Tpus: ${business.category_label} | Város: ${cityClean}
 Helyzet: ${personalContext} | ${competitionContext}
 Fő előny: ${emotionalBenefit}
 
@@ -259,8 +271,8 @@ AJÁNLAT:
 ${portfolio ? `- Portfólió: ${portfolio}` : ''}
 
 KÖTELEZŐ SZERKEZET:
-T�RGY: Személyre szabott "${business.name}"-vel — rövid, specifikus, kíváncsiságot kelt (max 7 szó)
-T�RZS: 1. Természetes köszöntés | 2. Megfigyelés: nincs weboldal | 3. Mit veszítenek | 4. Előnyök | 5. Ajánlat ${pFromHU} Ft-tól + ingyenes demo | 6. CTA | 7. Aláírás: ${name}${phone ? '\n' + phone : ''}
+T�RGY: Személyre szabott "${business.name}"-vel — rövid, specifikus, kváncsiságot kelt (max 7 szó)
+T�RZS: 1. Természetes köszöntés | 2. Megfigyelés: nincs weboldal | 3. Mit vesztenek | 4. Előnyök | 5. Ajánlat ${pFromHU} Ft-tól + ingyenes demo | 6. CTA | 7. Alárás: ${name}${phone ? '\n' + phone : ''}
 
 SZABÁLYOK: MAX 150 szó, emberi és közvetlen hang, "Ön/Önök", nincs felsorolás.
 Visszaad PONTOSAN JSON markdown nélkül: {"subject":"...","body":"..."}`
@@ -293,7 +305,7 @@ Returnează EXACT JSON fără markdown: {"subject":"...","body":"..."}`
         ? `Weboldal ${business.name}-nak — ${pFromHU} Ft-tól`
         : `Site web pentru ${business.name} — de la ${pFrom} RON`
       results.body = isHU
-        ? `Jó napot,\n\nLáttam hogy ${business.name} ${cityClean}-ban nincs weboldala. Minden nap keresnek ${business.category_label.toLowerCase()}-t online — és a konkurenciához mennek.\n\nProfesszionális weboldalakat készítek ${pFromHU} Ft-tól (domain, tárhely, SEO, mobil), ${days} nap alatt. Ingyenes demót is készíthetek az Ön nevével.\n\nSzeretnék küldeni?\n\n${name}${phone ? '\n' + phone : ''}`
+        ? `Jó napot,\n\nLáttam hogy ${business.name} ${cityClean}-ban nincs weboldala. Minden nap keresnek ${business.category_label.toLowerCase()}-t online — és a konkurenciához mennek.\n\nProfesszionális weboldalakat késztek ${pFromHU} Ft-tól (domain, tárhely, SEO, mobil), ${days} nap alatt. Ingyenes demót is készthetek az Ön nevével.\n\nSzeretnék küldeni?\n\n${name}${phone ? '\n' + phone : ''}`
         : `Bună ziua,\n\nAm observat că ${business.name} din ${cityClean} nu are site web. Oameni din zonă caută ${business.category_label.toLowerCase()} online și ajung la concurență.\n\nFac site-uri de la ${pFrom} RON, tot inclus, în ${days} zile. Pot pregăti un demo gratuit.\n\nVreți să vi-l trimit?\n\n${name}${phone ? '\n' + phone : ''}`
     }
   }
@@ -302,18 +314,24 @@ Returnează EXACT JSON fără markdown: {"subject":"...","body":"..."}`
   if (mode === 'followup') {
     const replyText = (body as Record<string,string>).replyText || ''
 
-    const followupPromptHU = `Ön egy weboldal-készítő szabadúszó. Egy potenciális ügyfél válaszolt a WhatsApp üzenetére.
+    const followupPromptHU = `Ön egy weboldal-késztő szabadúszó. Egy potenciális ügyfél válaszolt a WhatsApp üzenetére.
 KONTEXTUS: Vállalkozás: ${business.name} (${business.category_label}, ${cityClean}) | Ár: ${pFromHU} Ft-tól, ${days} nap, INGYENES demo
 Az ügyfél válasza: "${replyText}"
-FELADAT: Írjon természetes, hatékony WhatsApp választ ami: direkten reagál | ha érdeklődő → ajánlja az INGYENES demót | ha árat kérdez → ${pFromHU} Ft-tól minden benne + demo | kifogásnál → semlegesítse és ajánlja a demót
-SZABÁLYOK: MAX 3-4 sor | természetes, emberi | nincs nyomás | mindig ajánlja az ingyenes demót | aláírás: "${name}"${phone ? ' + ' + phone : ''}
+FELADAT: Írjon természetes, hatékony WhatsApp választ ami: direkten reagál | ha érdeklődő → ajánlja az INGYENES demót | ha árat kérdez → ${pFromHU} Ft-tól minden benne + demo | kifogásnál → semlegestse és ajánlja a demót
+SZABÁLYOK: MAX 3-4 sor | természetes, emberi | nincs nyomás | mindig ajánlja az ingyenes demót | alárás: "${name}"${phone ? ' + ' + phone : ''}
 Csak az üzenetet adja vissza.`
 
     const followupPromptRO = `Ești un freelancer care face site-uri. Un client a răspuns la mesajul tău WhatsApp.
-Context: ${business.name} (${cityClean}) | Tu oferi: de la ${pFrom} RON, ${days} zile, demo GRATUIT
+Context: ${business.name} (${cityClean}) | Ai un demo personalizat gata pentru ei | Prețul se discută DUPĂ ce văd demo-ul
 Clientul a răspuns: "${replyText}"
-Scrie un răspuns natural care: răspunde direct | dacă interesat → propune demo GRATUIT | dacă întreabă preț → confirmi ${pFrom} RON tot inclus + demo | dacă obiecții → neutralizează și propune demo
-REGULI: MAX 3-4 rânduri | natural, uman | fără presiune | propune mereu demo-ul | semnează "${name}"${phone ? '\n' + phone : ''}
+
+Scrie un răspuns WhatsApp scurt (max 3-4 rânduri) care:
+- Dacă e interesat sau neutru → trimite / propune demo-ul imediat, fără preț
+- Dacă întreabă de preț → răspunde: "Depinde de ce alegeți — dar mai întâi vedeți demo-ul, să știți cu ce vă jucați. Vi-l trimit?" (NU da prețul înainte de demo)
+- Dacă are obiecții → neutralizează scurt și propune demo-ul fără obligații
+- Dacă zice că are deja site → "Înțeleg! Când a fost făcut ultima actualizare? Vă arăt ce face diferența acum."
+
+REGULI: Natural, uman, fără presiune, max 3-4 rânduri, semnează "${name}"${phone ? ' + ' + phone : ''}
 Returnează DOAR mesajul.`
 
     try {
@@ -325,8 +343,15 @@ Returnează DOAR mesajul.`
       results.whatsapp = msg.content[0].type === 'text' ? msg.content[0].text.trim() : ''
     } catch {
       results.whatsapp = isHU
-        ? `Köszönöm a választ!\n\nAhogy mondtam, készíthetek egy ingyenes demót "${business.name}" nevével — pontosan látja hogyan nézne ki a weboldal, semmilyen kötelezettség nélkül.\n\nKüldjek?\n\n${name}${phone ? '\n' + phone : ''}`
-        : `Bună ziua! Mulțumesc pentru răspuns.\n\nPot să vă pregătesc un demo gratuit cu "${business.name}" — vedeți exact cum ar arăta, fără nicio obligație.\n\nVreți să vi-l trimit?\n\n${name}${phone ? '\n' + phone : ''}`
+        ? `Köszönöm a választ!\n\nAhogy mondtam, készthetek egy ingyenes demót "${business.name}" nevével — pontosan látja hogyan nézne ki a weboldal, semmilyen kötelezettség nélkül.\n\nKüldjek?\n\n${name}${phone ? '\n' + phone : ''}`
+        : `Buna ziua! Multumesc pentru raspuns.
+
+Am demo-ul personalizat gata pentru ${business.name} — un site creat cu numele si profilul vostru real. Pretul il discutam dupa ce il vedeti.
+
+Vi-l trimit?
+
+${name}${phone ? '
+' + phone : ''}`
     }
   }
 
