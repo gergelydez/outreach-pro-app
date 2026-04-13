@@ -1,0 +1,39 @@
+{
+  "name": "Outreach Pro",
+  "short_name": "Outreach",
+  "description": "Găsește afaceri fără site și trimite oferte pe WhatsApp",
+  "start_url": "/leads",
+  "display": "standalone",
+  "background_color": "#060d1a",
+  "theme_color": "#060d1a",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Caută leads",
+      "url": "/leads",
+      "description": "Caută afaceri fără site"
+    },
+    {
+      "name": "Setări",
+      "url": "/settings",
+      "description": "Configurare API keys"
+    }
+  ]
+}
+
