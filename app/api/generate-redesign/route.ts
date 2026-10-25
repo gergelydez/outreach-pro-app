@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { friendlyAnthropicError } from '@/lib/anthropic-error'
 import { HU_CITIES } from '@/lib/constants'
 import type { RebuildLead } from '@/lib/rebuild'
 
@@ -100,7 +101,7 @@ Răspunde DOAR cu documentul HTML complet, începând cu <!DOCTYPE html>. Fără
 
         send({ t: 'done', html: html.startsWith('<!') ? html : '<!DOCTYPE html>\n' + html })
       } catch (err) {
-        send({ t: 'error', error: err instanceof Error ? err.message : String(err) })
+        send({ t: 'error', error: friendlyAnthropicError(err, process.env.ANTHROPIC_API_KEY ? 'env' : 'settings') })
       } finally {
         controller.close()
       }
