@@ -29,6 +29,9 @@ export default function Home() {
             <span className="font-bold text-lg text-white">Outreach Pro</span>
           </div>
           <nav className="flex gap-2">
+            <Link href="/rebuild" className="px-4 py-2 rounded-lg text-white bg-slate-800/60 hover:bg-slate-700/60 transition-all text-sm font-semibold">
+              🔁 Rebuild
+            </Link>
             <Link href="/leads" className="px-4 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all text-sm font-medium">
               Leads
             </Link>
@@ -41,23 +44,30 @@ export default function Home() {
 
       <main className="max-w-6xl mx-auto px-6 py-16">
         {/* Hero */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-6 border"
-               style={{ background: 'rgba(37,211,102,0.1)', borderColor: 'rgba(37,211,102,0.3)', color: '#25D366' }}>
-            ● LIVE – Romania, {new Date().getFullYear()}
+               style={{ background: 'rgba(34,211,238,0.1)', borderColor: 'rgba(34,211,238,0.3)', color: '#22d3ee' }}>
+            ● NOU – Rebuild Their Site
           </div>
-          <h1 className="text-5xl font-extrabold text-white mb-4 leading-tight">
-            Găsește afaceri fără site.<br />
-            <span style={{ color: '#25D366' }}>Câștigă clienți azi.</span>
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4 leading-tight">
+            Arată-le site-ul lor nou.<br />
+            <span style={{ color: '#22d3ee' }}>Înainte să le ceri ceva.</span>
           </h1>
-          <p className="text-slate-400 text-xl max-w-2xl mx-auto mb-10">
-            Caută automat pe Google Maps afacerile fără website, generează mesaje personalizate și trimite oferte pe <strong className="text-white">WhatsApp</strong> sau Email.
+          <p className="text-slate-400 text-lg sm:text-xl max-w-2xl mx-auto mb-10">
+            Găsește afaceri prospere cu site-uri vechi, construiește un redesign cu conținutul lor real pe un link live
+            și trimite un mesaj personal: <strong className="text-white">„Am făcut un concept pentru voi, fără obligații.”</strong>
           </p>
-          <Link href="/leads"
-            className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl text-white font-bold text-lg transition-all hover:scale-105 active:scale-95"
-            style={{ background: 'linear-gradient(135deg, #25D366, #128C7E)', boxShadow: '0 0 30px rgba(37,211,102,0.3)' }}>
-            <span>🚀</span> Începe campania
-          </Link>
+          <div className="flex gap-3 justify-center flex-wrap">
+            <Link href="/rebuild"
+              className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl text-white font-bold text-lg transition-all hover:scale-105 active:scale-95"
+              style={{ background: 'linear-gradient(135deg, #22d3ee, #3b82f6)', boxShadow: '0 0 30px rgba(34,211,238,0.3)' }}>
+              <span>🔁</span> Începe Rebuild
+            </Link>
+            <Link href="/leads"
+              className="inline-flex items-center gap-3 px-6 py-4 rounded-2xl text-slate-200 font-bold text-base transition-all hover:bg-slate-800/60 border border-slate-700">
+              <span>🔍</span> Afaceri fără site
+            </Link>
+          </div>
         </div>
 
         {/* Stats */}

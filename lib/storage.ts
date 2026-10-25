@@ -56,6 +56,7 @@ export const DEFAULT_SETTINGS: Settings = {
   priceTo:            '1500',
   deliveryDays:       '5',
   maxEmailsPerDay:    150,
+  dailyOutreachLimit: 10,
 }
 
 export function getSettings(): Settings {

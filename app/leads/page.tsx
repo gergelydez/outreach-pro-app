@@ -1091,6 +1091,7 @@ export default function LeadsPage() {
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           <span style={{ fontSize:12, color:'#334155' }}><span style={{ color:'#63b3ed', fontWeight:700 }}>{leads.length}</span> leads</span>
           {leads.length>0 && <button onClick={()=>{if(confirm('Ștergi toate?')){clearLeads();setLeads([])}}} style={{ background:'rgba(252,129,129,0.08)', border:'1px solid rgba(252,129,129,0.2)', color:'#fc8181', borderRadius:8, padding:'5px 10px', fontSize:11, cursor:'pointer', fontWeight:600 }}>🗑️</button>}
+          <Link href="/rebuild" style={{ background:'rgba(34,211,238,0.1)', border:'1px solid rgba(34,211,238,0.25)', color:'#22d3ee', borderRadius:9, padding:'6px 12px', fontSize:12, fontWeight:700, textDecoration:'none' }}>🔁 Rebuild</Link>
           <Link href="/settings" style={{ background:'rgba(99,179,237,0.1)', border:'1px solid rgba(99,179,237,0.2)', color:'#63b3ed', borderRadius:9, padding:'6px 12px', fontSize:12, fontWeight:700, textDecoration:'none' }}>⚙️ Setări</Link>
         </div>
       </header>

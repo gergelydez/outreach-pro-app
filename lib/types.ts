@@ -45,6 +45,7 @@ export interface Settings {
   priceTo: string
   deliveryDays: string
   maxEmailsPerDay: number
+  dailyOutreachLimit: number
 }
 
 export interface DailyStats {
