@@ -278,21 +278,15 @@ function Workspace({ lead, settings, onChange, onClose }:
             {busy === 'demo' && <div style={{ fontSize: 12, color: C.muted }}>Durează 1–4 minute. Nu închide fereastra.</div>}
 
             {lead.demo_html && (
-              <>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <Btn small color={device === 'desktop' ? C.blue : C.dim} onClick={() => setDevice('desktop')}>🖥️ Desktop</Btn>
-                  <Btn small color={device === 'mobile' ? C.blue : C.dim} onClick={() => setDevice('mobile')}>📱 Mobil</Btn>
-                  <span style={{ flex: 1 }} />
-                  <Btn small onClick={download}>⬇️ Descarcă HTML</Btn>
-                  <Btn small solid color={C.cyan} onClick={publish} disabled={!!busy}>
-                    {busy === 'publish' ? '⏳…' : lead.preview_url ? '↻ Actualizează preview-ul live' : '🔗 Publică preview live'}
-                  </Btn>
-                </div>
-                <div style={{ background: '#0b1220', borderRadius: 14, padding: 8, display: 'flex', justifyContent: 'center' }}>
-                  <iframe srcDoc={lead.demo_html} sandbox="allow-scripts allow-forms allow-popups" title="preview"
-                    style={{ width: device === 'mobile' ? 390 : '100%', height: 640, border: 0, borderRadius: 10, background: '#fff' }} />
-                </div>
-              </>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <Btn small color={device === 'desktop' ? C.blue : C.dim} onClick={() => setDevice('desktop')}>🖥️ Desktop</Btn>
+                <Btn small color={device === 'mobile' ? C.blue : C.dim} onClick={() => setDevice('mobile')}>📱 Mobil</Btn>
+                <span style={{ flex: 1 }} />
+                <Btn small onClick={download}>⬇️ Descarcă HTML</Btn>
+                <Btn small solid color={C.cyan} onClick={publish} disabled={!!busy}>
+                  {busy === 'publish' ? '⏳…' : lead.preview_url ? '↻ Actualizează preview-ul live' : '🔗 Publică preview live'}
+                </Btn>
+              </div>
             )}
 
             {lead.preview_url && (
@@ -310,6 +304,13 @@ function Workspace({ lead, settings, onChange, onClose }:
                 <b>A (recomandat, o singură dată):</b> Vercel → proiectul tău → <i>Storage</i> → <i>Create → Blob</i> → <i>Connect to project</i>, apoi Redeploy. De atunci, butonul publică direct un link pe domeniul tău.<br />
                 <b>B (acum, 30 secunde):</b> apasă <i>⬇️ Descarcă HTML</i>, deschide <a href="https://app.netlify.com/drop" target="_blank" rel="noreferrer" style={{ color: C.blue }}>app.netlify.com/drop</a>, trage fișierul acolo și primești un link live. Lipește-l aici:
                 <input placeholder="https://…netlify.app" onBlur={e => e.target.value && onChange({ preview_url: e.target.value.trim(), stage: 'published' })} style={{ ...fieldStyle(), marginTop: 8 }} />
+              </div>
+            )}
+
+            {lead.demo_html && (
+              <div style={{ background: '#0b1220', borderRadius: 14, padding: 8, display: 'flex', justifyContent: 'center' }}>
+                <iframe srcDoc={lead.demo_html} sandbox="allow-scripts allow-forms allow-popups" title="preview"
+                  style={{ width: device === 'mobile' ? 390 : '100%', maxWidth: '100%', height: 'min(640px, 70vh)', border: 0, borderRadius: 10, background: '#fff' }} />
               </div>
             )}
           </div>
