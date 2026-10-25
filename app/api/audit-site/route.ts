@@ -114,7 +114,16 @@ export async function POST(req: NextRequest) {
   const low = html.toLowerCase()
 
   const https = finalUrl.startsWith('https://')
-  if (reachable && !https) { issues.push('Fără HTTPS — Chrome afișează „Nesigur" lângă adresă'); score += 15 }
+  if (reachable && !https) {
+    // Are totuși certificat? Atunci problema e doar lipsa redirecționării — formulăm exact.
+    let httpsWorks = false
+    try {
+      const { res } = await safeFetch(finalUrl.replace(/^http:/, 'https:'))
+      httpsWorks = res.status < 400
+    } catch {}
+    if (httpsWorks) { issues.push('Nu redirecționează automat la HTTPS — adresa din Google arată „Nesigur" în Chrome'); score += 10 }
+    else { issues.push('Fără HTTPS — Chrome afișează „Nesigur" lângă adresă'); score += 15 }
+  }
 
   const mobile = /<meta[^>]+name=["']?viewport/i.test(html)
   if (html && !mobile) { issues.push('Nu e adaptat pentru telefon (pe mobil textul e mic și trebuie mărit)'); score += 25 }

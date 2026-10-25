@@ -3,14 +3,16 @@ import Anthropic from '@anthropic-ai/sdk'
 import { friendlyAnthropicError } from '@/lib/anthropic-error'
 import { HU_CITIES } from '@/lib/constants'
 import type { RebuildLead } from '@/lib/rebuild'
+import { auditPitches } from '@/lib/pitch'
 
 export const maxDuration = 60
 
-// Mesaj scurt, personal, fără presiune: „am făcut un concept, uite linkul".
+// Mesaj scurt, personal: pornește de la 1-2 observații concrete din audit (ce
+// vede un client pe site-ul lor), apoi conceptul — fără presiune.
 
 export async function POST(req: NextRequest) {
-  const { lead, channel = 'whatsapp', anthropicApiKey: clientKey, senderName = '', yourPhone = '', yourWebsite = '' }:
-    { lead: RebuildLead; channel?: 'whatsapp' | 'email'; anthropicApiKey?: string; senderName?: string; yourPhone?: string; yourWebsite?: string } =
+  const { lead, channel = 'whatsapp', points, anthropicApiKey: clientKey, senderName = '', yourPhone = '', yourWebsite = '' }:
+    { lead: RebuildLead; channel?: 'whatsapp' | 'email'; points?: string[]; anthropicApiKey?: string; senderName?: string; yourPhone?: string; yourWebsite?: string } =
     await req.json()
 
   const apiKey = process.env.ANTHROPIC_API_KEY || clientKey
@@ -18,22 +20,23 @@ export async function POST(req: NextRequest) {
 
   const name = process.env.SENDER_NAME || senderName
   const isHU = HU_CITIES.includes(lead.city.replace(' 🏘️', '').trim())
-  const issues = lead.audit?.issues.slice(0, 4).join('; ') || ''
+  const observations = (points?.length ? points : auditPitches(lead.audit?.issues).slice(0, 2))
 
   const prompt = `Scrie un mesaj de prim contact ${channel === 'email' ? 'pe email (cu subiect)' : 'pe WhatsApp'} în limba ${isHU ? 'maghiară' : 'română'}, de la un web designer către o afacere locală.
 
 Context:
 - Afacerea: ${lead.name} (${lead.category_label}, ${lead.city.replace(' 🏘️', '')})
 - Site-ul lor actual: ${lead.website}
-- Ce am observat la site-ul actual: ${issues || 'design învechit'}
+- Ce am observat concret la site-ul actual (verificat, formulat pentru client):
+${observations.length ? observations.map(o => `  • ${o}`).join('\n') : '  • designul arată învechit față de cât de bine lucrează'}
 - Am construit deja un concept modern al site-ului lor, live aici: ${lead.preview_url || '[LINK PREVIEW]'}
 - Expeditor: ${name || '[numele meu]'}${yourPhone ? `, tel ${yourPhone}` : ''}${yourWebsite ? `, ${yourWebsite}` : ''}
 ${lead.rating >= 4.3 && lead.reviews_count >= 20 ? `- Au ${lead.rating}★ din ${lead.reviews_count} recenzii Google — se vede că lucrează bine` : ''}
 
 Reguli:
 - Scurt: ${channel === 'email' ? 'max 90 de cuvinte în corp' : 'max 5 rânduri scurte'}. Pe tonul unui om real, nu al unei agenții.
-- Structura: salut → cine sunt într-o jumătate de frază → am făcut un concept modern pentru site-ul ${lead.name} → linkul → „fără nicio obligație, m-am gândit că v-ar plăcea să-l vedeți".
-- Poți menționa O SINGURĂ problemă concretă a site-ului actual, formulată respectuos (ex. „pe telefon e greu de citit"), niciodată jignitor.
+- Structura: salut → cine sunt într-o jumătate de frază → ce am observat la site-ul ${lead.name} (observațiile de mai sus, ca un semnal util, cu efectul asupra clienților lor) → de aceea am făcut un concept modern care rezolvă asta → linkul → „fără nicio obligație".
+- Observațiile sunt verificate: folosește-le fidel, fără să le exagerezi și fără să adaugi altele. Ton de coleg care dă un pont, nu de critic — niciodată jignitor sau alarmist.
 - FĂRĂ preț, fără „ofertă limitată", fără presiune, fără emoji excesive (max 1), fără majuscule de marketing.
 - Ultima propoziție: o variantă politicoasă de „dacă nu vă interesează, îmi spuneți și nu vă mai deranjez".
 - Nu inventa nimic despre afacere.`

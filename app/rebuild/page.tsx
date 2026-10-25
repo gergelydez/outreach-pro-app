@@ -11,6 +11,7 @@ import {
 import type { RebuildLead, RebuildStage, SiteAudit } from '@/lib/rebuild'
 import type { Settings } from '@/lib/types'
 import { slugify, withConceptBanner } from '@/lib/preview'
+import { auditPitches } from '@/lib/pitch'
 
 const CITIES = Object.keys(CITY_COORDINATES).sort()
 
@@ -52,6 +53,16 @@ function elapsed(since: string) {
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
 }
 
+// Explicație pe înțeles a celor două scoruri, pentru decizia „merită sau nu”
+function verdict(outdated: number, revenue: number): string {
+  const pays = revenue >= 60, old = outdated >= 50, some = outdated >= 25
+  if (pays && old) return '🎯 Țintă foarte bună: afacerea merge bine, iar site-ul are probleme clare. Merită un redesign.'
+  if (pays && some) return '👍 Afacere bună, site-ul are câteva probleme tehnice, dar nu e dezastru. Merită dacă vizual arată vechi; deschide site-ul și judecă tu.'
+  if (pays) return '🤔 Afacere bună, dar site-ul actual e în regulă tehnic. Merită doar dacă designul arată clar învechit.'
+  if (old) return '⚠️ Site-ul are probleme, dar afacerea pare mică (puține recenzii). Riști să nu-și permită. Încearcă doar dacă nu ai ținte mai bune.'
+  return '⏭️ Prioritate mică: afacere mică și site acceptabil.'
+}
+
 function scoreColor(v: number) { return v >= 70 ? C.red : v >= 45 ? C.amber : v >= 25 ? '#eab308' : C.dim }
 
 function fieldStyle(): React.CSSProperties {
@@ -60,15 +71,19 @@ function fieldStyle(): React.CSSProperties {
 }
 
 // Mesaj de rezervă fără AI — același ton: scurt, personal, fără presiune
-function templateMessage(l: RebuildLead, s: Settings, channel: 'whatsapp' | 'email'): { subject: string; message: string } {
-  const issue = l.audit?.issues.find(i => /telefon|mobil/i.test(i)) ? 'pe telefon e destul de greu de folosit'
-    : l.audit?.issues.find(i => /HTTPS|Nesigur/i.test(i)) ? 'browserul îl marchează ca „Nesigur”'
-    : l.audit?.issues.length ? 'arată puțin învechit față de cât de bine lucrați' : ''
+function templateMessage(l: RebuildLead, s: Settings, channel: 'whatsapp' | 'email', points: string[]): { subject: string; message: string } {
   const me = s.senderName || '[numele tău]'
   const link = l.preview_url || '[LINK PREVIEW]'
+  const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
+  const seen = points.length === 1
+    ? `Mă uitam pe site-ul ${l.name} și am observat că ${points[0]}.`
+    : points.length > 1
+      ? `Mă uitam pe site-ul ${l.name} și am observat câteva lucruri care vă pot costa clienți:\n${points.map(p => `• ${cap(p)}.`).join('\n')}`
+      : `Mă uitam pe site-ul ${l.name} și mi s-a părut că arată puțin învechit față de cât de bine lucrați.`
   const body = [
     `Bună ziua! Sunt ${me}, web designer${l.city ? ` din zonă` : ''}.`,
-    `Am dat peste site-ul ${l.name}${issue ? ` și am observat că ${issue}` : ''}, așa că am făcut un concept modern, ca să vedeți cum ar putea arăta:`,
+    seen,
+    `Așa că am făcut un concept modern care rezolvă asta, ca să vedeți cum ar putea arăta:`,
     link,
     `Fără nicio obligație, m-am gândit că v-ar plăcea să-l vedeți. Dacă nu vă interesează, îmi spuneți și nu vă mai deranjez.`,
     channel === 'email' ? `\nO zi bună,\n${me}${s.yourPhone ? `\n${s.yourPhone}` : ''}${s.yourWebsite ? `\n${s.yourWebsite}` : ''}` : '',
@@ -89,6 +104,9 @@ function Workspace({ lead, settings, onChange, onClose }:
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop')
   const [noBlob, setNoBlob] = useState(false)
   const [channel, setChannel] = useState<'whatsapp' | 'email'>(lead.phone_intl ? 'whatsapp' : 'email')
+  const allPoints = auditPitches(lead.audit?.issues)
+  const [points, setPoints] = useState<string[]>(allPoints.slice(0, 2))
+  const togglePoint = (p: string) => setPoints(cur => cur.includes(p) ? cur.filter(x => x !== p) : [...cur, p])
   const [copied, setCopied] = useState('')
   const limit = Number(settings.dailyOutreachLimit) || 10
   const contactsToday = getContactsToday()
@@ -176,7 +194,7 @@ function Workspace({ lead, settings, onChange, onClose }:
     setBusy('msg'); setErr('')
     try {
       const res = await fetch('/api/rebuild-message', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lead: { ...lead, demo_html: '' }, channel, anthropicApiKey: settings.anthropicApiKey,
+        body: JSON.stringify({ lead: { ...lead, demo_html: '' }, channel, points, anthropicApiKey: settings.anthropicApiKey,
           senderName: settings.senderName, yourPhone: settings.yourPhone, yourWebsite: settings.yourWebsite }) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -186,7 +204,7 @@ function Workspace({ lead, settings, onChange, onClose }:
   }
 
   function useTemplate() {
-    const t = templateMessage(lead, settings, channel)
+    const t = templateMessage(lead, settings, channel, points)
     onChange({ message: t.message, email_subject: t.subject })
   }
 
@@ -245,16 +263,20 @@ function Workspace({ lead, settings, onChange, onClose }:
             ) : (
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10 }}>
-                  {[
-                    ['Site vechi', a.outdated_score, scoreColor(a.outdated_score)],
-                    ['Afacere care plătește', lead.revenue_score, C.green],
-                    ['Oportunitate', lead.opportunity_score, C.amber],
-                  ].map(([l, v, c]) => (
-                    <div key={l as string} style={{ background: 'rgba(30,41,59,.5)', borderRadius: 14, padding: 12 }}>
+                  {([
+                    ['Site vechi', a.outdated_score, scoreColor(a.outdated_score), 'Câte probleme are site-ul actual: 0 = modern, 100 = vechi sau stricat. Peste 50 = motiv clar de redesign.'],
+                    ['Afacere care plătește', lead.revenue_score, C.green, 'Din recenziile Google (câte și ce notă) și tipul afacerii. Peste 60 = are clienți și își permite un site.'],
+                    ['Oportunitate', lead.opportunity_score, C.amber, '60% „site vechi” + 40% „plătește”. Peste 60 = țintă foarte bună, 40–60 = depinde, sub 40 = sari.'],
+                  ] as const).map(([l, v, c, help]) => (
+                    <div key={l} style={{ background: 'rgba(30,41,59,.5)', borderRadius: 14, padding: 12 }}>
                       <div style={{ fontSize: 11, color: C.dim, fontWeight: 700, textTransform: 'uppercase' }}>{l}</div>
-                      <div style={{ fontSize: 26, fontWeight: 800, color: c as string }}>{v as number}</div>
+                      <div style={{ fontSize: 26, fontWeight: 800, color: c }}>{v}<span style={{ fontSize: 13, color: C.dim, fontWeight: 600 }}> / 100</span></div>
+                      <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.45, marginTop: 2 }}>{help}</div>
                     </div>
                   ))}
+                </div>
+                <div style={{ fontSize: 13, color: '#e2e8f0', background: `${C.amber}12`, border: `1px solid ${C.amber}33`, borderRadius: 12, padding: 10, lineHeight: 1.5 }}>
+                  {verdict(a.outdated_score, lead.revenue_score)}
                 </div>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 800, color: '#f1f5f9', marginBottom: 6 }}>Probleme găsite</div>
@@ -346,6 +368,18 @@ function Workspace({ lead, settings, onChange, onClose }:
         {tab === 'message' && (
           <div style={{ display: 'grid', gap: 12 }}>
             {!lead.preview_url && <div style={{ color: C.amber, fontSize: 13 }}>⚠️ Încă nu ai link de preview — mesajul se bazează pe el. Publică-l în pasul 2.</div>}
+            {allPoints.length > 0 && (
+              <div style={{ background: 'rgba(30,41,59,.45)', borderRadius: 12, padding: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#f1f5f9', marginBottom: 6 }}>Ce le spui din audit (bifează 1–2, apoi generează mesajul)</div>
+                {allPoints.map(p => (
+                  <label key={p} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, color: '#cbd5e1', padding: '4px 0', cursor: 'pointer', lineHeight: 1.45 }}>
+                    <input type="checkbox" checked={points.includes(p)} onChange={() => togglePoint(p)} style={{ marginTop: 3, accentColor: C.wa }} />
+                    <span>{p}</span>
+                  </label>
+                ))}
+                {points.length > 2 && <div style={{ fontSize: 11, color: C.amber, marginTop: 4 }}>Mai mult de 2 observații face mesajul să sune a critică. Alege-le pe cele mai importante.</div>}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <Btn color={channel === 'whatsapp' ? C.wa : C.dim} onClick={() => setChannel('whatsapp')}>📱 WhatsApp</Btn>
               <Btn color={channel === 'email' ? C.blue : C.dim} onClick={() => setChannel('email')}>✉️ Email / formular</Btn>
