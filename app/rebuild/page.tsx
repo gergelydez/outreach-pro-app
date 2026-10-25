@@ -47,6 +47,11 @@ function Bar({ value, color }: { value: number; color: string }) {
     <div style={{ width: `${value}%`, height: '100%', background: color }} /></div>
 }
 
+function elapsed(since: string) {
+  const sec = Math.max(0, Math.round((Date.now() - new Date(since).getTime()) / 1000))
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
+}
+
 function scoreColor(v: number) { return v >= 70 ? C.red : v >= 45 ? C.amber : v >= 25 ? '#eab308' : C.dim }
 
 function fieldStyle(): React.CSSProperties {
@@ -87,6 +92,13 @@ function Workspace({ lead, settings, onChange, onClose }:
   const [copied, setCopied] = useState('')
   const limit = Number(settings.dailyOutreachLimit) || 10
   const contactsToday = getContactsToday()
+  // re-render la fiecare secundă cât rulează un job, pentru cronometrul de pe buton
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    if (!lead.demo_job) return
+    const iv = setInterval(() => setTick(t => t + 1), 1000)
+    return () => clearInterval(iv)
+  }, [lead.demo_job])
 
   async function runAudit() {
     setBusy('audit'); setErr('')
@@ -108,6 +120,14 @@ function Workspace({ lead, settings, onChange, onClose }:
       const res = await fetch('/api/generate-redesign', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lead: { ...lead, demo_html: '' }, anthropicApiKey: settings.anthropicApiKey, extraInstructions: extra }) })
       if (!res.ok || !res.body) { const d = await res.json().catch(() => ({})); throw new Error(d.error || `HTTP ${res.status}`) }
+      // Mod job: serverul generează singur, pagina verifică periodic (vezi pollDemoJobs)
+      if ((res.headers.get('content-type') || '').includes('application/json')) {
+        const d = await res.json()
+        if (!d.jobId) throw new Error(d.error || 'Nu am putut porni generarea')
+        onChange({ demo_job: { id: d.jobId, started_at: new Date().toISOString() }, demo_error: '' })
+        setBusy('')
+        return
+      }
       const reader = res.body.getReader()
       const dec = new TextDecoder()
       let buf = ''
@@ -271,11 +291,17 @@ function Workspace({ lead, settings, onChange, onClose }:
               <textarea value={extra} onChange={e => setExtra(e.target.value)} rows={2}
                 placeholder="Opțional: indicații de design (ex. „culori calde, accent pe programări online”, „păstrează logo-ul albastru”)"
                 style={{ ...fieldStyle(), flex: 1, minWidth: 240, resize: 'vertical' }} />
-              <Btn solid color={C.violet} onClick={generateDemo} disabled={!a || !!busy}>
-                {busy === 'demo' ? `⏳ Construiesc… ${progress ? Math.round(progress / 1000) + 'k car.' : ''}` : lead.demo_html ? '↻ Regenerează' : '🎨 Generează redesign'}
+              <Btn solid color={C.violet} onClick={generateDemo} disabled={!a || !!busy || !!lead.demo_job}>
+                {lead.demo_job ? `⏳ Se generează… ${elapsed(lead.demo_job.started_at)}` : busy === 'demo' ? `⏳ Construiesc… ${progress ? Math.round(progress / 1000) + 'k car.' : ''}` : lead.demo_html ? '↻ Regenerează' : '🎨 Generează redesign'}
               </Btn>
             </div>
             {busy === 'demo' && <div style={{ fontSize: 12, color: C.muted }}>Durează 1–4 minute. Nu închide fereastra.</div>}
+            {lead.demo_job && (
+              <div style={{ fontSize: 12, color: C.violet, background: `${C.violet}12`, border: `1px solid ${C.violet}33`, borderRadius: 10, padding: 10, lineHeight: 1.5 }}>
+                Site-ul se generează pe server (1–4 minute). Poți închide fereastra, bloca telefonul sau trece la alt lead: rezultatul apare aici automat când e gata.
+              </div>
+            )}
+            {lead.demo_error && !lead.demo_job && <div style={{ background: `${C.red}15`, border: `1px solid ${C.red}44`, color: C.red, padding: 10, borderRadius: 10, fontSize: 13 }}>⚠️ {lead.demo_error}</div>}
 
             {lead.demo_html && (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -430,6 +456,36 @@ export default function RebuildPage() {
 
   function change(id: string, u: Partial<RebuildLead>) { setLeads(updateRebuildLead(id, u)) }
 
+  // Verifică joburile de generare la nivel de pagină (nu în fereastră), ca să
+  // continue și cu fereastra închisă; la revenirea în tab verificăm imediat.
+  const hasJobs = leads.some(l => l.demo_job)
+  useEffect(() => {
+    if (!hasJobs) return
+    let stopped = false
+    async function pollDemoJobs() {
+      for (const l of getRebuildLeads().filter(x => x.demo_job)) {
+        const job = l.demo_job!
+        try {
+          const d = await (await fetch(`/api/generate-redesign?job=${job.id}`, { cache: 'no-store' })).json()
+          if (stopped) return
+          if (d.status === 'done' && d.html) {
+            setLeads(updateRebuildLead(l.place_id, { demo_html: d.html, demo_job: null, demo_error: '',
+              stage: ['found', 'audited', 'shortlisted'].includes(l.stage) ? 'demo_ready' : l.stage }))
+          } else if (d.status === 'error') {
+            setLeads(updateRebuildLead(l.place_id, { demo_job: null, demo_error: d.error || 'Generarea a eșuat' }))
+          } else if (Date.now() - new Date(job.started_at).getTime() > 8 * 60_000) {
+            setLeads(updateRebuildLead(l.place_id, { demo_job: null, demo_error: 'Generarea nu s-a terminat în 8 minute — încearcă din nou.' }))
+          }
+        } catch {}
+      }
+    }
+    pollDemoJobs()
+    const iv = setInterval(pollDemoJobs, 6000)
+    const onVis = () => { if (document.visibilityState === 'visible') pollDemoJobs() }
+    document.addEventListener('visibilitychange', onVis)
+    return () => { stopped = true; clearInterval(iv); document.removeEventListener('visibilitychange', onVis) }
+  }, [hasJobs])
+
   async function search() {
     setSearching(true); setErr(''); setInfo('')
     try {
@@ -570,6 +626,7 @@ export default function RebuildPage() {
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 800, color: '#f1f5f9', fontSize: 15 }}>{l.name}</span>
                         <Pill color={st.color}>{st.emoji} {st.label}</Pill>
+                        {l.demo_job && <Pill color={C.violet}>⏳ Generez site</Pill>}
                         {l.audit && <Pill color={C.amber}>🎯 {l.opportunity_score}</Pill>}
                       </div>
                       <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>
