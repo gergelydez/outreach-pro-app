@@ -1,4 +1,22 @@
-# 🎯 Outreach Pro – Găsește clienți fără site web
+# 🎯 Outreach Pro
+
+## 🔁 NOU: Rebuild Their Site (`/rebuild`)
+
+În loc de mesaje la rece, arăți valoare: găsești afaceri **prospere cu site vechi**, construiești un redesign cu **conținutul lor real** pe un **link live** și le scrii personal: *„Am făcut un concept modern pentru site-ul vostru, fără obligații.”*
+
+1. **Caută**: un oraș, o nișă, minimum N recenzii Google (= afacere cu clienți și bani). Max. 20 de rezultate pe căutare, prin API-ul oficial Google Places.
+2. **Auditează**: aplicația citește site-ul actual și găsește ce nu merge (nu e adaptat pentru mobil, nu are HTTPS, ultima actualizare e din 2014, tehnologie veche, e lent) plus textele, serviciile, emailul și pozele lor.
+3. **Alege 2–3**: scorul de oportunitate combină cât de vechi e site-ul (60%) cu semnalele că afacerea face bani (40%).
+4. **Redesign**: Claude construiește un site complet, fără să inventeze prețuri sau recenzii. Îl vezi pe desktop și pe mobil, apoi îl publici la `/p/<slug>` (cu banner „concept, nu site-ul oficial” și noindex).
+5. **Mesaj**: îl generezi cu AI sau din șablon, îl editezi și îl trimiți **tu**, pe WhatsApp, email sau prin formularul lor. Ai o limită zilnică (implicit 10) și urmărire: răspuns, client, pierdut.
+
+**Setup:** cheile Google Places și Anthropic (în Setări sau ca env vars), plus Vercel Blob pentru linkurile live (Vercel → Storage → Blob → Connect to project). Fără Blob: *Descarcă HTML*, apoi îl tragi pe [app.netlify.com/drop](https://app.netlify.com/drop).
+
+**Reguli:** nu automatiza trimiterea (risc de ban, blacklist pe domeniu și încălcarea legii anti-spam), fă un singur demo excelent în loc de o sută mediocre și alege afaceri care chiar pot plăti.
+
+---
+
+## Fluxul clasic: afaceri fără site (`/leads`)
 
 Aplicație Next.js care găsește automat afaceri din România fără website, generează mesaje personalizate cu Claude AI și trimite oferte pe **WhatsApp** sau Email.
 

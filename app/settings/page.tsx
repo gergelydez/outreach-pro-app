@@ -30,6 +30,7 @@ export default function SettingsPage() {
     { key: 'yourPhone',     label: '📞 Telefonul tău', placeholder: '+40721123456', hint: 'Opțional – apare în emailuri' },
     { key: 'priceFrom',     label: '💰 Preț de la (RON)', placeholder: '500', hint: 'Prețul minim al unui site' },
     { key: 'priceTo',       label: '💰 Preț până la (RON)', placeholder: '1500', hint: 'Prețul maxim' },
+    { key: 'dailyOutreachLimit', label: '📤 Limită contactări / zi (Rebuild)', placeholder: '10', hint: 'Câte mesaje personale trimiți pe zi. Puține și personale = mai multe răspunsuri, cont nebanat.' },
     { key: 'deliveryDays',  label: '⚡ Timp livrare (zile)', placeholder: '5', hint: 'Câte zile durează să faci un site' },
     { key: 'senderEmail',        label: '✉️ Email Gmail (sender)', placeholder: 'tine@gmail.com', hint: 'Gmail-ul de pe care trimiți outreach' },
     { key: 'senderAppPassword',  label: '🔑 Gmail App Password', placeholder: 'xxxx xxxx xxxx xxxx', secret: true, hint: 'Generează pe myaccount.google.com → Security → App passwords' },
@@ -40,7 +41,7 @@ export default function SettingsPage() {
       <header className="border-b border-slate-800/50 px-6 py-4">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/leads" className="text-slate-400 hover:text-white transition-colors text-sm">← Leads</Link>
+            <Link href="/rebuild" className="text-slate-400 hover:text-white transition-colors text-sm">← Rebuild</Link>
             <span className="text-slate-700">/</span>
             <span className="font-bold text-white">Setări</span>
           </div>
