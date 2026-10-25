@@ -55,6 +55,8 @@ export interface RebuildLead {
   audit?: SiteAudit
   opportunity_score: number     // combinat: site vechi × afacere care plătește
   demo_html: string
+  demo_job?: { id: string; started_at: string } | null  // generare în curs pe server
+  demo_error?: string
   preview_url: string
   contact_email: string
   message: string
