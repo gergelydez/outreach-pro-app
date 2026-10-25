@@ -6,13 +6,14 @@ import { slugify, withConceptBanner } from '@/lib/preview'
 export const maxDuration = 30
 
 // Publică demo-ul în Vercel Blob și întoarce un link /p/<slug> pe domeniul aplicației.
-// Necesită BLOB_READ_WRITE_TOKEN (Vercel → Storage → Blob → Connect to project).
+// Necesită un Blob store conectat (Vercel → Storage → Blob → Connect to project): fie
+// BLOB_READ_WRITE_TOKEN, fie BLOB_STORE_ID (autentificare OIDC, automată pe Vercel).
 
 export async function POST(req: NextRequest) {
   const { html, businessName, designer = '', existingUrl = '' } = await req.json()
   if (!html || !businessName) return NextResponse.json({ error: 'Lipsă html / businessName' }, { status: 400 })
 
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID) {
     return NextResponse.json({
       error: 'Hostingul de preview nu e configurat',
       code: 'no_blob',
