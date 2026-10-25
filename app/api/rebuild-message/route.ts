@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { friendlyAnthropicError } from '@/lib/anthropic-error'
 import { HU_CITIES } from '@/lib/constants'
 import type { RebuildLead } from '@/lib/rebuild'
 
@@ -64,6 +65,6 @@ Reguli:
     const out = JSON.parse(text) as { subject: string; message: string }
     return NextResponse.json({ subject: channel === 'email' ? out.subject : '', message: out.message.trim() })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 })
+    return NextResponse.json({ error: friendlyAnthropicError(err, process.env.ANTHROPIC_API_KEY ? 'env' : 'settings') }, { status: 500 })
   }
 }
