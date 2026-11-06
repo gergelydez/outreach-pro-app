@@ -50,7 +50,8 @@ export interface RebuildLead {
   category_label: string
   phone: string
   phone_intl: string
-  website: string
+  website: string               // '' dacă nu are site propriu
+  no_site?: boolean             // fără site propriu (doar Maps / social media)
   rating: number
   reviews_count: number
   revenue_score: number         // 0-100, semnale că afacerea face bani

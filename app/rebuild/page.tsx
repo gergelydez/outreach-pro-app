@@ -66,8 +66,11 @@ function elapsed(since: string) {
 }
 
 // Explicație pe înțeles a celor două scoruri, pentru decizia „merită sau nu”
-function verdict(outdated: number, revenue: number): string {
+function verdict(outdated: number, revenue: number, noSite = false): string {
   const pays = revenue >= 60, old = outdated >= 50, some = outdated >= 25
+  if (noSite) return pays
+    ? '🎯 Țintă foarte bună: afacerea are clienți (multe recenzii), dar nu are site propriu. Conceptul va fi primul lor site.'
+    : '⚠️ Nu are site, dar afacerea pare mică (puține recenzii). Riști să nu-și permită. Încearcă dacă nu ai ținte mai bune.'
   if (pays && old) return '🎯 Țintă foarte bună: afacerea merge bine, iar site-ul are probleme clare. Merită un redesign.'
   if (pays && some) return '👍 Afacere bună, site-ul are câteva probleme tehnice, dar nu e dezastru. Merită dacă vizual arată vechi; deschide site-ul și judecă tu.'
   if (pays) return '🤔 Afacere bună, dar site-ul actual e în regulă tehnic. Merită doar dacă designul arată clar învechit.'
@@ -87,22 +90,25 @@ function templateMessage(l: RebuildLead, s: Settings, channel: 'whatsapp' | 'ema
   const me = s.senderName || '[numele tău]'
   const link = l.preview_url || '[LINK PREVIEW]'
   const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
+  const intro = l.no_site ? `Am dat peste ${l.name} pe Google Maps` : `Mă uitam pe site-ul ${l.name}`
   const seen = points.length === 1
-    ? `Mă uitam pe site-ul ${l.name} și am observat că ${points[0]}.`
+    ? `${intro} și am observat că ${points[0]}.`
     : points.length > 1
-      ? `Mă uitam pe site-ul ${l.name} și am observat câteva lucruri care vă pot costa clienți:\n${points.map(p => `• ${cap(p)}.`).join('\n')}`
-      : `Mă uitam pe site-ul ${l.name} și mi s-a părut că arată puțin învechit față de cât de bine lucrați.`
+      ? `${intro} și am observat câteva lucruri care vă pot costa clienți:\n${points.map(p => `• ${cap(p)}.`).join('\n')}`
+      : l.no_site
+        ? `${intro} și am observat că nu aveți încă un site propriu.`
+        : `${intro} și mi s-a părut că arată puțin învechit față de cât de bine lucrați.`
   const body = [
     `Bună ziua! Sunt ${me}, web designer${l.city ? ` din zonă` : ''}.`,
     seen,
     seasonHook ? `${cap(seasonHook)}.` : '',
-    `Așa că am făcut un concept modern care rezolvă asta, ca să vedeți cum ar putea arăta:`,
+    l.no_site ? `Așa că v-am făcut un concept de site, ca să vedeți cum ar putea arăta:` : `Așa că am făcut un concept modern care rezolvă asta, ca să vedeți cum ar putea arăta:`,
     link,
     withPromo && s.promoPrice ? `Dacă vă place, până pe ${s.promoUntil || 'final de lună'} îl finalizez la ${s.promoPrice} lei${s.promoRegularPrice ? ` (ofertă de ${s.promoLabel || 'sezon'}, în loc de ${s.promoRegularPrice} lei)` : ''}.` : '',
     `Fără nicio obligație, m-am gândit că v-ar plăcea să-l vedeți. Dacă nu vă interesează, îmi spuneți și nu vă mai deranjez.`,
     channel === 'email' ? `\nO zi bună,\n${me}${s.yourPhone ? `\n${s.yourPhone}` : ''}${s.yourWebsite ? `\n${s.yourWebsite}` : ''}` : '',
   ].filter(Boolean).join(channel === 'email' ? '\n\n' : '\n')
-  return { subject: `Un concept nou pentru site-ul ${l.name}`, message: body.trim() }
+  return { subject: l.no_site ? `Un site pentru ${l.name}` : `Un concept nou pentru site-ul ${l.name}`, message: body.trim() }
 }
 
 // ─── Workspace pentru un singur lead ──────────────────────────────────────────
@@ -252,7 +258,9 @@ function Workspace({ lead, settings, onChange, onClose }:
             <div style={{ fontSize: 20, fontWeight: 800, color: '#f1f5f9' }}>{lead.name}</div>
             <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
               {lead.category_label} · {lead.city.replace(' 🏘️', '')} · ★ {lead.rating.toFixed(1)} ({lead.reviews_count}) ·{' '}
-              <a href={lead.website} target="_blank" rel="noreferrer" style={{ color: C.blue }}>{lead.website.replace(/^https?:\/\//, '').slice(0, 40)}</a>
+              {lead.no_site
+                ? <span style={{ color: C.red }}>🚫 fără site{lead.audit?.socials[0] && <> · <a href={lead.audit.socials[0]} target="_blank" rel="noreferrer" style={{ color: C.blue }}>{lead.audit.socials[0].replace(/^https?:\/\/(www\.)?/, '').slice(0, 32)}</a></>}</span>
+                : <a href={lead.website} target="_blank" rel="noreferrer" style={{ color: C.blue }}>{lead.website.replace(/^https?:\/\//, '').slice(0, 40)}</a>}
             </div>
           </div>
           <button onClick={onClose} style={{ color: C.muted, fontSize: 22, background: 'none', border: 0, cursor: 'pointer' }}>✕</button>
@@ -282,10 +290,12 @@ function Workspace({ lead, settings, onChange, onClose }:
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10 }}>
                   {([
-                    ['Site vechi', a.outdated_score, scoreColor(a.outdated_score), 'Câte probleme are site-ul actual: 0 = modern, 100 = vechi sau stricat. Peste 50 = motiv clar de redesign.'],
+                    lead.no_site
+                      ? ['Fără site', 100, C.red, 'Nu are site propriu, doar profilul Google Maps sau social media. Cel mai clar motiv să-și facă unul.']
+                      : ['Site vechi', a.outdated_score, scoreColor(a.outdated_score), 'Câte probleme are site-ul actual: 0 = modern, 100 = vechi sau stricat. Peste 50 = motiv clar de redesign.'],
                     ['Afacere care plătește', lead.revenue_score, C.green, 'Din recenziile Google (câte și ce notă) și tipul afacerii. Peste 60 = are clienți și își permite un site.'],
                     ['Oportunitate', opportunityScore(lead), C.amber, `60% „site vechi” + 40% „plătește”${seasonFor(lead.category) ? ' + 10 în sezon' : ''}. Peste 60 = țintă foarte bună, 40–60 = depinde, sub 40 = sari.`],
-                  ] as const).map(([l, v, c, help]) => (
+                  ] as [string, number, string, string][]).map(([l, v, c, help]) => (
                     <div key={l} style={{ background: 'rgba(30,41,59,.5)', borderRadius: 14, padding: 12 }}>
                       <div style={{ fontSize: 11, color: C.dim, fontWeight: 700, textTransform: 'uppercase' }}>{l}</div>
                       <div style={{ fontSize: 26, fontWeight: 800, color: c }}>{v}<span style={{ fontSize: 13, color: C.dim, fontWeight: 600 }}> / 100</span></div>
@@ -294,7 +304,7 @@ function Workspace({ lead, settings, onChange, onClose }:
                   ))}
                 </div>
                 <div style={{ fontSize: 13, color: '#e2e8f0', background: `${C.amber}12`, border: `1px solid ${C.amber}33`, borderRadius: 12, padding: 10, lineHeight: 1.5 }}>
-                  {verdict(a.outdated_score, lead.revenue_score)}
+                  {verdict(a.outdated_score, lead.revenue_score, lead.no_site)}
                   {seasonFor(lead.category) && <div style={{ marginTop: 6, color: C.amber }}>🔥 În sezon acum: {seasonFor(lead.category)!.why}</div>}
                 </div>
                 <div>
@@ -313,10 +323,13 @@ function Workspace({ lead, settings, onChange, onClose }:
                   <input value={lead.contact_email} onChange={e => onChange({ contact_email: e.target.value })} placeholder="nu am găsit — caută pe pagina de contact / Facebook" style={{ ...fieldStyle(), marginTop: 4 }} />
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <a href={a.final_url} target="_blank" rel="noreferrer"><Btn>🌐 Deschide site-ul actual</Btn></a>
-                  <Btn onClick={runAudit} disabled={!!busy}>{busy === 'audit' ? '⏳…' : '↻ Re-audit'}</Btn>
+                  {!lead.no_site && <>
+                    <a href={a.final_url} target="_blank" rel="noreferrer"><Btn>🌐 Deschide site-ul actual</Btn></a>
+                    <Btn onClick={runAudit} disabled={!!busy}>{busy === 'audit' ? '⏳…' : '↻ Re-audit'}</Btn>
+                  </>}
+                  {lead.no_site && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.name + ' ' + lead.address)}`} target="_blank" rel="noreferrer"><Btn>🗺️ Vezi pe Google Maps</Btn></a>}
                   {!['shortlisted', 'demo_ready', 'published', 'contacted', 'replied', 'won'].includes(lead.stage) &&
-                    <Btn solid color={C.amber} onClick={() => { onChange({ stage: 'shortlisted' }); setTab('demo') }}>⭐ E o țintă bună → Redesign</Btn>}
+                    <Btn solid color={C.amber} onClick={() => { onChange({ stage: 'shortlisted' }); setTab('demo') }}>{lead.no_site ? '⭐ E o țintă bună → Fă-i site' : '⭐ E o țintă bună → Redesign'}</Btn>}
                   <Btn color={C.dim} onClick={() => { onChange({ stage: 'skipped' }); onClose() }}>⏭️ Nu e potrivit</Btn>
                 </div>
               </>
@@ -489,12 +502,13 @@ function Workspace({ lead, settings, onChange, onClose }:
 }
 
 // ─── Pagina ───────────────────────────────────────────────────────────────────
-type Filter = 'all' | 'todo' | 'good' | 'pipeline' | 'contacted' | 'won' | 'skipped'
+type Filter = 'all' | 'todo' | 'good' | 'nosite' | 'pipeline' | 'contacted' | 'won' | 'skipped'
 
 function matchesFilter(l: RebuildLead, f: Filter): boolean {
   switch (f) {
     case 'todo':      return !l.audit && l.stage === 'found'
-    case 'good':      return !!l.audit && l.audit.outdated_score >= 35 && ['audited', 'found'].includes(l.stage)
+    case 'good':      return !l.no_site && !!l.audit && l.audit.outdated_score >= 35 && ['audited', 'found'].includes(l.stage)
+    case 'nosite':    return !!l.no_site && !['skipped', 'lost'].includes(l.stage)
     case 'pipeline':  return ['shortlisted', 'demo_ready', 'published'].includes(l.stage)
     case 'contacted': return ['contacted', 'replied'].includes(l.stage)
     case 'won':       return l.stage === 'won'
@@ -518,6 +532,7 @@ export default function RebuildPage() {
   const [showGuide, setShowGuide] = useState(true)
   // Luna curentă se citește în browser: pagina e generată static la build
   const [mounted, setMounted] = useState(false)
+  const [includeNoSite, setIncludeNoSite] = useState(true)
 
   useEffect(() => {
     setLeads(getRebuildLeads())
@@ -564,13 +579,13 @@ export default function RebuildPage() {
     setSearching(true); setErr(''); setInfo('')
     try {
       const res = await fetch('/api/find-sites', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city, category, minReviews, googleApiKey: settings?.googlePlacesApiKey }) })
+        body: JSON.stringify({ city, category, minReviews, includeNoSite, googleApiKey: settings?.googlePlacesApiKey }) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       const before = getRebuildLeads().length
       const merged = addRebuildLeads(data.businesses)
       setLeads(merged)
-      setInfo(`${data.scanned} afaceri scanate · ${data.belowMinReviews} sub ${minReviews} recenzii · ${data.withoutSite} fără site propriu · ${merged.length - before} noi adăugate`)
+      setInfo(`${data.scanned} afaceri scanate · ${data.belowMinReviews} sub ${minReviews} recenzii · ${data.withoutSite} fără site propriu${includeNoSite ? ' (incluse, cu telefon)' : ' (ascunse)'} · ${merged.length - before} noi adăugate`)
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
     setSearching(false)
   }
@@ -695,15 +710,19 @@ export default function RebuildPage() {
             <select value={minReviews} onChange={e => setMinReviews(Number(e.target.value))} style={fieldStyle()}>
               {[5, 20, 40, 80, 150].map(n => <option key={n} value={n}>Min. {n} recenzii Google</option>)}
             </select>
-            <Btn solid onClick={search} disabled={searching}>{searching ? '⏳ Caut…' : '🔍 Caută afaceri cu site'}</Btn>
+            <Btn solid onClick={search} disabled={searching}>{searching ? '⏳ Caut…' : '🔍 Caută afaceri'}</Btn>
           </div>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, color: '#cbd5e1', cursor: 'pointer' }}>
+            <input type="checkbox" checked={includeNoSite} onChange={() => setIncludeNoSite(v => !v)} style={{ accentColor: C.amber }} />
+            Include și afacerile fără site (doar Google Maps / Facebook), pentru care le faci primul site
+          </label>
           {info && <div style={{ fontSize: 12, color: C.muted }}>{info}</div>}
           {err && <div style={{ fontSize: 13, color: C.red }}>⚠️ {err}</div>}
         </div>
 
         {/* Filtre + acțiuni */}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          {([['all', 'Active'], ['todo', 'De auditat'], ['good', '🎯 Site vechi'], ['pipeline', '🎨 În lucru'], ['contacted', '📤 Contactați'], ['won', '✅ Clienți'], ['skipped', 'Arhivă']] as [Filter, string][]).map(([k, l]) => (
+          {([['all', 'Active'], ['todo', 'De auditat'], ['good', '🎯 Site vechi'], ['nosite', '🚫 Fără site'], ['pipeline', '🎨 În lucru'], ['contacted', '📤 Contactați'], ['won', '✅ Clienți'], ['skipped', 'Arhivă']] as [Filter, string][]).map(([k, l]) => (
             <button key={k} onClick={() => setFilter(k)}
               style={{ padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 0,
                 background: filter === k ? '#3b82f6' : 'rgba(30,41,59,.6)', color: filter === k ? '#fff' : C.muted }}>
@@ -737,7 +756,9 @@ export default function RebuildPage() {
                       </div>
                       <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>
                         {l.category_label} · {l.city.replace(' 🏘️', '')} · <span style={{ color: '#f59e0b' }}>★ {l.rating.toFixed(1)}</span> ({l.reviews_count}) ·{' '}
-                        <a href={l.website} target="_blank" rel="noreferrer" style={{ color: C.blue }}>{l.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '').slice(0, 36)}</a>
+                        {l.no_site
+                          ? <span style={{ color: C.red, fontWeight: 700 }}>🚫 Fără site{l.audit?.socials[0] ? ' (doar social media)' : ''}</span>
+                          : <a href={l.website} target="_blank" rel="noreferrer" style={{ color: C.blue }}>{l.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '').slice(0, 36)}</a>}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -754,7 +775,7 @@ export default function RebuildPage() {
                       <span style={{ width: 90 }}>Plătește</span><Bar value={l.revenue_score} color={C.green} /><span style={{ width: 24, textAlign: 'right' }}>{l.revenue_score}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 11, color: C.dim }}>
-                      <span style={{ width: 90 }}>Site vechi</span>
+                      <span style={{ width: 90 }}>{l.no_site ? 'Fără site' : 'Site vechi'}</span>
                       {l.audit ? <><Bar value={l.audit.outdated_score} color={scoreColor(l.audit.outdated_score)} /><span style={{ width: 24, textAlign: 'right' }}>{l.audit.outdated_score}</span></>
                         : <span style={{ fontStyle: 'italic' }}>{auditing === l.place_id ? 'se analizează…' : 'neauditat'}</span>}
                     </div>

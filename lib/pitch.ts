@@ -6,6 +6,8 @@ export function pitchForIssue(issue: string): string | null {
   const i = issue.toLowerCase()
   const year = issue.match(/(?:19|20)\d{2}/)?.[0]
   const secs = issue.match(/(\d+(?:[.,]\d)?)s/)?.[1]
+  if (/doar pagină de social media/.test(i)) return 'aveți doar pagină de social media, iar mulți clienți caută pe Google un site cu servicii, program și poze înainte să sune'
+  if (/nu are site propriu/.test(i)) return 'când cineva vă caută pe Google, găsește doar harta, fără un site cu serviciile, programul și pozele voastre, iar mulți aleg astfel un concurent care are site'
   if (/nu redirecționează/.test(i)) return 'adresa site-ului din Google deschide varianta fără HTTPS, așa că Chrome afișează „Nesigur” lângă adresă — mulți închid pagina când văd asta'
   if (/https|nesigur/.test(i)) return 'când cineva intră pe site, Chrome îi afișează „Nesigur” lângă adresă — mulți închid pagina când văd asta'
   if (/nu se încarcă|eroare \d{3}/.test(i)) return 'site-ul nu se deschide acum — cine vă caută pe Google dă de o pagină cu eroare'
