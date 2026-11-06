@@ -12,16 +12,28 @@ import type { RebuildLead, RebuildStage, SiteAudit } from '@/lib/rebuild'
 import type { Settings } from '@/lib/types'
 import { slugify, withConceptBanner } from '@/lib/preview'
 import { auditPitches } from '@/lib/pitch'
+import { seasonEntries, seasonFor, MONTH_NAMES_RO } from '@/lib/season'
 
 const CITIES = Object.keys(CITY_COORDINATES).sort()
 
 // Categorii unde un site bun aduce bani și clientul își permite să plătească
 const PRIORITY = ['dentist', 'lawyer', 'doctor', 'physiotherapist', 'veterinary_care', 'accounting',
   'real_estate_agency', 'lodging', 'car_dealer', 'car_repair', 'auto_body', 'restaurant', 'spa', 'gym', 'beauty_salon']
-const CATEGORIES = [
-  ...PRIORITY.filter(k => BUSINESS_CATEGORIES[k]).map(k => [k, `💰 ${BUSINESS_CATEGORIES[k]}`] as const),
-  ...Object.entries(BUSINESS_CATEGORIES).filter(([k]) => !PRIORITY.includes(k)),
-]
+// În sezon (🔥) primele, apoi categoriile cu bilet mare (💰), apoi restul
+function categoryOptions(): (readonly [string, string])[] {
+  const hot = Array.from(new Set(seasonEntries().flatMap(e => e.categories))).filter(k => BUSINESS_CATEGORIES[k])
+  return [
+    ...hot.map(k => [k, `🔥 ${BUSINESS_CATEGORIES[k]}`] as const),
+    ...PRIORITY.filter(k => BUSINESS_CATEGORIES[k] && !hot.includes(k)).map(k => [k, `💰 ${BUSINESS_CATEGORIES[k]}`] as const),
+    ...Object.entries(BUSINESS_CATEGORIES).filter(([k]) => !PRIORITY.includes(k) && !hot.includes(k)),
+  ]
+}
+
+// Textul ofertei din Setări, sau '' dacă nu e configurată
+function promoText(s: Settings): string {
+  if (!s.promoLabel || !s.promoPrice) return ''
+  return `${s.promoLabel}: ${s.promoPrice} lei${s.promoRegularPrice ? ` în loc de ${s.promoRegularPrice} lei` : ''}${s.promoUntil ? `, până pe ${s.promoUntil}` : ''}`
+}
 
 const C = { bg: 'rgba(15,22,41,0.8)', border: 'rgba(99,179,237,0.15)', muted: '#94a3b8', dim: '#64748b',
   wa: '#25D366', blue: '#63b3ed', amber: '#f6ad55', violet: '#a78bfa', red: '#fc8181', green: '#4ade80', cyan: '#22d3ee' }
@@ -71,7 +83,7 @@ function fieldStyle(): React.CSSProperties {
 }
 
 // Mesaj de rezervă fără AI — același ton: scurt, personal, fără presiune
-function templateMessage(l: RebuildLead, s: Settings, channel: 'whatsapp' | 'email', points: string[]): { subject: string; message: string } {
+function templateMessage(l: RebuildLead, s: Settings, channel: 'whatsapp' | 'email', points: string[], seasonHook: string, withPromo: boolean): { subject: string; message: string } {
   const me = s.senderName || '[numele tău]'
   const link = l.preview_url || '[LINK PREVIEW]'
   const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
@@ -83,8 +95,10 @@ function templateMessage(l: RebuildLead, s: Settings, channel: 'whatsapp' | 'ema
   const body = [
     `Bună ziua! Sunt ${me}, web designer${l.city ? ` din zonă` : ''}.`,
     seen,
+    seasonHook ? `${cap(seasonHook)}.` : '',
     `Așa că am făcut un concept modern care rezolvă asta, ca să vedeți cum ar putea arăta:`,
     link,
+    withPromo && s.promoPrice ? `Dacă vă place, până pe ${s.promoUntil || 'final de lună'} îl finalizez la ${s.promoPrice} lei${s.promoRegularPrice ? ` (ofertă de ${s.promoLabel || 'sezon'}, în loc de ${s.promoRegularPrice} lei)` : ''}.` : '',
     `Fără nicio obligație, m-am gândit că v-ar plăcea să-l vedeți. Dacă nu vă interesează, îmi spuneți și nu vă mai deranjez.`,
     channel === 'email' ? `\nO zi bună,\n${me}${s.yourPhone ? `\n${s.yourPhone}` : ''}${s.yourWebsite ? `\n${s.yourWebsite}` : ''}` : '',
   ].filter(Boolean).join(channel === 'email' ? '\n\n' : '\n')
@@ -107,6 +121,10 @@ function Workspace({ lead, settings, onChange, onClose }:
   const allPoints = auditPitches(lead.audit?.issues)
   const [points, setPoints] = useState<string[]>(allPoints.slice(0, 2))
   const togglePoint = (p: string) => setPoints(cur => cur.includes(p) ? cur.filter(x => x !== p) : [...cur, p])
+  const season = seasonFor(lead.category)
+  const [useSeason, setUseSeason] = useState(!!season)
+  const promo = promoText(settings)
+  const [usePromo, setUsePromo] = useState(!!promo)
   const [copied, setCopied] = useState('')
   const limit = Number(settings.dailyOutreachLimit) || 10
   const contactsToday = getContactsToday()
@@ -173,7 +191,7 @@ function Workspace({ lead, settings, onChange, onClose }:
     setBusy('publish'); setErr(''); setNoBlob(false)
     try {
       const res = await fetch('/api/publish-preview', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ html: lead.demo_html, businessName: lead.name, designer: settings.senderName, existingUrl: lead.preview_url }) })
+        body: JSON.stringify({ html: lead.demo_html, businessName: lead.name, designer: settings.senderName, existingUrl: lead.preview_url, promo: promoText(settings) }) })
       const data = await res.json()
       if (data.code === 'no_blob') { setNoBlob(true); setBusy(''); return }
       if (!res.ok) throw new Error(data.error)
@@ -183,7 +201,7 @@ function Workspace({ lead, settings, onChange, onClose }:
   }
 
   function download() {
-    const blob = new Blob([withConceptBanner(lead.demo_html, lead.name, settings.senderName)], { type: 'text/html' })
+    const blob = new Blob([withConceptBanner(lead.demo_html, lead.name, settings.senderName, promoText(settings))], { type: 'text/html' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
     a.download = `${slugify(lead.name)}.html`
@@ -194,7 +212,7 @@ function Workspace({ lead, settings, onChange, onClose }:
     setBusy('msg'); setErr('')
     try {
       const res = await fetch('/api/rebuild-message', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lead: { ...lead, demo_html: '' }, channel, points, anthropicApiKey: settings.anthropicApiKey,
+        body: JSON.stringify({ lead: { ...lead, demo_html: '' }, channel, points, seasonHook: useSeason && season ? season.hook : '', promo: usePromo ? promo : '', anthropicApiKey: settings.anthropicApiKey,
           senderName: settings.senderName, yourPhone: settings.yourPhone, yourWebsite: settings.yourWebsite }) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -204,7 +222,7 @@ function Workspace({ lead, settings, onChange, onClose }:
   }
 
   function useTemplate() {
-    const t = templateMessage(lead, settings, channel, points)
+    const t = templateMessage(lead, settings, channel, points, useSeason && season ? season.hook : '', usePromo)
     onChange({ message: t.message, email_subject: t.subject })
   }
 
@@ -266,7 +284,7 @@ function Workspace({ lead, settings, onChange, onClose }:
                   {([
                     ['Site vechi', a.outdated_score, scoreColor(a.outdated_score), 'Câte probleme are site-ul actual: 0 = modern, 100 = vechi sau stricat. Peste 50 = motiv clar de redesign.'],
                     ['Afacere care plătește', lead.revenue_score, C.green, 'Din recenziile Google (câte și ce notă) și tipul afacerii. Peste 60 = are clienți și își permite un site.'],
-                    ['Oportunitate', lead.opportunity_score, C.amber, '60% „site vechi” + 40% „plătește”. Peste 60 = țintă foarte bună, 40–60 = depinde, sub 40 = sari.'],
+                    ['Oportunitate', opportunityScore(lead), C.amber, `60% „site vechi” + 40% „plătește”${seasonFor(lead.category) ? ' + 10 în sezon' : ''}. Peste 60 = țintă foarte bună, 40–60 = depinde, sub 40 = sari.`],
                   ] as const).map(([l, v, c, help]) => (
                     <div key={l} style={{ background: 'rgba(30,41,59,.5)', borderRadius: 14, padding: 12 }}>
                       <div style={{ fontSize: 11, color: C.dim, fontWeight: 700, textTransform: 'uppercase' }}>{l}</div>
@@ -277,6 +295,7 @@ function Workspace({ lead, settings, onChange, onClose }:
                 </div>
                 <div style={{ fontSize: 13, color: '#e2e8f0', background: `${C.amber}12`, border: `1px solid ${C.amber}33`, borderRadius: 12, padding: 10, lineHeight: 1.5 }}>
                   {verdict(a.outdated_score, lead.revenue_score)}
+                  {seasonFor(lead.category) && <div style={{ marginTop: 6, color: C.amber }}>🔥 În sezon acum: {seasonFor(lead.category)!.why}</div>}
                 </div>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 800, color: '#f1f5f9', marginBottom: 6 }}>Probleme găsite</div>
@@ -380,6 +399,22 @@ function Workspace({ lead, settings, onChange, onClose }:
                 {points.length > 2 && <div style={{ fontSize: 11, color: C.amber, marginTop: 4 }}>Mai mult de 2 observații face mesajul să sune a critică. Alege-le pe cele mai importante.</div>}
               </div>
             )}
+            {(season || promo) && (
+              <div style={{ background: 'rgba(30,41,59,.45)', borderRadius: 12, padding: 12, display: 'grid', gap: 6 }}>
+                {season && (
+                  <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, color: '#cbd5e1', cursor: 'pointer', lineHeight: 1.45 }}>
+                    <input type="checkbox" checked={useSeason} onChange={() => setUseSeason(v => !v)} style={{ marginTop: 3, accentColor: C.amber }} />
+                    <span><b style={{ color: C.amber }}>🔥 Motivul de sezon:</b> {season.hook}</span>
+                  </label>
+                )}
+                {promo && (
+                  <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, color: '#cbd5e1', cursor: 'pointer', lineHeight: 1.45 }}>
+                    <input type="checkbox" checked={usePromo} onChange={() => setUsePromo(v => !v)} style={{ marginTop: 3, accentColor: C.amber }} />
+                    <span><b style={{ color: '#fbbf24' }}>🏷️ Oferta:</b> {promo} <span style={{ color: C.dim }}>(o schimbi din Setări)</span></span>
+                  </label>
+                )}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <Btn color={channel === 'whatsapp' ? C.wa : C.dim} onClick={() => setChannel('whatsapp')}>📱 WhatsApp</Btn>
               <Btn color={channel === 'email' ? C.blue : C.dim} onClick={() => setChannel('email')}>✉️ Email / formular</Btn>
@@ -481,10 +516,15 @@ export default function RebuildPage() {
   const [filter, setFilter] = useState<Filter>('all')
   const [openId, setOpenId] = useState<string | null>(null)
   const [showGuide, setShowGuide] = useState(true)
+  // Luna curentă se citește în browser: pagina e generată static la build
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setLeads(getRebuildLeads())
     setSettings(getSettings())
+    setMounted(true)
+    const hot = seasonEntries()[0]?.categories[0]
+    if (hot) setCategory(hot)
     try { setShowGuide(localStorage.getItem('rebuild_hide_guide') !== '1') } catch {}
   }, [])
 
@@ -551,7 +591,7 @@ export default function RebuildPage() {
   }
 
   const sorted = useMemo(() => [...leads].sort((a, b) =>
-    (b.opportunity_score || opportunityScore(b)) - (a.opportunity_score || opportunityScore(a))), [leads])
+    opportunityScore(b) - opportunityScore(a)), [leads])
 
   const filtered = sorted.filter(l => matchesFilter(l, filter))
   const count = (f: Filter) => sorted.filter(l => matchesFilter(l, f)).length
@@ -612,6 +652,34 @@ export default function RebuildPage() {
           </div>
         )}
 
+        {/* Cine cumpără acum — din lib/season.ts, cu surse */}
+        {mounted && seasonEntries().length > 0 && (
+          <details className="glass" style={{ borderRadius: 20, padding: 16 }} open>
+            <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#f1f5f9', fontSize: 15 }}>
+              🔥 Cine cumpără acum ({MONTH_NAMES_RO[new Date().getMonth()]}) și de ce
+            </summary>
+            <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+              {seasonEntries().map(e => (
+                <div key={e.label} style={{ background: 'rgba(30,41,59,.45)', borderRadius: 14, padding: 12 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }}>
+                    <span style={{ fontWeight: 800, color: '#f1f5f9', fontSize: 14 }}>{e.label}</span>
+                    <Pill color={e.evidence === 'puternică' ? C.green : e.evidence === 'medie' ? C.amber : C.dim}>dovadă {e.evidence}</Pill>
+                    <span style={{ flex: 1 }} />
+                    <Btn small onClick={() => setCategory(e.categories[0])}>Caută {BUSINESS_CATEGORIES[e.categories[0]]?.split(' /')[0]}</Btn>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.5 }}>{e.why}</div>
+                  <div style={{ fontSize: 11, color: C.dim, marginTop: 4, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    Surse: {e.sources.map(src => <a key={src.url} href={src.url} target="_blank" rel="noreferrer" style={{ color: C.blue }}>{src.title}</a>)}
+                  </div>
+                </div>
+              ))}
+              <div style={{ fontSize: 11, color: C.dim, lineHeight: 1.5 }}>
+                Context: doar ~54% dintre firmele din România au site (UE: 79%), printre cele mai mici procente din UE (Eurostat 2025). Prețul pieței pentru un site de prezentare făcut de un profesionist e de 2.500–5.000 lei.
+              </div>
+            </div>
+          </details>
+        )}
+
         {/* Căutare */}
         <div className="glass" style={{ borderRadius: 20, padding: 16, display: 'grid', gap: 12 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10 }}>
@@ -619,7 +687,7 @@ export default function RebuildPage() {
               {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
             <select value={category} onChange={e => setCategory(e.target.value)} style={fieldStyle()}>
-              {CATEGORIES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              {(mounted ? categoryOptions() : Object.entries(BUSINESS_CATEGORIES)).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
             </select>
             <select value={minReviews} onChange={e => setMinReviews(Number(e.target.value))} style={fieldStyle()}>
               {[5, 20, 40, 80, 150].map(n => <option key={n} value={n}>Min. {n} recenzii Google</option>)}
@@ -661,7 +729,8 @@ export default function RebuildPage() {
                         <span style={{ fontWeight: 800, color: '#f1f5f9', fontSize: 15 }}>{l.name}</span>
                         <Pill color={st.color}>{st.emoji} {st.label}</Pill>
                         {l.demo_job && <Pill color={C.violet}>⏳ Generez site</Pill>}
-                        {l.audit && <Pill color={C.amber}>🎯 {l.opportunity_score}</Pill>}
+                        {l.audit && <Pill color={C.amber}>🎯 {opportunityScore(l)}</Pill>}
+                        {seasonFor(l.category) && <Pill color={C.red}>🔥 În sezon</Pill>}
                       </div>
                       <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>
                         {l.category_label} · {l.city.replace(' 🏘️', '')} · <span style={{ color: '#f59e0b' }}>★ {l.rating.toFixed(1)}</span> ({l.reviews_count}) ·{' '}

@@ -11,8 +11,8 @@ export const maxDuration = 60
 // vede un client pe site-ul lor), apoi conceptul — fără presiune.
 
 export async function POST(req: NextRequest) {
-  const { lead, channel = 'whatsapp', points, anthropicApiKey: clientKey, senderName = '', yourPhone = '', yourWebsite = '' }:
-    { lead: RebuildLead; channel?: 'whatsapp' | 'email'; points?: string[]; anthropicApiKey?: string; senderName?: string; yourPhone?: string; yourWebsite?: string } =
+  const { lead, channel = 'whatsapp', points, seasonHook = '', promo = '', anthropicApiKey: clientKey, senderName = '', yourPhone = '', yourWebsite = '' }:
+    { lead: RebuildLead; channel?: 'whatsapp' | 'email'; points?: string[]; seasonHook?: string; promo?: string; anthropicApiKey?: string; senderName?: string; yourPhone?: string; yourWebsite?: string } =
     await req.json()
 
   const apiKey = process.env.ANTHROPIC_API_KEY || clientKey
@@ -29,7 +29,7 @@ Context:
 - Site-ul lor actual: ${lead.website}
 - Ce am observat concret la site-ul actual (verificat, formulat pentru client):
 ${observations.length ? observations.map(o => `  • ${o}`).join('\n') : '  • designul arată învechit față de cât de bine lucrează'}
-- Am construit deja un concept modern al site-ului lor, live aici: ${lead.preview_url || '[LINK PREVIEW]'}
+${seasonHook ? `- Context de sezon (adevărat, verificat): ${seasonHook}\n` : ''}${promo ? `- Ofertă reală, valabilă acum: ${promo}\n` : ''}- Am construit deja un concept modern al site-ului lor, live aici: ${lead.preview_url || '[LINK PREVIEW]'}
 - Expeditor: ${name || '[numele meu]'}${yourPhone ? `, tel ${yourPhone}` : ''}${yourWebsite ? `, ${yourWebsite}` : ''}
 ${lead.rating >= 4.3 && lead.reviews_count >= 20 ? `- Au ${lead.rating}★ din ${lead.reviews_count} recenzii Google — se vede că lucrează bine` : ''}
 
@@ -37,7 +37,8 @@ Reguli:
 - Scurt: ${channel === 'email' ? 'max 90 de cuvinte în corp' : 'max 5 rânduri scurte'}. Pe tonul unui om real, nu al unei agenții.
 - Structura: salut → cine sunt într-o jumătate de frază → ce am observat la site-ul ${lead.name} (observațiile de mai sus, ca un semnal util, cu efectul asupra clienților lor) → de aceea am făcut un concept modern care rezolvă asta → linkul → „fără nicio obligație".
 - Observațiile sunt verificate: folosește-le fidel, fără să le exagerezi și fără să adaugi altele. Ton de coleg care dă un pont, nu de critic — niciodată jignitor sau alarmist.
-- FĂRĂ preț, fără „ofertă limitată", fără presiune, fără emoji excesive (max 1), fără majuscule de marketing.
+${promo ? '- Menționează oferta O SINGURĂ dată, într-o propoziție simplă după link (ex. „Dacă vă place, ...”), exact cu prețul și data de mai sus. Fără „grăbiți-vă”, fără presiune, fără emoji excesive (max 1), fără majuscule de marketing.' : '- FĂRĂ preț, fără „ofertă limitată", fără presiune, fără emoji excesive (max 1), fără majuscule de marketing.'}
+${seasonHook ? '- Poți lega observațiile de contextul de sezon într-o jumătate de frază, natural.' : ''}
 - Ultima propoziție: o variantă politicoasă de „dacă nu vă interesează, îmi spuneți și nu vă mai deranjez".
 - Nu inventa nimic despre afacere.`
 

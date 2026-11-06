@@ -46,6 +46,10 @@ export interface Settings {
   deliveryDays: string
   maxEmailsPerDay: number
   dailyOutreachLimit: number
+  promoLabel: string          // ex. „Black Friday” — gol = fără ofertă
+  promoPrice: string
+  promoRegularPrice: string
+  promoUntil: string          // text afișat, ex. „30 noiembrie”
 }
 
 export interface DailyStats {
