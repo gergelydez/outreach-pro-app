@@ -29,7 +29,10 @@ export async function POST(req: NextRequest) {
   const tel = (a.phones[0] || lead.phone || '').replace(/\s/g, '')
   const hasRating = lead.rating >= 4.0 && lead.reviews_count >= 10
 
-  const prompt = `Ești un web designer senior. Refă site-ul unei afaceri locale reale ca un concept modern, single-file HTML, pe care îl vom arăta proprietarului ca preview: „uite cum ar putea arăta site-ul vostru".
+  const noSite = !!lead.no_site
+  const prompt = `Ești un web designer senior. ${noSite
+    ? 'Construiește PRIMUL site al unei afaceri locale reale care încă nu are site propriu'
+    : 'Refă site-ul unei afaceri locale reale'} ca un concept modern, single-file HTML, pe care îl vom arăta proprietarului ca preview: „uite cum ar putea arăta site-ul vostru".
 
 AFACEREA
 - Nume: ${lead.name}
@@ -37,26 +40,26 @@ AFACEREA
 - Oraș / adresă: ${lead.address || lead.city}
 - Telefon: ${a.phones[0] || lead.phone || '—'}
 - Email: ${a.emails[0] || '—'}
-- Site actual: ${a.final_url}
+- Site actual: ${noSite ? `nu au site propriu${a.final_url ? ` (doar ${a.final_url})` : ' (doar profilul Google Maps)'}` : a.final_url}
 ${hasRating ? `- Google: ${lead.rating}★ din ${lead.reviews_count} recenzii (date reale, le poți afișa exact așa)` : ''}
 ${a.socials.length ? `- Social: ${a.socials.join(', ')}` : ''}
 
-CONȚINUTUL REAL DE PE SITE-UL ACTUAL (sursa ta de adevăr)
+${noSite ? 'DATE REALE DESPRE AFACERE (din Google; nu există site din care să preiei texte)' : 'CONȚINUTUL REAL DE PE SITE-UL ACTUAL (sursa ta de adevăr)'}
 Titlu: ${a.title || '—'}
 Descriere: ${a.description || '—'}
 Titluri de secțiuni: ${a.headings.join(' | ') || '—'}
 Text:
 """
-${a.text_excerpt || '(site-ul nu a putut fi citit — folosește doar datele de mai sus)'}
+${a.text_excerpt || (noSite ? '(fără alte date)' : '(site-ul nu a putut fi citit — folosește doar datele de mai sus)')}
 """
 ${a.logo_url ? `Logo: ${a.logo_url}` : ''}
 ${a.images.length ? `Imagini proprii de pe site (folosește-le cu <img src> unde se potrivesc, cu object-fit:cover și fundal de rezervă dacă nu se încarcă): ${a.images.join(' , ')}` : ''}
 
-PROBLEMELE SITE-ULUI ACTUAL (rezolvă-le vizibil în concept)
-${a.issues.map(i => `- ${i}`).join('\n') || '- design învechit'}
+${noSite ? '' : `PROBLEMELE SITE-ULUI ACTUAL (rezolvă-le vizibil în concept)
+${a.issues.map(i => `- ${i}`).join('\n') || '- design învechit'}`}
 
 CE CONSTRUIEȘTI
-- Structură potrivită domeniului: hero clar cu ce fac și unde, serviciile LOR reale (din textul de mai sus), de ce ei, ${hasRating ? 'dovada socială cu ratingul Google real, ' : ''}program/locație dacă apar în text, contact cu telefon clickabil (href="tel:${tel}") și, dacă e cazul, buton de programare / cerere ofertă.
+- Structură potrivită domeniului: hero clar cu ce fac și unde, ${noSite ? `servicii tipice pentru ${lead.category_label}, formulate general (fără prețuri, fără detalii pe care nu le știm — proprietarul le va confirma)` : 'serviciile LOR reale (din textul de mai sus)'}, de ce ei, ${hasRating ? 'dovada socială cu ratingul Google real, ' : ''}program/locație dacă apar în text, contact cu telefon clickabil (href="tel:${tel}") și, dacă e cazul, buton de programare / cerere ofertă.
 - Design 2026, nu template: tipografie bună (poți folosi Google Fonts), paletă derivată din domeniu și din identitatea lor actuală, spațiere generoasă, mobile-first, animații subtile la scroll, navigație sticky care pe mobil devine meniu.
 - Tot conținutul în limba ${lang}, cu diacritice corecte. Ton profesionist, cald, specific afacerii lor.
 - Un singur fișier: CSS în <style>, JS minimal în <script>. Fără framework-uri.

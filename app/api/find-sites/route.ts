@@ -3,8 +3,9 @@ import { CITY_COORDINATES, BUSINESS_CATEGORIES } from '@/lib/constants'
 
 export const maxDuration = 60
 
-// Caută afaceri CARE AU site (opusul /api/find-businesses), pentru fluxul
-// "Rebuild Their Site". O singură pagină Google (max 20 rezultate) — listă
+// Caută afaceri pentru fluxul "Rebuild Their Site": cele CU site (pentru
+// redesign) și, opțional, cele FĂRĂ site propriu (doar Maps / Facebook), pentru
+// care facem primul site. O singură pagină Google (max 20 rezultate) — listă
 // mică și țintită, nu extragere în masă.
 
 interface PlaceDetails {
@@ -17,6 +18,7 @@ interface PlaceDetails {
     rating?: number
     user_ratings_total?: number
     business_status?: string
+    opening_hours?: { weekday_text?: string[] }
   }
 }
 
@@ -59,7 +61,7 @@ function normalizePhoneForWhatsApp(phone: string): string {
 const NOT_A_SITE = /facebook\.com|instagram\.com|linktr\.ee|google\.com|business\.site|tiktok\.com|booksy\.com|wa\.me|youtube\.com/i
 
 export async function POST(req: NextRequest) {
-  const { city, category, minReviews = 15, googleApiKey: clientKey } = await req.json()
+  const { city, category, minReviews = 15, includeNoSite = true, googleApiKey: clientKey } = await req.json()
 
   const apiKey = process.env.GOOGLE_PLACES_API_KEY || clientKey
   if (!apiKey) return NextResponse.json({ error: 'Lipsă Google Places API key (Setări)' }, { status: 400 })
@@ -90,7 +92,7 @@ export async function POST(req: NextRequest) {
     const u = new URL('https://maps.googleapis.com/maps/api/place/details/json')
     u.searchParams.set('place_id', place.place_id)
     u.searchParams.set('fields',
-      'name,formatted_address,formatted_phone_number,international_phone_number,website,rating,user_ratings_total,business_status')
+      'name,formatted_address,formatted_phone_number,international_phone_number,website,rating,user_ratings_total,business_status,opening_hours')
     u.searchParams.set('language', 'ro')
     u.searchParams.set('key', apiKey)
     try { return await (await fetch(u.toString())).json() } catch { return {} }
@@ -101,7 +103,11 @@ export async function POST(req: NextRequest) {
     .map((d, i) => ({ r: d.result || {}, place: places[i] }))
     .filter(({ r }) => {
       if (r.business_status === 'CLOSED_PERMANENTLY') return false
-      if (!r.website || NOT_A_SITE.test(r.website)) { skippedNoSite++; return false }
+      if (!r.website || NOT_A_SITE.test(r.website)) {
+        skippedNoSite++
+        // fără site propriu: îi păstrăm doar dacă au telefon (altfel nu-i putem contacta)
+        return includeNoSite && !!(r.formatted_phone_number || r.international_phone_number)
+      }
       return true
     })
     .map(({ r, place }) => {
@@ -109,6 +115,19 @@ export async function POST(req: NextRequest) {
       const rating = r.rating || 0
       const reviews = r.user_ratings_total || 0
       const rev = revenueScore(rating, reviews, category)
+      const noSite = !r.website || NOT_A_SITE.test(r.website)
+      const social = noSite && r.website ? r.website : ''
+      const hours = r.opening_hours?.weekday_text || []
+      // Fără site nu avem ce audita: auditul e „nu are site propriu”, cu datele de pe Google
+      const audit = noSite ? {
+        url: '', final_url: social, reachable: false, https: false, mobile_friendly: false,
+        load_ms: 0, html_kb: 0, copyright_year: null, outdated_score: 100,
+        issues: [social ? 'Are doar pagină de social media, fără site propriu' : 'Nu are site propriu'],
+        title: r.name || place.name, description: '', headings: [],
+        text_excerpt: hours.length ? `Program (din Google): ${hours.join('; ')}` : '',
+        emails: [], phones: phone ? [phone] : [], socials: social ? [social] : [],
+        logo_url: '', images: [], audited_at: new Date().toISOString(),
+      } : undefined
       return {
         place_id:          place.place_id,
         name:              r.name || place.name,
@@ -118,17 +137,19 @@ export async function POST(req: NextRequest) {
         category_label:    BUSINESS_CATEGORIES[category] || category,
         phone,
         phone_intl:        normalizePhoneForWhatsApp(r.international_phone_number || phone),
-        website:           r.website!,
+        website:           noSite ? '' : r.website!,
+        no_site:           noSite,
+        ...(audit ? { audit } : {}),
         rating,
         reviews_count:     reviews,
         revenue_score:     rev,
-        opportunity_score: Math.round(rev * 0.4),
+        opportunity_score: Math.round(noSite ? 60 + rev * 0.4 : rev * 0.4),
         demo_html:         '',
         preview_url:       '',
         contact_email:     '',
         message:           '',
         email_subject:     '',
-        stage:             'found' as const,
+        stage:             (noSite ? 'audited' : 'found') as 'audited' | 'found',
         notes:             '',
         created_at:        new Date().toISOString(),
       }
