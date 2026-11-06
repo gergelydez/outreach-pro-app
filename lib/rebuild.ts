@@ -1,5 +1,7 @@
 'use client'
 
+import { seasonFor } from './season'
+
 // Fluxul "Rebuild Their Site": afaceri CU site vechi → audit → demo redesign
 // pe link live → mesaj personal, trimis manual, în număr mic.
 
@@ -113,11 +115,12 @@ export function deleteRebuildLead(placeId: string): RebuildLead[] {
   return leads
 }
 
-// Site vechi contează 60%, afacere care plătește 40%.
+// Site vechi contează 60%, afacere care plătește 40%, +10 dacă domeniul are acum
+// un motiv sezonier să cumpere (vezi lib/season.ts). Calculat mereu la zi, nu stocat.
 // Un site nefuncțional la o afacere fără recenzii nu e o oportunitate.
-export function opportunityScore(l: Pick<RebuildLead, 'revenue_score' | 'audit'>): number {
-  if (!l.audit) return Math.round(l.revenue_score * 0.4)
-  return Math.round(l.audit.outdated_score * 0.6 + l.revenue_score * 0.4)
+export function opportunityScore(l: Pick<RebuildLead, 'revenue_score' | 'audit' | 'category'>): number {
+  const base = l.audit ? l.audit.outdated_score * 0.6 + l.revenue_score * 0.4 : l.revenue_score * 0.4
+  return Math.min(100, Math.round(base + (seasonFor(l.category) ? 10 : 0)))
 }
 
 // ── Limită zilnică de contactări — outreach personal, nu spam ────────────────

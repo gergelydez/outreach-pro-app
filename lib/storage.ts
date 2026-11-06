@@ -57,6 +57,10 @@ export const DEFAULT_SETTINGS: Settings = {
   deliveryDays:       '5',
   maxEmailsPerDay:    150,
   dailyOutreachLimit: 10,
+  promoLabel:         'Black Friday',
+  promoPrice:         '699',
+  promoRegularPrice:  '1398',
+  promoUntil:         '30 noiembrie',
 }
 
 export function getSettings(): Settings {
