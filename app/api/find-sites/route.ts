@@ -19,6 +19,7 @@ interface PlaceDetails {
     user_ratings_total?: number
     business_status?: string
     opening_hours?: { weekday_text?: string[] }
+    reviews?: { time?: number }[]
   }
 }
 
@@ -61,7 +62,8 @@ function normalizePhoneForWhatsApp(phone: string): string {
 const NOT_A_SITE = /facebook\.com|instagram\.com|linktr\.ee|google\.com|business\.site|tiktok\.com|booksy\.com|wa\.me|youtube\.com/i
 
 export async function POST(req: NextRequest) {
-  const { city, category, minReviews = 15, includeNoSite = true, googleApiKey: clientKey } = await req.json()
+  const { city, category, minReviews = 15, includeNoSite = true, onlyRecent = true, googleApiKey: clientKey } = await req.json()
+  const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime() / 1000
 
   const apiKey = process.env.GOOGLE_PLACES_API_KEY || clientKey
   if (!apiKey) return NextResponse.json({ error: 'Lipsă Google Places API key (Setări)' }, { status: 400 })
@@ -92,17 +94,26 @@ export async function POST(req: NextRequest) {
     const u = new URL('https://maps.googleapis.com/maps/api/place/details/json')
     u.searchParams.set('place_id', place.place_id)
     u.searchParams.set('fields',
-      'name,formatted_address,formatted_phone_number,international_phone_number,website,rating,user_ratings_total,business_status,opening_hours')
+      'name,formatted_address,formatted_phone_number,international_phone_number,website,rating,user_ratings_total,business_status,opening_hours,reviews')
+    // cele mai noi 5 recenzii (implicit Google le dă pe „cele mai relevante”) — ca să vedem dacă afacerea e activă anul ăsta
+    u.searchParams.set('reviews_sort', 'newest')
     u.searchParams.set('language', 'ro')
     u.searchParams.set('key', apiKey)
     try { return await (await fetch(u.toString())).json() } catch { return {} }
   }))
 
   let skippedNoSite = 0
+  let skippedClosed = 0
+  let skippedStale = 0
+  const lastReviewTime = (r: NonNullable<PlaceDetails['result']>) =>
+    Math.max(0, ...(r.reviews || []).map(rv => rv.time || 0))
   const businesses = details
     .map((d, i) => ({ r: d.result || {}, place: places[i] }))
     .filter(({ r }) => {
-      if (r.business_status === 'CLOSED_PERMANENTLY') return false
+      // Doar afaceri active: Google marchează închiderile permanente și temporare
+      if (r.business_status && r.business_status !== 'OPERATIONAL') { skippedClosed++; return false }
+      // Activă anul ăsta = cel puțin o recenzie din anul calendaristic curent
+      if (onlyRecent && lastReviewTime(r) < yearStart) { skippedStale++; return false }
       if (!r.website || NOT_A_SITE.test(r.website)) {
         skippedNoSite++
         // fără site propriu: îi păstrăm doar dacă au telefon (altfel nu-i putem contacta)
@@ -115,6 +126,8 @@ export async function POST(req: NextRequest) {
       const rating = r.rating || 0
       const reviews = r.user_ratings_total || 0
       const rev = revenueScore(rating, reviews, category)
+      const lastRv = lastReviewTime(r)
+      const reviewsThisYear = (r.reviews || []).filter(rv => (rv.time || 0) >= yearStart).length
       const noSite = !r.website || NOT_A_SITE.test(r.website)
       const social = noSite && r.website ? r.website : ''
       const hours = r.opening_hours?.weekday_text || []
@@ -139,6 +152,8 @@ export async function POST(req: NextRequest) {
         phone_intl:        normalizePhoneForWhatsApp(r.international_phone_number || phone),
         website:           noSite ? '' : r.website!,
         no_site:           noSite,
+        last_review_at:    lastRv ? new Date(lastRv * 1000).toISOString() : '',
+        reviews_this_year: reviewsThisYear,   // din cele mai noi 5 pe care le dă Google
         ...(audit ? { audit } : {}),
         rating,
         reviews_count:     reviews,
@@ -161,5 +176,7 @@ export async function POST(req: NextRequest) {
     scanned: (nearbyData.results || []).length,
     belowMinReviews: (nearbyData.results || []).length - places.length,
     withoutSite: skippedNoSite,
+    closed: skippedClosed,
+    stale: skippedStale,
   })
 }

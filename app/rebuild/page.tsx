@@ -60,6 +60,15 @@ function Bar({ value, color }: { value: number; color: string }) {
     <div style={{ width: `${value}%`, height: '100%', background: color }} /></div>
 }
 
+// „acum 3 zile” / „acum 2 săptămâni” / „acum 4 luni”
+function ago(iso: string) {
+  const days = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 864e5))
+  if (days === 0) return 'azi'
+  if (days < 14) return `acum ${days} ${days === 1 ? 'zi' : 'zile'}`
+  if (days < 60) return `acum ${Math.round(days / 7)} săptămâni`
+  return `acum ${Math.round(days / 30)} luni`
+}
+
 function elapsed(since: string) {
   const sec = Math.max(0, Math.round((Date.now() - new Date(since).getTime()) / 1000))
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
@@ -533,6 +542,7 @@ export default function RebuildPage() {
   // Luna curentă se citește în browser: pagina e generată static la build
   const [mounted, setMounted] = useState(false)
   const [includeNoSite, setIncludeNoSite] = useState(true)
+  const [onlyRecent, setOnlyRecent] = useState(true)
 
   useEffect(() => {
     setLeads(getRebuildLeads())
@@ -579,13 +589,13 @@ export default function RebuildPage() {
     setSearching(true); setErr(''); setInfo('')
     try {
       const res = await fetch('/api/find-sites', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city, category, minReviews, includeNoSite, googleApiKey: settings?.googlePlacesApiKey }) })
+        body: JSON.stringify({ city, category, minReviews, includeNoSite, onlyRecent, googleApiKey: settings?.googlePlacesApiKey }) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       const before = getRebuildLeads().length
       const merged = addRebuildLeads(data.businesses)
       setLeads(merged)
-      setInfo(`${data.scanned} afaceri scanate · ${data.belowMinReviews} sub ${minReviews} recenzii · ${data.withoutSite} fără site propriu${includeNoSite ? ' (incluse, cu telefon)' : ' (ascunse)'} · ${merged.length - before} noi adăugate`)
+      setInfo(`${data.scanned} afaceri scanate · ${data.belowMinReviews} sub ${minReviews} recenzii · ${data.closed ? `${data.closed} închise (scoase) · ` : ''}${onlyRecent && data.stale ? `${data.stale} fără recenzii din ${new Date().getFullYear()} (scoase) · ` : ''}${data.withoutSite} fără site propriu${includeNoSite ? ' (incluse, cu telefon)' : ' (ascunse)'} · ${merged.length - before} noi adăugate`)
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
     setSearching(false)
   }
@@ -713,6 +723,10 @@ export default function RebuildPage() {
             <Btn solid onClick={search} disabled={searching}>{searching ? '⏳ Caut…' : '🔍 Caută afaceri'}</Btn>
           </div>
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, color: '#cbd5e1', cursor: 'pointer' }}>
+            <input type="checkbox" checked={onlyRecent} onChange={() => setOnlyRecent(v => !v)} style={{ accentColor: C.amber }} />
+            Doar afaceri active, cu recenzii din {new Date().getFullYear()} (cele închise sunt scoase mereu)
+          </label>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, color: '#cbd5e1', cursor: 'pointer' }}>
             <input type="checkbox" checked={includeNoSite} onChange={() => setIncludeNoSite(v => !v)} style={{ accentColor: C.amber }} />
             Include și afacerile fără site (doar Google Maps / Facebook), pentru care le faci primul site
           </label>
@@ -756,6 +770,7 @@ export default function RebuildPage() {
                       </div>
                       <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>
                         {l.category_label} · {l.city.replace(' 🏘️', '')} · <span style={{ color: '#f59e0b' }}>★ {l.rating.toFixed(1)}</span> ({l.reviews_count}) ·{' '}
+                        {l.last_review_at && <span style={{ color: C.green }}>💬 ultima recenzie {ago(l.last_review_at)}{l.reviews_this_year ? ` (${l.reviews_this_year}/5 recente din ${new Date().getFullYear()})` : ''} · </span>}
                         {l.no_site
                           ? <span style={{ color: C.red, fontWeight: 700 }}>🚫 Fără site{l.audit?.socials[0] ? ' (doar social media)' : ''}</span>
                           : <a href={l.website} target="_blank" rel="noreferrer" style={{ color: C.blue }}>{l.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '').slice(0, 36)}</a>}
