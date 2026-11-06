@@ -10,7 +10,7 @@ export const maxDuration = 30
 // BLOB_READ_WRITE_TOKEN, fie BLOB_STORE_ID (autentificare OIDC, automată pe Vercel).
 
 export async function POST(req: NextRequest) {
-  const { html, businessName, designer = '', existingUrl = '', promo = '' } = await req.json()
+  const { html, businessName, designer = '', existingUrl = '' } = await req.json()
   if (!html || !businessName) return NextResponse.json({ error: 'Lipsă html / businessName' }, { status: 400 })
 
   if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID) {
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   const slug = prevSlug || `${slugify(businessName)}-${randomBytes(3).toString('hex')}`
 
   try {
-    await put(`previews/${slug}.html`, withConceptBanner(html, businessName, designer, String(promo).slice(0, 120)), {
+    await put(`previews/${slug}.html`, withConceptBanner(html, businessName, designer), {
       access: 'public',
       contentType: 'text/html; charset=utf-8',
       addRandomSuffix: false,

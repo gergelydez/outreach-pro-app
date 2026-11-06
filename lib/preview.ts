@@ -9,10 +9,11 @@ export function slugify(s: string): string {
 
 // Banner discret + noindex: preview-ul e clar un concept, nu site-ul oficial,
 // și nu concurează în Google cu site-ul lor real.
-export function withConceptBanner(html: string, businessName: string, designer: string, promo = ''): string {
+export function withConceptBanner(html: string, businessName: string, designer: string): string {
   const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!))
   const meta = '<meta name="robots" content="noindex,nofollow">'
-  const banner = `<div id="concept-banner" style="position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:2147483647;background:rgba(15,23,42,.92);color:#f1f5f9;font:500 12px/1.4 system-ui,sans-serif;padding:8px 14px;border-radius:999px;box-shadow:0 6px 24px rgba(0,0,0,.25);display:flex;gap:10px;align-items:center;max-width:calc(100vw - 24px)"><span>Concept de redesign pentru <b>${esc(businessName)}</b>${designer ? ` · realizat de ${esc(designer)}` : ''} · nu este site-ul oficial${promo ? ` · <b style="color:#fbbf24">${esc(promo)}</b>` : ''}</span><button onclick="this.parentNode.remove()" style="background:none;border:0;color:#94a3b8;cursor:pointer;font-size:14px" aria-label="Închide">✕</button></div>`
+  // Mic, în stânga jos, ca să nu acopere butoanele de contact ale site-ului (de obicei în dreapta jos)
+  const banner = `<div id="concept-banner" title="Concept de redesign pentru ${esc(businessName)}${designer ? `, realizat de ${esc(designer)}` : ''}" style="position:fixed;bottom:10px;left:10px;z-index:2147483647;background:rgba(15,23,42,.88);color:#e2e8f0;font:500 11px/1.3 system-ui,sans-serif;padding:6px 10px;border-radius:999px;box-shadow:0 4px 16px rgba(0,0,0,.2);display:flex;gap:8px;align-items:center;max-width:min(60vw,320px)"><span>Concept${designer ? ` de ${esc(designer)}` : ''} · nu e site-ul oficial</span><button onclick="this.parentNode.remove()" style="background:none;border:0;color:#94a3b8;cursor:pointer;font-size:14px" aria-label="Închide">✕</button></div>`
 
   let out = html.replace(/<meta name="robots"[^>]*>/gi, '')
   out = /<head[^>]*>/i.test(out) ? out.replace(/<head[^>]*>/i, m => `${m}\n${meta}`) : meta + out
