@@ -52,6 +52,8 @@ export interface RebuildLead {
   phone_intl: string
   website: string               // '' dacă nu are site propriu
   no_site?: boolean             // fără site propriu (doar Maps / social media)
+  last_review_at?: string       // data celei mai noi recenzii Google
+  reviews_this_year?: number    // câte din cele mai noi 5 recenzii sunt din anul curent
   rating: number
   reviews_count: number
   revenue_score: number         // 0-100, semnale că afacerea face bani
