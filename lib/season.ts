@@ -12,7 +12,7 @@ export interface SeasonEntry {
 }
 
 const TIRES: SeasonEntry = {
-  categories: ['car_repair', 'auto_body', 'gas_station'],
+  categories: ['car_repair', 'auto_body'],  // vulcanizările apar în Google ca car_repair; gas_station = benzinării
   label: 'Service auto / vulcanizare',
   why: 'Vârful schimbului de anvelope de iarnă: programările se aglomerează după 1 noiembrie, cu așteptare de până la 3 săptămâni. Au încasări acum și pierd clienți la telefon.',
   hook: 'acum, în sezonul de anvelope de iarnă, o programare online vă scutește de multe telefoane și nu pierdeți clienții care nu prind linia liberă',
@@ -25,8 +25,8 @@ const TIRES: SeasonEntry = {
 
 const LODGING: SeasonEntry = {
   categories: ['lodging', 'campground', 'rv_park'],
-  label: 'Pensiuni / hoteluri',
-  why: 'Acum se vând Revelionul și sezonul de iarnă (12 nov 2026 – 18 apr 2027): pachete de Revelion de 2.840–3.370 lei/persoană, avans de 50%, termene de early booking în jur de 9 noiembrie. Fiecare rezervare directă le economisește comisionul platformelor.',
+  label: 'Pensiuni / hoteluri / cabane',
+  why: 'Cabanele, pensiunile și hotelurile vând acum Revelionul și sezonul de iarnă (12 nov 2026 – 18 apr 2027): pachete de Revelion de 2.840–3.370 lei/persoană, avans de 50%, termene de early booking în jur de 9 noiembrie. Fiecare rezervare directă le economisește comisionul platformelor.',
   hook: 'acum se fac rezervările de Revelion și de iarnă, iar un site cu rezervare directă vă scutește de comisionul platformelor',
   evidence: 'puternică',
   sources: [

@@ -664,10 +664,13 @@ export default function RebuildPage() {
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }}>
                     <span style={{ fontWeight: 800, color: '#f1f5f9', fontSize: 14 }}>{e.label}</span>
                     <Pill color={e.evidence === 'puternică' ? C.green : e.evidence === 'medie' ? C.amber : C.dim}>dovadă {e.evidence}</Pill>
-                    <span style={{ flex: 1 }} />
-                    <Btn small onClick={() => setCategory(e.categories[0])}>Caută {BUSINESS_CATEGORIES[e.categories[0]]?.split(' /')[0]}</Btn>
                   </div>
                   <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.5 }}>{e.why}</div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                    {e.categories.filter(k => BUSINESS_CATEGORIES[k]).map(k => (
+                      <Btn key={k} small color={category === k ? C.amber : C.blue} onClick={() => setCategory(k)}>Caută {BUSINESS_CATEGORIES[k]}</Btn>
+                    ))}
+                  </div>
                   <div style={{ fontSize: 11, color: C.dim, marginTop: 4, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     Surse: {e.sources.map(src => <a key={src.url} href={src.url} target="_blank" rel="noreferrer" style={{ color: C.blue }}>{src.title}</a>)}
                   </div>
