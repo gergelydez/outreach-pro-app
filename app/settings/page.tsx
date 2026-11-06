@@ -31,7 +31,7 @@ export default function SettingsPage() {
     { key: 'priceFrom',     label: '💰 Preț de la (RON)', placeholder: '500', hint: 'Prețul minim al unui site' },
     { key: 'priceTo',       label: '💰 Preț până la (RON)', placeholder: '1500', hint: 'Prețul maxim' },
     { key: 'dailyOutreachLimit', label: '📤 Limită contactări / zi (Rebuild)', placeholder: '10', hint: 'Câte mesaje personale trimiți pe zi. Puține și personale = mai multe răspunsuri, cont nebanat.' },
-    { key: 'promoLabel', label: '🏷️ Ofertă: nume', placeholder: 'Black Friday', hint: 'Lasă gol ca să nu apară nicio ofertă în mesaje și în preview.' },
+    { key: 'promoLabel', label: '🏷️ Ofertă: nume', placeholder: 'Black Friday', hint: 'Lasă gol ca să nu apară nicio ofertă în mesaje. Oferta nu apare niciodată pe preview.' },
     { key: 'promoPrice', label: '🏷️ Ofertă: preț (RON)', placeholder: '699' },
     { key: 'promoRegularPrice', label: '🏷️ Ofertă: preț normal (RON)', placeholder: '1398', hint: 'Prețul tău normal real. „Jumătate de preț” e corect doar dacă chiar ai cerut acest preț înainte (prețul de referință pentru o reducere = cel mai mic preț practicat în ultimele 30 de zile).' },
     { key: 'promoUntil', label: '🏷️ Ofertă: valabilă până la', placeholder: '30 noiembrie' },

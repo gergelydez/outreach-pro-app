@@ -206,7 +206,7 @@ function Workspace({ lead, settings, onChange, onClose }:
     setBusy('publish'); setErr(''); setNoBlob(false)
     try {
       const res = await fetch('/api/publish-preview', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ html: lead.demo_html, businessName: lead.name, designer: settings.senderName, existingUrl: lead.preview_url, promo: promoText(settings) }) })
+        body: JSON.stringify({ html: lead.demo_html, businessName: lead.name, designer: settings.senderName, existingUrl: lead.preview_url }) })
       const data = await res.json()
       if (data.code === 'no_blob') { setNoBlob(true); setBusy(''); return }
       if (!res.ok) throw new Error(data.error)
@@ -216,7 +216,7 @@ function Workspace({ lead, settings, onChange, onClose }:
   }
 
   function download() {
-    const blob = new Blob([withConceptBanner(lead.demo_html, lead.name, settings.senderName, promoText(settings))], { type: 'text/html' })
+    const blob = new Blob([withConceptBanner(lead.demo_html, lead.name, settings.senderName)], { type: 'text/html' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
     a.download = `${slugify(lead.name)}.html`
