@@ -6,6 +6,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { friendlyAnthropicError } from '@/lib/anthropic-error'
 import { HU_CITIES } from '@/lib/constants'
 import type { RebuildLead } from '@/lib/rebuild'
+import { placeContext } from '@/lib/place-context'
 
 // Generarea unui site complet durează 1-4 minute
 export const maxDuration = 300
@@ -17,8 +18,8 @@ export const maxDuration = 300
 // Fără Blob: răspuns NDJSON în flux ({t:'progress'|'done'|'error'}), legat de conexiune.
 
 export async function POST(req: NextRequest) {
-  const { lead, anthropicApiKey: clientKey, extraInstructions = '' }:
-    { lead: RebuildLead; anthropicApiKey?: string; extraInstructions?: string } = await req.json()
+  const { lead, anthropicApiKey: clientKey, googleApiKey, extraInstructions = '' }:
+    { lead: RebuildLead; anthropicApiKey?: string; googleApiKey?: string; extraInstructions?: string } = await req.json()
 
   const apiKey = process.env.ANTHROPIC_API_KEY || clientKey
   if (!apiKey) return Response.json({ error: 'Lipsă Anthropic API key (Setări)' }, { status: 400 })
@@ -30,6 +31,9 @@ export async function POST(req: NextRequest) {
   const hasRating = lead.rating >= 4.0 && lead.reviews_count >= 10
 
   const noSite = !!lead.no_site
+  // Poze și recenzii reale din Google Maps + poze libere ale localității — ca site-ul să fie al LOR
+  const ctx = await placeContext({ placeId: lead.place_id, address: lead.address, city: lead.city, googleKey: googleApiKey, origin: req.nextUrl.origin })
+  const photoList = (list: { url: string; credit: string }[]) => list.map(p => `  • ${p.url}\n    credit: ${p.credit}`).join('\n')
   const prompt = `Ești un web designer senior. ${noSite
     ? 'Construiește PRIMUL site al unei afaceri locale reale care încă nu are site propriu'
     : 'Refă site-ul unei afaceri locale reale'} ca un concept modern, single-file HTML, pe care îl vom arăta proprietarului ca preview: „uite cum ar putea arăta site-ul vostru".
@@ -55,6 +59,16 @@ ${a.text_excerpt || (noSite ? '(fără alte date)' : '(site-ul nu a putut fi cit
 ${a.logo_url ? `Logo: ${a.logo_url}` : ''}
 ${a.images.length ? `Imagini proprii de pe site (folosește-le cu <img src> unde se potrivesc, cu object-fit:cover și fundal de rezervă dacă nu se încarcă): ${a.images.join(' , ')}` : ''}
 
+${ctx.photos.length ? `POZE REALE ALE AFACERII (din Google Maps, încărcate de proprietar și de clienți) — sunt pozele LOR, folosește-le ca imagini principale (hero, galerie, secțiuni)${a.images.length ? ', alături de cele de pe site' : ''}. Pune creditul mic, discret, pe poză sau sub galerie, exact cum e scris:
+${photoList(ctx.photos)}
+` : ''}
+${ctx.localityPhotos.length ? `POZE ALE LOCALITĂȚII ${ctx.locality.toUpperCase()} (Wikimedia Commons, licență liberă) — pentru secțiunea de locație / atmosferă, ca site-ul să fie clar din zona lor. Creditul e obligatoriu, mic, pe poză:
+${photoList(ctx.localityPhotos)}
+` : ''}
+${ctx.reviews.length ? `CE SPUN CLIENȚII LOR (recenzii reale de pe Google, citate exact):
+${ctx.reviews.map(r => `  • ${r.author || 'Client'} (${r.rating}★, ${r.when}): „${r.text}"`).join('\n')}
+Folosește ce laudă clienții (oameni, atmosferă, detalii concrete) ca idei pentru textele site-ului, fără să adaugi lucruri care nu apar. Poți cita exact 2–3 recenzii scurte, cu prenumele autorului și eticheta „Recenzie Google".
+` : ''}
 ${noSite ? '' : `PROBLEMELE SITE-ULUI ACTUAL (rezolvă-le vizibil în concept)
 ${a.issues.map(i => `- ${i}`).join('\n') || '- design învechit'}`}
 
@@ -62,12 +76,14 @@ CE CONSTRUIEȘTI
 - Structură potrivită domeniului: hero clar cu ce fac și unde, ${noSite ? `servicii tipice pentru ${lead.category_label}, formulate general (fără prețuri, fără detalii pe care nu le știm — proprietarul le va confirma)` : 'serviciile LOR reale (din textul de mai sus)'}, de ce ei, ${hasRating ? 'dovada socială cu ratingul Google real, ' : ''}program/locație dacă apar în text, contact cu telefon clickabil (href="tel:${tel}") și, dacă e cazul, buton de programare / cerere ofertă.
 - Design 2026, nu template: tipografie bună (poți folosi Google Fonts), paletă derivată din domeniu și din identitatea lor actuală, spațiere generoasă, mobile-first, animații subtile la scroll, navigație sticky care pe mobil devine meniu.
 - Tot conținutul în limba ${lang}, cu diacritice corecte. Ton profesionist, cald, specific afacerii lor.
+- PERSONALIZARE: proprietarul trebuie să simtă că e site-ul LUI. Numele ${lead.name}, localitatea ${ctx.locality}, pozele lor și detaliile din recenzii apar peste tot. Evită orice frază generică valabilă pentru orice ${lead.category_label.toLowerCase()}.
 - Un singur fișier: CSS în <style>, JS minimal în <script>. Fără framework-uri.
 - Fără imagini stock inventate; unde nu ai poze proprii folosește compoziții CSS (gradiente, forme, iconițe SVG inline).
 
 ONESTITATE — OBLIGATORIU
 - NU inventa fapte: prețuri, ani de experiență, număr de clienți, certificări, nume de angajați, premii. Dacă nu apar în text, nu le pune.
-- NU inventa recenzii sau testimoniale cu nume. Dacă vrei o secțiune de testimoniale, pune ${hasRating ? 'ratingul Google real și ' : ''}un card discret „Aici apar recenziile voastre reale de pe Google".
+- NU inventa recenzii sau testimoniale. ${ctx.reviews.length ? 'Folosește DOAR recenziile reale de mai sus, citate exact.' : `Dacă vrei o secțiune de testimoniale, pune ${hasRating ? 'ratingul Google real și ' : ''}un card discret „Aici apar recenziile voastre reale de pe Google".`}
+- Folosește DOAR URL-urile de poze date mai sus (fără alte imagini de pe internet), fiecare cu creditul ei.
 - Formularele nu trimit nicăieri: la submit afișează un mesaj „Formular demonstrativ".
 ${extraInstructions ? `\nINSTRUCȚIUNI SUPLIMENTARE DE LA DESIGNER\n${extraInstructions}\n` : ''}
 Răspunde DOAR cu documentul HTML complet, începând cu <!DOCTYPE html>. Fără explicații, fără blocuri de cod markdown.`
