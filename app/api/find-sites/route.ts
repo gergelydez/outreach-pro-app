@@ -20,6 +20,7 @@ interface PlaceDetails {
     business_status?: string
     opening_hours?: { weekday_text?: string[] }
     reviews?: { time?: number }[]
+    url?: string                  // linkul oficial Google Maps al locației
   }
 }
 
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
     const u = new URL('https://maps.googleapis.com/maps/api/place/details/json')
     u.searchParams.set('place_id', place.place_id)
     u.searchParams.set('fields',
-      'name,formatted_address,formatted_phone_number,international_phone_number,website,rating,user_ratings_total,business_status,opening_hours,reviews')
+      'name,formatted_address,formatted_phone_number,international_phone_number,website,rating,user_ratings_total,business_status,opening_hours,reviews,url')
     // cele mai noi 5 recenzii (implicit Google le dă pe „cele mai relevante”) — ca să vedem dacă afacerea e activă anul ăsta
     u.searchParams.set('reviews_sort', 'newest')
     u.searchParams.set('language', 'ro')
@@ -152,6 +153,7 @@ export async function POST(req: NextRequest) {
         phone_intl:        normalizePhoneForWhatsApp(r.international_phone_number || phone),
         website:           noSite ? '' : r.website!,
         no_site:           noSite,
+        maps_url:          r.url || '',
         last_review_at:    lastRv ? new Date(lastRv * 1000).toISOString() : '',
         reviews_this_year: reviewsThisYear,   // din cele mai noi 5 pe care le dă Google
         ...(audit ? { audit } : {}),

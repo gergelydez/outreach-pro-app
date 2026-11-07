@@ -53,6 +53,7 @@ export interface RebuildLead {
   website: string               // '' dacă nu are site propriu
   no_site?: boolean             // fără site propriu (doar Maps / social media)
   last_review_at?: string       // data celei mai noi recenzii Google
+  maps_url?: string             // linkul Google Maps al locației
   reviews_this_year?: number    // câte din cele mai noi 5 recenzii sunt din anul curent
   rating: number
   reviews_count: number
