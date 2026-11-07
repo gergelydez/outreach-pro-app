@@ -201,7 +201,7 @@ function Workspace({ lead, settings, onChange, onClose }:
     setBusy('demo'); setErr(''); setProgress(0)
     try {
       const res = await fetch('/api/generate-redesign', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lead: { ...lead, demo_html: '' }, anthropicApiKey: settings.anthropicApiKey, extraInstructions: extra }) })
+        body: JSON.stringify({ lead: { ...lead, demo_html: '' }, anthropicApiKey: settings.anthropicApiKey, googleApiKey: settings.googlePlacesApiKey, extraInstructions: extra }) })
       if (!res.ok || !res.body) { const d = await res.json().catch(() => ({})); throw new Error(d.error || `HTTP ${res.status}`) }
       // Mod job: serverul generează singur, pagina verifică periodic (vezi pollDemoJobs)
       if ((res.headers.get('content-type') || '').includes('application/json')) {
