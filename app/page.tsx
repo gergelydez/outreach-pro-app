@@ -29,6 +29,9 @@ export default function Home() {
             <span className="font-bold text-lg text-white">Outreach Pro</span>
           </div>
           <nav className="flex gap-2">
+            <Link href="/prospect" className="px-4 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all text-sm font-medium">
+              🧭 Prospectare
+            </Link>
             <Link href="/rebuild" className="px-4 py-2 rounded-lg text-white bg-slate-800/60 hover:bg-slate-700/60 transition-all text-sm font-semibold">
               🔁 Rebuild
             </Link>
@@ -63,9 +66,9 @@ export default function Home() {
               style={{ background: 'linear-gradient(135deg, #22d3ee, #3b82f6)', boxShadow: '0 0 30px rgba(34,211,238,0.3)' }}>
               <span>🔁</span> Începe Rebuild
             </Link>
-            <Link href="/leads"
+            <Link href="/prospect"
               className="inline-flex items-center gap-3 px-6 py-4 rounded-2xl text-slate-200 font-bold text-base transition-all hover:bg-slate-800/60 border border-slate-700">
-              <span>🔍</span> Afaceri fără site
+              <span>🧭</span> Prospectare pe județ
             </Link>
           </div>
         </div>

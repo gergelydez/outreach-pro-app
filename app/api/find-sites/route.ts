@@ -63,7 +63,7 @@ function normalizePhoneForWhatsApp(phone: string): string {
 const NOT_A_SITE = /facebook\.com|instagram\.com|linktr\.ee|google\.com|business\.site|tiktok\.com|booksy\.com|wa\.me|youtube\.com/i
 
 export async function POST(req: NextRequest) {
-  const { city, category, minReviews = 15, includeNoSite = true, onlyRecent = true, googleApiKey: clientKey } = await req.json()
+  const { city, category, minReviews = 15, includeNoSite = true, onlyRecent = true, pages = 1, skipIds = [], googleApiKey: clientKey } = await req.json()
   const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime() / 1000
 
   const apiKey = process.env.GOOGLE_PLACES_API_KEY || clientKey
@@ -86,10 +86,25 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Detaliile costă bani — cerem doar pentru cele cu destule recenzii
-  const places: { place_id: string; name: string; user_ratings_total?: number }[] =
-    (nearbyData.results || []).filter((p: { user_ratings_total?: number }) =>
-      (p.user_ratings_total || 0) >= minReviews)
+  // Până la 3 pagini (60 de rezultate) — folosit de prospectarea pe județ. Google
+  // activează next_page_token abia după ~2 secunde.
+  type NearbyPlace = { place_id: string; name: string; user_ratings_total?: number }
+  const all: NearbyPlace[] = [...(nearbyData.results || [])]
+  let token: string | undefined = nearbyData.next_page_token
+  for (let page = 1; page < Math.min(3, Math.max(1, pages)) && token; page++) {
+    await new Promise(r => setTimeout(r, 2000))
+    const u = new URL('https://maps.googleapis.com/maps/api/place/nearbysearch/json')
+    u.searchParams.set('pagetoken', token)
+    u.searchParams.set('key', apiKey)
+    const next = await (await fetch(u.toString())).json()
+    all.push(...(next.results || []))
+    token = next.next_page_token
+  }
+
+  // Detaliile costă bani — cerem doar pentru cele cu destule recenzii și pe care
+  // clientul nu le are deja (orașele dintr-un județ se suprapun)
+  const skip = new Set<string>(skipIds)
+  const places: NearbyPlace[] = all.filter(p => (p.user_ratings_total || 0) >= minReviews && !skip.has(p.place_id))
 
   const details: PlaceDetails[] = await Promise.all(places.map(async place => {
     const u = new URL('https://maps.googleapis.com/maps/api/place/details/json')
@@ -175,8 +190,8 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     businesses,
-    scanned: (nearbyData.results || []).length,
-    belowMinReviews: (nearbyData.results || []).length - places.length,
+    scanned: all.length,
+    belowMinReviews: all.filter(p => (p.user_ratings_total || 0) < minReviews).length,
     withoutSite: skippedNoSite,
     closed: skippedClosed,
     stale: skippedStale,
