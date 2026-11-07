@@ -69,6 +69,38 @@ function ago(iso: string) {
   return `acum ${Math.round(days / 30)} luni`
 }
 
+// Google Maps: linkul oficial din Places; pentru lead-uri mai vechi, căutare după place_id
+function mapsUrl(l: RebuildLead) {
+  return l.maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.name)}&query_place_id=${l.place_id}`
+}
+
+function socialLabel(url: string) {
+  const h = url.toLowerCase()
+  if (h.includes('facebook.com')) return '📘 Facebook'
+  if (h.includes('instagram.com')) return '📷 Instagram'
+  if (h.includes('tiktok.com')) return '🎵 TikTok'
+  if (h.includes('youtube.com')) return '▶️ YouTube'
+  if (h.includes('linkedin.com')) return '💼 LinkedIn'
+  return '🔗 ' + url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]
+}
+
+// Linkuri reale (Maps + social media găsite) și, la cei fără site, căutări rapide
+function LeadLinks({ l }: { l: RebuildLead }) {
+  const socials = l.audit?.socials || []
+  const q = encodeURIComponent(`${l.name} ${l.city.replace(' 🏘️', '')}`)
+  const link = { color: C.blue, textDecoration: 'none', whiteSpace: 'nowrap' as const }
+  return (
+    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 12, marginTop: 4 }}>
+      <a href={mapsUrl(l)} target="_blank" rel="noreferrer" style={link}>🗺️ Google Maps</a>
+      {socials.map(s => <a key={s} href={s} target="_blank" rel="noreferrer" style={link}>{socialLabel(s)}</a>)}
+      {l.no_site && !socials.some(s => s.includes('facebook.com')) &&
+        <a href={`https://www.facebook.com/search/pages?q=${q}`} target="_blank" rel="noreferrer" style={{ ...link, color: C.dim }}>🔎 caută pe Facebook</a>}
+      {l.no_site && !socials.some(s => s.includes('instagram.com')) &&
+        <a href={`https://www.google.com/search?q=${q}+instagram`} target="_blank" rel="noreferrer" style={{ ...link, color: C.dim }}>🔎 caută Instagram</a>}
+    </div>
+  )
+}
+
 function elapsed(since: string) {
   const sec = Math.max(0, Math.round((Date.now() - new Date(since).getTime()) / 1000))
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
@@ -270,6 +302,7 @@ function Workspace({ lead, settings, onChange, onClose }:
               {lead.no_site
                 ? <span style={{ color: C.red }}>🚫 fără site{lead.audit?.socials[0] && <> · <a href={lead.audit.socials[0]} target="_blank" rel="noreferrer" style={{ color: C.blue }}>{lead.audit.socials[0].replace(/^https?:\/\/(www\.)?/, '').slice(0, 32)}</a></>}</span>
                 : <a href={lead.website} target="_blank" rel="noreferrer" style={{ color: C.blue }}>{lead.website.replace(/^https?:\/\//, '').slice(0, 40)}</a>}
+              <LeadLinks l={lead} />
             </div>
           </div>
           <button onClick={onClose} style={{ color: C.muted, fontSize: 22, background: 'none', border: 0, cursor: 'pointer' }}>✕</button>
@@ -336,7 +369,7 @@ function Workspace({ lead, settings, onChange, onClose }:
                     <a href={a.final_url} target="_blank" rel="noreferrer"><Btn>🌐 Deschide site-ul actual</Btn></a>
                     <Btn onClick={runAudit} disabled={!!busy}>{busy === 'audit' ? '⏳…' : '↻ Re-audit'}</Btn>
                   </>}
-                  {lead.no_site && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.name + ' ' + lead.address)}`} target="_blank" rel="noreferrer"><Btn>🗺️ Vezi pe Google Maps</Btn></a>}
+                  {lead.no_site && <a href={mapsUrl(lead)} target="_blank" rel="noreferrer"><Btn>🗺️ Vezi pe Google Maps</Btn></a>}
                   {!['shortlisted', 'demo_ready', 'published', 'contacted', 'replied', 'won'].includes(lead.stage) &&
                     <Btn solid color={C.amber} onClick={() => { onChange({ stage: 'shortlisted' }); setTab('demo') }}>{lead.no_site ? '⭐ E o țintă bună → Fă-i site' : '⭐ E o țintă bună → Redesign'}</Btn>}
                   <Btn color={C.dim} onClick={() => { onChange({ stage: 'skipped' }); onClose() }}>⏭️ Nu e potrivit</Btn>
@@ -775,6 +808,7 @@ export default function RebuildPage() {
                           ? <span style={{ color: C.red, fontWeight: 700 }}>🚫 Fără site{l.audit?.socials[0] ? ' (doar social media)' : ''}</span>
                           : <a href={l.website} target="_blank" rel="noreferrer" style={{ color: C.blue }}>{l.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '').slice(0, 36)}</a>}
                       </div>
+                      <LeadLinks l={l} />
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       {!l.audit && l.stage === 'found' && <Btn small onClick={() => setOpenId(l.place_id)}>🩺 Audit</Btn>}
