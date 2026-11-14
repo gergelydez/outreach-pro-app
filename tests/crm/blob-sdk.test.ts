@@ -54,7 +54,8 @@ beforeAll(async () => {
     const h = opts.headers as Record<string, string> | string[] | undefined
     const inm = Array.isArray(h) ? h[h.findIndex(x => String(x).toLowerCase() === 'if-none-match') + 1] : h && Object.entries(h).find(([k]) => k.toLowerCase() === 'if-none-match')?.[1]
     if (inm && inm === cur.etag) return { statusCode: 304, data: '', responseOptions: { headers: { etag: cur.etag } } }
-    return { statusCode: 200, data: cur.data, responseOptions: { headers: { etag: cur.etag, 'content-length': String(cur.data.length) } } }
+    // CDN-ul real poate întoarce ETag-ul în alt format decât API-ul (ex. weak W/"…")
+    return { statusCode: 200, data: cur.data, responseOptions: { headers: { etag: `W/${cur.etag}`, 'content-length': String(cur.data.length) } } }
   }).persist()
   setGlobalDispatcher(agent)
 })
@@ -83,5 +84,10 @@ describe('Vercel Blob adapter (real SDK calls)', () => {
     const b = new SnapshotDatabase(vercelBlobStore(), runMigrations)
     const r = await b.session(() => b.query('SELECT value FROM suppression_list'))
     expect(r.rows).toEqual([{ value: '+441214960000' }])
+    // instanța rece scrie cu succes (ifMatch folosește versiunea din API, nu ETag-ul de pe CDN)
+    await b.session(async () => { await b.query(`INSERT INTO suppression_list (kind, value) VALUES ('domain', 'cold-write.co.uk')`) })
+    const c = new SnapshotDatabase(vercelBlobStore(), runMigrations)
+    const r2 = await c.session(() => c.query('SELECT count(*)::int AS n FROM suppression_list'))
+    expect(r2.rows[0].n).toBe(2)
   }, 60_000)
 })

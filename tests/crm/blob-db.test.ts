@@ -48,6 +48,16 @@ describe('CRM database stored in Vercel Blob (snapshot)', () => {
     expect(s.saves).toBe(saves)
   }, 60_000)
 
+  it('a cold instance that only reads never uploads (table check is not a change)', async () => {
+    const { s: st, store } = memoryStore()
+    const a = instance(store)
+    await a.session(async () => { await a.query(`INSERT INTO suppression_list (kind, value) VALUES ('email', 'r@x.co.uk')`) })
+    const saves = st.saves
+    const cold = instance(store)
+    await cold.session(() => cold.query('SELECT count(*) FROM suppression_list'))
+    expect(st.saves).toBe(saves)
+  }, 60_000)
+
   it('on a concurrent write it reloads and re-runs the request, so both changes survive', async () => {
     const { store } = memoryStore()
     const a = instance(store), b = instance(store)

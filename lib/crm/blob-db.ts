@@ -62,12 +62,21 @@ export function vercelBlobStore(): SnapshotStore {
   const access = (process.env.CRM_BLOB_ACCESS === 'private' ? 'private' : 'public') as 'public' | 'private'
   return {
     async load(etag) {
-      const { get } = await import('@vercel/blob')
-      const r = await get(snapshotPath(), { access, useCache: false, ifNoneMatch: etag ?? undefined })
-      if (!r) return null
-      if (r.statusCode === 304) return { notModified: true }
+      // Versiunea o luăm din API-ul Blob (head), nu din CDN: e aceeași valoare pe care o
+      // compară scrierea condiționată (ifMatch). ETag-ul de pe CDN poate avea alt format.
+      const { get, head, BlobNotFoundError } = await import('@vercel/blob')
+      let version: string
+      try {
+        version = (await head(snapshotPath())).etag
+      } catch (e) {
+        if (e instanceof BlobNotFoundError) return null
+        throw e
+      }
+      if (etag && version === etag) return { notModified: true }
+      const r = await get(snapshotPath(), { access, useCache: false })
+      if (!r || r.statusCode !== 200) return null
       const data = Buffer.from(await new Response(r.stream).arrayBuffer())
-      return { notModified: false, data, etag: r.blob.etag }
+      return { notModified: false, data, etag: version }
     },
     async save(data, etag) {
       const { put, BlobPreconditionFailedError } = await import('@vercel/blob')
@@ -150,10 +159,10 @@ export class SnapshotDatabase implements Database {
       await this.fresh(new Blob([new Uint8Array(plain)]))
       this.etag = r.etag
     }
-    this.dirty = false
-    // tabelele se creează/actualizează automat — nu e nevoie de un pas manual
+    // tabelele se creează/actualizează automat — nu e nevoie de un pas manual.
+    // Verificarea (CREATE TABLE IF NOT EXISTS) nu e o modificare: salvăm doar dacă s-a aplicat o migrație.
     const applied = await this.migrate(this)
-    if (applied.length) this.dirty = true
+    this.dirty = applied.length > 0
   }
 
   private async persist() {
