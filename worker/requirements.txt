@@ -1,0 +1,4 @@
+httpx==0.28.1
+beautifulsoup4==4.13.4
+# optional real-browser mobile check (AUDIT_USE_PLAYWRIGHT=1); run `playwright install chromium` after installing
+playwright==1.52.0

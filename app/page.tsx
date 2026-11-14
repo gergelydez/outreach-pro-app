@@ -28,7 +28,10 @@ export default function Home() {
             </div>
             <span className="font-bold text-lg text-white">Outreach Pro</span>
           </div>
-          <nav className="flex gap-2">
+          <nav className="flex flex-wrap gap-2">
+            <Link href="/crm" className="px-4 py-2 rounded-lg text-white bg-teal-700 hover:bg-teal-600 transition-all text-sm font-semibold">
+              🇬🇧 UK CRM
+            </Link>
             <Link href="/prospect" className="px-4 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all text-sm font-medium">
               🧭 Prospectare
             </Link>
