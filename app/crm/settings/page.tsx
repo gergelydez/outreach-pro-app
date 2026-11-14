@@ -62,7 +62,7 @@ export default function SettingsPage() {
               detail={env.STORAGE === 'none' ? 'Connect the Vercel Blob store to this project (Vercel → Storage → Blob → Connect), then redeploy.' : db?.error || (env.STORAGE === 'vercel_blob' ? 'Stored encrypted in your existing Blob store — tables are created automatically.' : 'Connected')} />
             {db?.connected && db.pending.length > 0 && <Button variant="primary" size="sm" className="ml-4 mb-2" loading={busy === 'migrate'} onClick={migrate}>Initialise / update database</Button>}
             <Status ok={env.ANTHROPIC_API_KEY} label="Claude API" detail={env.ANTHROPIC_API_KEY ? `ANTHROPIC_API_KEY set · model ${env.CLAUDE_MODEL}` : 'Set ANTHROPIC_API_KEY (same key as the Romanian tools) and redeploy.'} />
-            <Status ok={env.GOOGLE_PLACES_API_KEY} label="Google Places API (New)" detail="GOOGLE_PLACES_API_KEY — needed for Business Hunter. Enable “Places API (New)” in Google Cloud." />
+            <Status ok={env.GOOGLE_PLACES_API_KEY} label="Google Places API" detail="GOOGLE_PLACES_API_KEY — the same key as the Romanian/Hungarian tools (classic Places API)." />
             <Status ok={!!setup.data.worker?.last_seen} label="Audit worker (optional)" detail={setup.data.worker?.last_seen ? `Last seen ${relative(setup.data.worker.last_seen)}` : env.CRM_WORKER_TOKEN ? 'Token set. Start the worker (worker/README.md) to audit websites.' : 'To audit websites, set CRM_WORKER_TOKEN and start the Python worker (worker/README.md).'} />
             <Status ok={true} label="Access" detail={env.CRM_PASSWORD ? 'Protected with CRM_PASSWORD.' : 'Open, like the rest of the app. Optional: set CRM_PASSWORD to require a login.'} />
           </>}

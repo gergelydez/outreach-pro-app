@@ -9,14 +9,14 @@ The CRM lives inside this app at **`/crm`**. The existing Romanian tools (`/pros
 |---|---|---|
 | `BLOB_READ_WRITE_TOKEN` | CRM database (stored in the existing Vercel Blob store) | Yes — created when the Blob store was connected for “Rebuild” previews |
 | `ANTHROPIC_API_KEY` | AI analysis, messages, proposals, reply assistant (Claude) | Yes — same key as the Romanian tools |
-| `GOOGLE_PLACES_API_KEY` | Business Hunter (Google Places API **(New)**) | Yes — in Google Cloud also enable **Places API (New)** |
+| `GOOGLE_PLACES_API_KEY` | Business Hunter (classic Google Places API) | Yes — the same key as the Romanian/Hungarian tools, nothing to enable |
 
 Nothing else is required: no password, no separate database, no OpenAI.
 Open `/crm/settings` to see the status of each item.
 
 ```
 Browser ──▶ Next.js on Vercel ──▶ CRM data: encrypted snapshot in Vercel Blob (PGlite / Postgres)
-                    │  ├─▶ Google Places API (New)   (discovery)
+                    │  ├─▶ Google Places API         (discovery)
                     │  └─▶ Claude API                 (AI features)
 Python worker ──(Bearer token, optional)──┘   website audits
 ```
@@ -39,14 +39,20 @@ state is one file in your Blob store, **encrypted with AES-256-GCM** (key derive
 - Prefer a classic database? Set `DATABASE_URL` (Supabase/Neon) — it takes priority, and
   `npm run crm:migrate` or the button in Settings creates the tables there.
 
-## Google Places API (New)
+## Google Places API
 
-<https://console.cloud.google.com> → your project → **APIs & Services → Library** → enable
-**Places API (New)** (billing must be on). The existing `GOOGLE_PLACES_API_KEY` works if its API
-restrictions include Places API (New). Uses `places:searchText` with a field mask, `regionCode=GB`,
-up to 3 pages per search; daily/per-run limits are in **Settings → Target market & limits**.
-No Google Maps pages are scraped. Google-sourced fields are cleared after
-`GOOGLE_DATA_RETENTION_DAYS` (default 30) by a daily Vercel cron, keeping only `place_id` + name.
+Uses the **classic Places API** — the same one and the same `GOOGLE_PLACES_API_KEY` as the Romanian
+and Hungarian tools, so nothing extra has to be enabled in Google Cloud.
+
+- **Text Search** (`region=uk`), 20 results per page, up to 3 pages per search.
+- **Place Details** (phone, website, Google Maps link) only for *new* businesses that pass the
+  rating/review filters — businesses already in the CRM are refreshed from Text Search for free,
+  and without a website filter the app only requests as many details as the run still needs.
+- Estimated costs are tracked per call (`GOOGLE_TEXTSEARCH_COST`, default $0.032;
+  `GOOGLE_DETAILS_COST`, default $0.020 — check your Google Cloud pricing). Daily/per-run limits
+  are in **Settings → Target market & limits**.
+- No Google Maps pages are scraped. Google-sourced fields are cleared after
+  `GOOGLE_DATA_RETENTION_DAYS` (default 30) by a daily Vercel cron, keeping only `place_id` + name.
 
 ## Claude
 

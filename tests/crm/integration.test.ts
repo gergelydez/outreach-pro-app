@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { freshDb, req, place, placesResponse } from './helpers'
+import { freshDb, req, place, legacyPlacesMock } from './helpers'
 import { q, one, runMigrations, type Database } from '@/lib/crm/db'
 import { runDiscovery } from '@/lib/crm/discovery'
 import { claimJobs, failJob, enqueueJob } from '@/lib/crm/jobs'
@@ -28,8 +28,7 @@ process.env.CRM_PASSWORD = 'pw'
 const W = { authorization: 'Bearer worker-secret' }
 
 function mockPlaces(pages: Record<string, unknown>[][]) {
-  let i = 0
-  return vi.fn(async () => placesResponse(pages[i] || [], i++ < pages.length - 1 ? `token${i}` : undefined)) as unknown as typeof fetch
+  return legacyPlacesMock(pages).fetch
 }
 
 beforeEach(async () => { database = await freshDb() })
@@ -89,6 +88,46 @@ describe('discovery', () => {
     const r = await runDiscovery({ city: 'Birmingham', category: 'plumber', limit: 5 }, f)
     expect(r.stoppedReason).toBe('error')
     expect((await one<{ status: string; error: string }>('SELECT status, error FROM discovery_jobs'))!.status).toBe('failed')
+  })
+})
+
+describe('Google Places (classic API, same key as RO/HU tools)', () => {
+  it('uses Text Search + Place Details, fetches details only for new businesses and tracks cost', async () => {
+    const m = legacyPlacesMock([[place('g1', { websiteUri: 'https://g1.co.uk' }), place('g2')], [place('g3')]])
+    const r = await runDiscovery({ city: 'Birmingham', category: 'plumber', limit: 10 }, m.fetch)
+    expect(r.newCount).toBe(3)
+    expect(m.calls.textSearch).toBe(2) // a doua pagină prin next_page_token
+    expect(m.calls.details).toBe(3)
+    const first = new URL(m.calls.urls[0])
+    expect(first.pathname).toBe('/maps/api/place/textsearch/json')
+    expect(first.searchParams.get('region')).toBe('uk')
+    expect(first.searchParams.get('query')).toContain('Birmingham')
+    expect(m.calls.urls.some(u => u.includes('pagetoken=token1'))).toBe(true)
+    const g1 = await one<BusinessRow>(`SELECT * FROM businesses WHERE google_place_id = 'g1'`)
+    expect(g1).toMatchObject({ website_url: 'https://g1.co.uk', phone_e164: '+441214961001', google_maps_url: 'https://maps.google.com/?cid=g1' })
+    const usage = await q<{ operation: string; units: number }>(`SELECT operation, units FROM api_usage WHERE provider = 'google_places' ORDER BY created_at`)
+    expect(usage.filter(u => u.operation === 'textSearch')).toHaveLength(2)
+    expect(usage.filter(u => u.operation === 'placeDetails').reduce((a, u) => a + Number(u.units), 0)).toBe(3)
+
+    // a doua rulare: aceleași firme → zero cereri Place Details (nu plătim de două ori)
+    const m2 = legacyPlacesMock([[place('g1'), place('g2'), place('g3')]])
+    const r2 = await runDiscovery({ city: 'Birmingham', category: 'plumber', limit: 10 }, m2.fetch)
+    expect(r2).toMatchObject({ newCount: 0, duplicates: 3 })
+    expect(m2.calls.details).toBe(0)
+  })
+
+  it('without a website filter it only buys the details it needs', async () => {
+    const m = legacyPlacesMock([[place('h1'), place('h2'), place('h3'), place('h4'), place('h5')]])
+    const r = await runDiscovery({ city: 'Birmingham', category: 'plumber', limit: 2 }, m.fetch)
+    expect(r.newCount).toBe(2)
+    expect(m.calls.details).toBe(2)
+  })
+
+  it('explains a denied key clearly', async () => {
+    const denied = (async () => new Response(JSON.stringify({ status: 'REQUEST_DENIED', error_message: 'This API project is not authorized to use this API.' }), { status: 200 })) as unknown as typeof fetch
+    const r = await runDiscovery({ city: 'Birmingham', category: 'plumber', limit: 5 }, denied)
+    expect(r.stoppedReason).toBe('error')
+    expect(r.error).toMatch(/REQUEST_DENIED.*Places API/)
   })
 })
 
