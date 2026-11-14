@@ -1,0 +1,304 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { freshDb, req, place, placesResponse } from './helpers'
+import { q, one, runMigrations, type Database } from '@/lib/crm/db'
+import { runDiscovery } from '@/lib/crm/discovery'
+import { claimJobs, failJob, enqueueJob } from '@/lib/crm/jobs'
+import { runAi } from '@/lib/crm/ai'
+import { saveSetting, DEFAULT_SETTINGS } from '@/lib/crm/settings'
+import type { BusinessRow } from '@/lib/crm/businesses'
+import { POST as workerClaim } from '@/app/api/crm/worker/claim/route'
+import { POST as workerResult } from '@/app/api/crm/worker/result/route'
+import { GET as leadsGet, POST as leadsPost } from '@/app/api/crm/leads/route'
+import { GET as leadGet, PATCH as leadPatch, DELETE as leadDelete } from '@/app/api/crm/leads/[id]/route'
+import { POST as eventsPost } from '@/app/api/crm/leads/[id]/events/route'
+import { POST as proposalCreate } from '@/app/api/crm/proposals/route'
+import { PATCH as proposalPatch, GET as proposalGet } from '@/app/api/crm/proposals/[id]/route'
+import { GET as dashboardGet } from '@/app/api/crm/dashboard/route'
+import { GET as reportsGet } from '@/app/api/crm/reports/route'
+import { POST as discoveryPost } from '@/app/api/crm/discovery/route'
+import { POST as aiPost } from '@/app/api/crm/ai/route'
+import { middleware } from '@/middleware'
+import { NextRequest } from 'next/server'
+import { createSession, SESSION_COOKIE } from '@/lib/crm/session'
+
+let database: Database
+process.env.GOOGLE_PLACES_API_KEY = 'test-key'
+process.env.CRM_WORKER_TOKEN = 'worker-secret'
+process.env.CRM_PASSWORD = 'pw'
+const W = { authorization: 'Bearer worker-secret' }
+
+function mockPlaces(pages: Record<string, unknown>[][]) {
+  let i = 0
+  return vi.fn(async () => placesResponse(pages[i] || [], i++ < pages.length - 1 ? `token${i}` : undefined)) as unknown as typeof fetch
+}
+
+beforeEach(async () => { database = await freshDb() })
+
+describe('migrations', () => {
+  it('are idempotent', async () => {
+    expect(await runMigrations(database)).toEqual([])
+  })
+})
+
+describe('discovery', () => {
+  it('saves new businesses, skips duplicates on a second run and queues audits', async () => {
+    const pages = [[place('p1', { websiteUri: 'https://www.acme-plumbing.co.uk/' }), place('p2'), place('p3', { businessStatus: 'CLOSED_PERMANENTLY' })]]
+    const r1 = await runDiscovery({ city: 'Birmingham', category: 'plumber', limit: 25 }, mockPlaces(pages))
+    expect(r1).toMatchObject({ found: 3, newCount: 2, duplicates: 0, filtered: 1 })
+    const jobs = await q('SELECT * FROM audit_jobs')
+    expect(jobs).toHaveLength(2)
+    const b = await one<BusinessRow>(`SELECT * FROM businesses WHERE google_place_id = 'p1'`)
+    expect(b).toMatchObject({ website_domain: 'acme-plumbing.co.uk', phone_e164: '+441214961001', postcode: 'B1 1AA', website_status: 'UNVERIFIED', stage: 'new_lead' })
+    expect((b!.field_sources as Record<string, { source: string }>).phone.source).toBe('google_places')
+    const src = await one<{ expires_at: string }>('SELECT expires_at FROM business_sources WHERE business_id = $1', [b!.id])
+    expect(new Date(src!.expires_at).getTime()).toBeGreaterThan(Date.now() + 25 * 86400_000)
+
+    // aceeași afacere cu alt Place ID, dar același domeniu / telefon → duplicat
+    const r2 = await runDiscovery({ city: 'Birmingham', category: 'plumber', limit: 25 }, mockPlaces([[place('p1'), place('pX', { websiteUri: 'http://acme-plumbing.co.uk' }), place('pY', { nationalPhoneNumber: '0121 496 1002' })]]))
+    expect(r2).toMatchObject({ newCount: 0, duplicates: 3 })
+    expect((await q('SELECT id FROM businesses')).length).toBe(2)
+  })
+
+  it('flags weak name+postcode matches instead of merging', async () => {
+    await runDiscovery({ city: 'Birmingham', category: 'plumber', limit: 5 }, mockPlaces([[place('a1', { displayName: { text: 'Acme Plumbing Ltd' } })]]))
+    const r = await runDiscovery({ city: 'Birmingham', category: 'plumber', limit: 5 }, mockPlaces([[place('a2', { displayName: { text: 'ACME Plumbing' }, nationalPhoneNumber: '0121 000 9999' })]]))
+    expect(r.newCount).toBe(1)
+    const dup = await one<{ possible_duplicate_of: string | null }>(`SELECT possible_duplicate_of FROM businesses WHERE google_place_id = 'a2'`)
+    expect(dup!.possible_duplicate_of).toBeTruthy()
+  })
+
+  it('applies rating/review/website filters, pagination and the daily limit', async () => {
+    const r = await runDiscovery({ city: 'Birmingham', category: 'electrician', limit: 60, minRating: 4.5, minReviews: 30, websiteFilter: 'no_website' },
+      mockPlaces([[place('e1'), place('e2', { rating: 4.0 }), place('e3', { userRatingCount: 5 })], [place('e4', { websiteUri: 'https://e4.co.uk' }), place('e5')]]))
+    expect(r).toMatchObject({ found: 5, newCount: 2, filtered: 3 })
+    await saveSetting('limits', { ...DEFAULT_SETTINGS.limits, daily_discovery_max: 3 })
+    const r2 = await runDiscovery({ city: 'Birmingham', category: 'electrician', limit: 10 }, mockPlaces([[place('e6'), place('e7'), place('e8')]]))
+    expect(r2).toMatchObject({ newCount: 1, stoppedReason: 'daily_limit' })
+    const r3 = await runDiscovery({ city: 'Birmingham', category: 'electrician', limit: 10 }, mockPlaces([[place('e9')]]))
+    expect(r3).toMatchObject({ newCount: 0, stoppedReason: 'daily_limit' })
+  })
+
+  it('does not re-import suppressed businesses', async () => {
+    await q(`INSERT INTO suppression_list (kind, value) VALUES ('place', 's1')`)
+    const r = await runDiscovery({ city: 'Birmingham', category: 'plumber', limit: 5 }, mockPlaces([[place('s1'), place('s2')]]))
+    expect(r.newCount).toBe(1)
+  })
+
+  it('reports provider errors on the job without crashing', async () => {
+    const f = vi.fn(async () => new Response(JSON.stringify({ error: { message: 'API key not valid' } }), { status: 403 })) as unknown as typeof fetch
+    const r = await runDiscovery({ city: 'Birmingham', category: 'plumber', limit: 5 }, f)
+    expect(r.stoppedReason).toBe('error')
+    expect((await one<{ status: string; error: string }>('SELECT status, error FROM discovery_jobs'))!.status).toBe('failed')
+  })
+})
+
+describe('job queue', () => {
+  it('claims with SKIP LOCKED, backs off on failure and dead-letters', async () => {
+    const id = (await enqueueJob('audit', null, {}, { key: 'k1', maxAttempts: 2 }))!
+    expect(await enqueueJob('audit', null, {}, { key: 'k1' })).toBeNull() // idempotent
+    const [job] = await claimJobs('w1', 5)
+    expect(job.id).toBe(id)
+    expect(await claimJobs('w2', 5)).toHaveLength(0)
+    expect(await failJob(id, 'boom')).toBe('pending')
+    const row = await one<{ run_after: string }>('SELECT run_after FROM audit_jobs WHERE id = $1', [id])
+    expect(new Date(row!.run_after).getTime()).toBeGreaterThan(Date.now() + 60_000)
+    await q(`UPDATE audit_jobs SET run_after = now() WHERE id = $1`, [id])
+    await claimJobs('w1', 1)
+    expect(await failJob(id, 'boom again')).toBe('dead')
+  })
+  it('reclaims jobs from a crashed worker', async () => {
+    await enqueueJob('audit', null, {}, { key: 'k2' })
+    await claimJobs('w1', 1)
+    await q(`UPDATE audit_jobs SET locked_at = now() - interval '30 minutes'`)
+    expect(await claimJobs('w2', 1)).toHaveLength(1)
+  })
+})
+
+describe('worker protocol + audit application', () => {
+  async function seed(extra: Record<string, unknown> = {}) {
+    await runDiscovery({ city: 'Birmingham', category: 'plumber', limit: 5 }, mockPlaces([[place('w1', { websiteUri: 'https://acme.co.uk', ...extra })]]))
+    return (await one<{ id: string }>(`SELECT id FROM businesses WHERE google_place_id = 'w1'`))!.id
+  }
+
+  it('rejects requests without the worker token', async () => {
+    expect((await workerClaim(req('/api/crm/worker/claim', { method: 'POST', json: {} }))).status).toBe(401)
+  })
+
+  it('classifies, scores and stores contacts with provenance', async () => {
+    const id = await seed()
+    const claim = await (await workerClaim(req('/api/crm/worker/claim', { method: 'POST', headers: W, json: { worker_id: 'test' } }))).json()
+    expect(claim.jobs[0].business).toMatchObject({ id, website_url: 'https://acme.co.uk' })
+    const facts = { reachable: true, https: false, has_viewport: false, title: 'Home', contact_form: false, has_cta: false, tel_links: 0, emails: ['info@acme.co.uk'],
+      whatsapp_links: ['https://wa.me/447700900123'], pagespeed: { fetched: true, performance: 25 } }
+    const res = await (await workerResult(req('/api/crm/worker/result', { method: 'POST', headers: W, json: { job_id: claim.jobs[0].id, ok: true, facts } }))).json()
+    expect(res.status).toBe('OUTDATED_WEBSITE')
+    const b = await one<BusinessRow & { whatsapp_source: string }>('SELECT * FROM businesses WHERE id = $1', [id])
+    expect(b).toMatchObject({ website_status: 'OUTDATED_WEBSITE', whatsapp_status: 'FOUND', whatsapp_url: 'https://wa.me/447700900123', email: 'info@acme.co.uk' })
+    expect((b!.field_sources as Record<string, { source: string }>).email.source).toBe('website')
+    expect(b!.opportunity_score).toBeGreaterThanOrEqual(60)
+    expect((await one<{ status: string }>('SELECT status FROM audit_jobs WHERE id = $1', [claim.jobs[0].id]))!.status).toBe('done')
+    // heartbeat-ul workerului rămâne vizibil și după ce jobul s-a terminat
+    expect(await one('SELECT key FROM app_settings WHERE key = $1', ['worker:test'])).toBeTruthy()
+    // un rezultat repetat pentru același job e ignorat (idempotent)
+    expect((await (await workerResult(req('/api/crm/worker/result', { method: 'POST', headers: W, json: { job_id: claim.jobs[0].id, ok: true, facts } }))).json()).ignored).toBeTruthy()
+  })
+
+  it('treats a first failure as unverified and schedules a recheck', async () => {
+    const id = await seed()
+    const [job] = await claimJobs('w', 1)
+    await workerResult(req('/api/crm/worker/result', { method: 'POST', headers: W, json: { job_id: job.id, ok: true, facts: { reachable: false, error_kind: 'dns' } } }))
+    expect((await one<{ website_status: string }>('SELECT website_status FROM businesses WHERE id = $1', [id]))!.website_status).toBe('UNVERIFIED')
+    const recheck = await one<{ run_after: string }>(`SELECT run_after FROM audit_jobs WHERE status = 'pending' AND business_id = $1`, [id])
+    expect(new Date(recheck!.run_after).getTime()).toBeGreaterThan(Date.now() + 6 * 3600_000)
+  })
+
+  it('retries on worker processing errors', async () => {
+    await seed()
+    const [job] = await claimJobs('w', 1)
+    const r = await (await workerResult(req('/api/crm/worker/result', { method: 'POST', headers: W, json: { job_id: job.id, ok: false, error: 'browser crashed' } }))).json()
+    expect(r.state).toBe('pending')
+  })
+
+  it('saves a website found on a likely domain and re-audits it', async () => {
+    await runDiscovery({ city: 'Birmingham', category: 'plumber', limit: 5 }, mockPlaces([[place('n1')]]))
+    const [job] = await claimJobs('w', 1)
+    await workerResult(req('/api/crm/worker/result', { method: 'POST', headers: W, json: { job_id: job.id, ok: true, facts: { reachable: false, presence: { checked: true, candidates: ['biz-n1.co.uk'], found_url: 'https://biz-n1.co.uk' } } } }))
+    const b = await one<BusinessRow>(`SELECT * FROM businesses WHERE google_place_id = 'n1'`)
+    expect(b!.website_url).toBe('https://biz-n1.co.uk')
+    expect((await q(`SELECT id FROM audit_jobs WHERE status = 'pending'`)).length).toBe(1)
+  })
+})
+
+describe('CRM API', () => {
+  async function seedLeads() {
+    await runDiscovery({ city: 'Birmingham', category: 'plumber', limit: 10 }, mockPlaces([[place('l1'), place('l2', { rating: 3.9 }), place('l3', { websiteUri: 'https://facebook.com/l3' })]]))
+    return (await q<{ id: string; google_place_id: string }>('SELECT id, google_place_id FROM businesses ORDER BY google_place_id'))
+  }
+
+  it('lists, filters, tags and exports leads', async () => {
+    const rows = await seedLeads()
+    const all = await (await leadsGet(req('/api/crm/leads?page_size=10'))).json()
+    expect(all.total).toBe(3)
+    const filtered = await (await leadsGet(req('/api/crm/leads?min_rating=4.5'))).json()
+    expect(filtered.total).toBe(2)
+    await leadsPost(req('/api/crm/leads', { method: 'POST', json: { ids: [rows[0].id, rows[1].id], action: 'tag', value: 'Priority' } }))
+    const tagged = await (await leadsGet(req('/api/crm/leads?tag=priority'))).json()
+    expect(tagged.total).toBe(2)
+    expect(tagged.facets.tags).toEqual(['priority'])
+  })
+
+  it('moves stages with history, records contact + follow-ups, and handles opt-out', async () => {
+    const [lead] = await seedLeads()
+    const ctx = { params: { id: lead.id } }
+    await leadPatch(req(`/api/crm/leads/${lead.id}`, { method: 'PATCH', json: { stage: 'qualified', deal_value: 499, subscriber_type: 'corporate' } }), ctx)
+    await eventsPost(req('/x', { method: 'POST', json: { event_type: 'contacted', channel: 'email', schedule_follow_ups: true } }), ctx)
+    const detail = await (await leadGet(req('/x'), ctx)).json()
+    expect(detail.business.stage).toBe('contacted')
+    expect(detail.stages.map((s: { to_stage: string }) => s.to_stage)).toEqual(['contacted', 'qualified', 'new_lead'])
+    expect(detail.tasks.filter((t: { status: string }) => t.status === 'open')).toHaveLength(3)
+    expect(detail.compliance.email.level).toBe('warning') // fără bază legală înregistrată
+
+    await eventsPost(req('/x', { method: 'POST', json: { event_type: 'reply', reply_status: 'positive' } }), ctx)
+    const afterReply = await (await leadGet(req('/x'), ctx)).json()
+    expect(afterReply.business.stage).toBe('interested')
+    expect(afterReply.tasks.filter((t: { status: string }) => t.status === 'open')).toHaveLength(0)
+
+    await eventsPost(req('/x', { method: 'POST', json: { event_type: 'opt_out' } }), ctx)
+    const afterOpt = await (await leadGet(req('/x'), ctx)).json()
+    expect(afterOpt.suppressed).toBe(true)
+    expect(afterOpt.compliance.email.allowed).toBe(false)
+  })
+
+  it('creates proposals with editable items and totals', async () => {
+    const [lead] = await seedLeads()
+    const { id } = await (await proposalCreate(req('/x', { method: 'POST', json: { business_id: lead.id, service_keys: ['pro_site', 'maintenance'] } }))).json()
+    let p = await (await proposalGet(req('/x'), { params: { id } })).json()
+    expect(Number(p.proposal.total)).toBe(499) // mentenanța lunară nu intră în total
+    await proposalPatch(req('/x', { method: 'PATCH', json: { status: 'sent', items: [{ description: 'Basic website', quantity: 1, unit_price: 299 }, { description: 'Local SEO', quantity: 1, unit_price: 149 }] } }), { params: { id } })
+    p = await (await proposalGet(req('/x'), { params: { id } })).json()
+    expect(Number(p.proposal.total)).toBe(448)
+    expect((await one<{ stage: string }>('SELECT stage FROM businesses WHERE id = $1', [lead.id]))!.stage).toBe('proposal_sent')
+  })
+
+  it('deletes a lead and suppresses it on request', async () => {
+    const [lead] = await seedLeads()
+    await leadDelete(req(`/x?suppress=1`, { method: 'DELETE' }), { params: { id: lead.id } })
+    expect(await one('SELECT id FROM businesses WHERE id = $1', [lead.id])).toBeNull()
+    expect((await q(`SELECT kind FROM suppression_list WHERE kind = 'place'`)).length).toBe(1)
+  })
+
+  it('returns real dashboard and report numbers, and empty states', async () => {
+    const empty = await (await dashboardGet()).json()
+    expect(empty.kpis.total).toBe(0)
+    await seedLeads()
+    const d = await (await dashboardGet()).json()
+    expect(d.kpis).toMatchObject({ total: 3, today: 3 })
+    expect(d.daily).toHaveLength(30)
+    const rep = await (await reportsGet(req('/api/crm/reports'))).json()
+    expect(rep.summary.leads).toBe(3)
+    expect(rep.byCategory[0]).toEqual({ key: 'plumber', n: 3 })
+    const csv = await (await reportsGet(req('/api/crm/reports?format=csv'))).text()
+    expect(csv).toContain('"summary","leads","3"')
+  })
+
+  it('shows a setup error when Google is not configured', async () => {
+    const key = process.env.GOOGLE_PLACES_API_KEY
+    delete process.env.GOOGLE_PLACES_API_KEY
+    const r = await discoveryPost(req('/x', { method: 'POST', json: { city: 'Birmingham', category: 'plumber' } }))
+    expect(r.status).toBe(503)
+    process.env.GOOGLE_PLACES_API_KEY = key
+  })
+})
+
+describe('AI assistant', () => {
+  const fakeClient = (output: Record<string, unknown>) => {
+    const create = vi.fn(async () => ({ output_text: JSON.stringify(output), usage: { input_tokens: 1000, output_tokens: 500 }, model: 'test-model' }))
+    return { client: { responses: { create } } as never, create }
+  }
+
+  it('requires configuration instead of pretending', async () => {
+    delete process.env.OPENAI_API_KEY
+    const r = await aiPost(req('/x', { method: 'POST', json: { kind: 'reply', reply_text: 'Not interested thanks' } }))
+    expect(r.status).toBe(503)
+  })
+
+  it('caches identical requests, logs usage and cost, and rate-limits', async () => {
+    process.env.OPENAI_MODEL = 'test-model'
+    process.env.OPENAI_INPUT_COST_PER_1M = '2'
+    process.env.OPENAI_OUTPUT_COST_PER_1M = '8'
+    await runDiscovery({ city: 'Birmingham', category: 'plumber', limit: 1 }, mockPlaces([[place('ai1')]]))
+    const b = (await one<BusinessRow>('SELECT * FROM businesses'))!
+    const { client, create } = fakeClient({ action: 'Call', reason: 'r', reason_ro: 'r', suggested_stage: 'ready_to_contact' })
+    const r1 = await runAi('next_action', { business: b, client })
+    const r2 = await runAi('next_action', { business: b, client })
+    expect(create).toHaveBeenCalledTimes(1)
+    expect(r2.cached).toBe(true)
+    expect(r1.costUsd).toBeCloseTo((1000 * 2 + 500 * 8) / 1e6)
+    const sent = (create.mock.calls[0] as unknown[])[0] as { input: string; text: { format: { strict: boolean } } }
+    expect(sent.text.format.strict).toBe(true)
+    expect(sent.input).toContain('"google_review_count":40')
+    expect(sent.input).toContain('"email":"unknown"')
+    await runAi('next_action', { business: b, client, force: true })
+    expect(create).toHaveBeenCalledTimes(2)
+    await saveSetting('limits', { ...DEFAULT_SETTINGS.limits, ai_requests_per_hour: 2 })
+    await expect(runAi('next_action', { business: b, client, force: true })).rejects.toThrow(/limit/)
+  })
+})
+
+describe('middleware', () => {
+  const mw = (path: string, init: { method?: string; cookie?: string; origin?: string } = {}) => {
+    const headers: Record<string, string> = { host: 'localhost' }
+    if (init.cookie) headers.cookie = init.cookie
+    if (init.origin) headers.origin = init.origin
+    return middleware(new NextRequest(`http://localhost${path}`, { method: init.method || 'GET', headers }))
+  }
+  it('protects CRM pages and APIs, allows worker endpoints and blocks cross-origin writes', async () => {
+    expect((await mw('/crm/leads')).headers.get('location')).toContain('/crm/login')
+    expect((await mw('/api/crm/leads')).status).toBe(401)
+    const cookie = `${SESSION_COOKIE}=${await createSession()}`
+    expect((await mw('/api/crm/leads', { cookie })).status).toBe(200)
+    expect((await mw('/api/crm/leads', { cookie, method: 'POST', origin: 'https://evil.example' })).status).toBe(403)
+    expect((await mw('/api/crm/leads', { cookie, method: 'POST', origin: 'http://localhost' })).status).toBe(200)
+    expect((await mw('/api/crm/worker/claim', { method: 'POST' })).status).toBe(200)
+  })
+})
