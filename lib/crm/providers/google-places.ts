@@ -29,8 +29,10 @@ export class ProviderError extends Error {
   constructor(message: string, public status: number, public retryable: boolean) { super(message) }
 }
 
-export function placesKey(): string | null {
-  return process.env.GOOGLE_PLACES_API_KEY || null
+// Cheia: din Vercel (GOOGLE_PLACES_API_KEY) sau, ca la uneltele pentru România/Ungaria,
+// cea salvată în pagina Setări a aplicației (trimisă de browser la fiecare căutare).
+export function placesKey(override?: string | null): string | null {
+  return process.env.GOOGLE_PLACES_API_KEY || (override && override.trim()) || null
 }
 
 // Cost estimativ (USD) pentru urmărirea bugetului; verifică prețurile curente în Google Cloud.
@@ -50,9 +52,9 @@ function checkStatus(data: { status?: string; error_message?: string }, httpStat
   throw new ProviderError(msg, 502, true)
 }
 
-export async function searchText(opts: { textQuery: string; pageToken?: string | null; fetchImpl?: typeof fetch; pageDelayMs?: number }): Promise<SearchPage> {
-  const key = placesKey()
-  if (!key) throw new ProviderError('GOOGLE_PLACES_API_KEY is not configured', 503, false)
+export async function searchText(opts: { textQuery: string; pageToken?: string | null; fetchImpl?: typeof fetch; pageDelayMs?: number; apiKey?: string | null }): Promise<SearchPage> {
+  const key = placesKey(opts.apiKey)
+  if (!key) throw new ProviderError('No Google Places key: add it in the app Settings page or as GOOGLE_PLACES_API_KEY in Vercel', 503, false)
   const u = new URL(`${API}/textsearch/json`)
   if (opts.pageToken) u.searchParams.set('pagetoken', opts.pageToken)
   else { u.searchParams.set('query', opts.textQuery); u.searchParams.set('region', 'uk'); u.searchParams.set('language', 'en-GB') }
@@ -87,8 +89,8 @@ export async function searchText(opts: { textQuery: string; pageToken?: string |
 }
 
 // Completează telefonul, site-ul și link-ul Google Maps (doar câmpurile necesare)
-export async function placeDetails(b: DiscoveredBusiness, fetchImpl?: typeof fetch): Promise<DiscoveredBusiness> {
-  const key = placesKey()
+export async function placeDetails(b: DiscoveredBusiness, fetchImpl?: typeof fetch, apiKey?: string | null): Promise<DiscoveredBusiness> {
+  const key = placesKey(apiKey)
   if (!key) throw new ProviderError('GOOGLE_PLACES_API_KEY is not configured', 503, false)
   const u = new URL(`${API}/details/json`)
   u.searchParams.set('place_id', b.providerId)

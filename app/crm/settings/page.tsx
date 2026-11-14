@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { api, useApi, ApiError, relative, dateUk } from '@/lib/crm/client'
+import { api, useApi, ApiError, relative, dateUk, browserAnthropicKey } from '@/lib/crm/client'
 import { PageHeader, Card, Button, Field, Input, Select, Badge, ApiErrorNotice, Toast, cx } from '@/components/crm/ui'
 import { UK_CATEGORIES, UK_REGIONS } from '@/lib/crm/constants'
 import type { CrmSettings } from '@/lib/crm/settings'
+import { getSettings as getAppSettings } from '@/lib/storage'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const WEIGHT_LABELS: Record<string, string> = {
@@ -29,6 +30,8 @@ export default function SettingsPage() {
   const [s, setS] = useState<CrmSettings | null>(null)
   const [toast, setToast] = useState<{ m: string; bad?: boolean } | null>(null)
   const [busy, setBusy] = useState('')
+  const [browserGoogleKey, setBrowserGoogleKey] = useState(false)
+  useEffect(() => { setBrowserGoogleKey(!!getAppSettings().googlePlacesApiKey) }, [])
   const [supForm, setSupForm] = useState({ kind: 'email', value: '', reason: '' })
   useEffect(() => { if (data.data) setS(data.data.settings) }, [data.data])
 
@@ -61,8 +64,8 @@ export default function SettingsPage() {
             <Status ok={env.STORAGE !== 'none' && db?.connected} label={env.STORAGE === 'postgres' ? 'Database (PostgreSQL)' : 'Database (Vercel Blob)'}
               detail={env.STORAGE === 'none' ? 'Connect the Vercel Blob store to this project (Vercel → Storage → Blob → Connect), then redeploy.' : db?.error || (env.STORAGE === 'vercel_blob' ? 'Stored encrypted in your existing Blob store — tables are created automatically.' : 'Connected')} />
             {db?.connected && db.pending.length > 0 && <Button variant="primary" size="sm" className="ml-4 mb-2" loading={busy === 'migrate'} onClick={migrate}>Initialise / update database</Button>}
-            <Status ok={env.ANTHROPIC_API_KEY} label="Claude API" detail={env.ANTHROPIC_API_KEY ? `ANTHROPIC_API_KEY set · model ${env.CLAUDE_MODEL}` : 'Set ANTHROPIC_API_KEY (same key as the Romanian tools) and redeploy.'} />
-            <Status ok={env.GOOGLE_PLACES_API_KEY} label="Google Places API" detail="GOOGLE_PLACES_API_KEY — the same key as the Romanian/Hungarian tools (classic Places API)." />
+            <Status ok={env.ANTHROPIC_API_KEY || !!browserAnthropicKey()} label="Claude API" detail={env.ANTHROPIC_API_KEY ? `ANTHROPIC_API_KEY set in Vercel · model ${env.CLAUDE_MODEL}` : browserAnthropicKey() ? `Using the key saved in the app Setări page · model ${env.CLAUDE_MODEL}` : 'Add your Claude key in the app Setări page or set ANTHROPIC_API_KEY in Vercel.'} />
+            <Status ok={env.GOOGLE_PLACES_API_KEY || browserGoogleKey} label="Google Places API" detail={env.GOOGLE_PLACES_API_KEY ? "GOOGLE_PLACES_API_KEY set in Vercel (classic Places API)." : browserGoogleKey ? "Using the key saved in the app Setări page (same as the Romanian/Hungarian tools)." : "Add your Google key in the app Setări page, or as GOOGLE_PLACES_API_KEY in Vercel."} />
             <Status ok={!!setup.data.worker?.last_seen} label="Audit worker (optional)" detail={setup.data.worker?.last_seen ? `Last seen ${relative(setup.data.worker.last_seen)}` : env.CRM_WORKER_TOKEN ? 'Token set. Start the worker (worker/README.md) to audit websites.' : 'To audit websites, set CRM_WORKER_TOKEN and start the Python worker (worker/README.md).'} />
             <Status ok={true} label="Access" detail={env.CRM_PASSWORD ? 'Protected with CRM_PASSWORD.' : 'Open, like the rest of the app. Optional: set CRM_PASSWORD to require a login.'} />
           </>}

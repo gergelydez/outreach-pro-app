@@ -103,10 +103,12 @@ export async function buildContext(b: BusinessRow, settings: CrmSettings) {
 
 export interface AiRunResult<T = Record<string, unknown>> { id: string; output: T; cached: boolean; model: string; inputTokens: number; outputTokens: number; costUsd: number }
 
-export async function runAi<T = Record<string, unknown>>(kind: AiKind, opts: { business?: BusinessRow | null; extra?: Record<string, unknown>; force?: boolean; client?: Anthropic }): Promise<AiRunResult<T>> {
+export async function runAi<T = Record<string, unknown>>(kind: AiKind, opts: { business?: BusinessRow | null; extra?: Record<string, unknown>; force?: boolean; client?: Anthropic; apiKey?: string | null }): Promise<AiRunResult<T>> {
   const cfg = aiConfig()
   const { model } = cfg
-  if (!opts.client && !cfg.key) throw new AiConfigError('Claude is not configured: set ANTHROPIC_API_KEY on the server (Vercel → Settings → Environment Variables).')
+  // cheia din Vercel are prioritate; altfel cea salvată în Setări (trimisă de browser)
+  const key = cfg.key || (opts.apiKey || '').trim()
+  if (!opts.client && !key) throw new AiConfigError('Claude is not configured: add your Claude key in the app Setări page or set ANTHROPIC_API_KEY in Vercel.')
   const settings = await getSettings()
   const context = opts.business ? await buildContext(opts.business, settings) : { services: settings.services, seller: settings.business_profile }
   const payload = JSON.stringify({ context, extra: opts.extra || {} })
@@ -123,7 +125,7 @@ export async function runAi<T = Record<string, unknown>>(kind: AiKind, opts: { b
   const used = await one<{ n: string }>(`SELECT count(*)::text AS n FROM api_usage WHERE provider = 'anthropic' AND created_at > now() - interval '1 hour'`)
   if (Number(used?.n || 0) >= limit) throw new AiRateLimitError(`AI limit reached (${limit} requests per hour). Change it in Settings.`)
 
-  const client = opts.client || new Anthropic({ apiKey: cfg.key })
+  const client = opts.client || new Anthropic({ apiKey: key })
   let res: Anthropic.Beta.BetaMessage
   try {
     res = await client.beta.messages.create({

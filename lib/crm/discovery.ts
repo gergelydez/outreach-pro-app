@@ -57,7 +57,7 @@ function passesWebsiteFilter(b: DiscoveredBusiness, r: DiscoveryRequest): boolea
   return true
 }
 
-export async function runDiscovery(r: DiscoveryRequest, fetchImpl?: typeof fetch, opts: { pageDelayMs?: number } = {}): Promise<DiscoveryResult> {
+export async function runDiscovery(r: DiscoveryRequest, fetchImpl?: typeof fetch, opts: { pageDelayMs?: number; apiKey?: string | null } = {}): Promise<DiscoveryResult> {
   const settings = await getSettings()
   const already = await newLeadsToday()
   const remainingToday = Math.max(0, settings.limits.daily_discovery_max - already)
@@ -81,7 +81,7 @@ export async function runDiscovery(r: DiscoveryRequest, fetchImpl?: typeof fetch
   try {
     // Text Search dă max. 3 pagini × 20 rezultate pentru o interogare
     for (let page = 0; page < 3; page++) {
-      const data = await searchText({ textQuery, pageToken, fetchImpl, pageDelayMs })
+      const data = await searchText({ textQuery, pageToken, fetchImpl, pageDelayMs, apiKey: opts.apiKey })
       await logUsage({ provider: 'google_places', operation: 'textSearch', costUsd: textSearchCost() })
       res.found += data.results.length
 
@@ -104,7 +104,7 @@ export async function runDiscovery(r: DiscoveryRequest, fetchImpl?: typeof fetch
       const need = want - res.newCount
       const toEnrich = r.websiteFilter && r.websiteFilter !== 'any' ? candidates : candidates.slice(0, need)
       res.filtered += candidates.length - toEnrich.length
-      const enriched = await Promise.all(toEnrich.map(b => placeDetails(b, fetchImpl).then(d => d, () => null)))
+      const enriched = await Promise.all(toEnrich.map(b => placeDetails(b, fetchImpl, opts.apiKey).then(d => d, () => null)))
       const detailCalls = toEnrich.length
       if (detailCalls) await logUsage({ provider: 'google_places', operation: 'placeDetails', units: detailCalls, costUsd: detailCalls * detailsCost() })
 

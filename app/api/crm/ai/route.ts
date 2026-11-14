@@ -29,7 +29,7 @@ export const POST = route(async (req: Request) => {
     extra.REPLY = text
   }
   if (b.note) extra.user_note = str(b.note, 1000)
-  const result = await runAi(kind, { business, extra, force: !!b.force })
+  const result = await runAi(kind, { business, extra, force: !!b.force, apiKey: str(req.headers.get('x-anthropic-key'), 300) })
   if (business && !result.cached) await logActivity(business.id, `ai_${kind}`, `AI ${kind.replace('_', ' ')} generated`)
   return json(result)
 })

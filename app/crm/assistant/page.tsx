@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { api, useApi, ApiError, relative } from '@/lib/crm/client'
+import { api, browserAnthropicKey, useApi, ApiError, relative } from '@/lib/crm/client'
 import { PageHeader, Card, Button, Textarea, Input, Kpi, ApiErrorNotice, Badge, Toast, Field, Select } from '@/components/crm/ui'
 import ReplyResult from '@/components/crm/ReplyResult'
 
@@ -34,7 +34,7 @@ export default function AssistantPage() {
   return (
     <>
       <PageHeader title="AI Sales Assistant" subtitle={<>Understand English replies in Romanian, handle objections and keep an eye on API costs. Model: <b>{usage.data?.model || 'not configured'}</b></>} />
-      {usage.data && !usage.data.configured && <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><b>Claude is not configured.</b> Set <code>ANTHROPIC_API_KEY</code> in Vercel (the same key the Romanian tools use) and redeploy.</div>}
+      {usage.data && !usage.data.configured && !browserAnthropicKey() && <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><b>Claude is not configured.</b> Add your Claude key in the app <a href="/settings" className="underline">Setări</a> page (same as the Romanian tools) or set <code>ANTHROPIC_API_KEY</code> in Vercel.</div>}
 
       <div className="grid xl:grid-cols-[1fr_380px] gap-4 items-start">
         <div className="space-y-4">

@@ -8,10 +8,20 @@ export class ApiError extends Error {
   constructor(message: string, public status: number, public setup?: string) { super(message) }
 }
 
+// Cheia Claude salvată în pagina Setări a aplicației (ca la uneltele RO/HU) — folosită de server
+// doar dacă ANTHROPIC_API_KEY nu e setată în Vercel. Se trimite numai către /api/crm/ai.
+export function browserAnthropicKey(): string {
+  if (typeof window === 'undefined') return ''
+  try { return (JSON.parse(localStorage.getItem('biz_settings') || '{}').anthropicApiKey as string) || '' } catch { return '' }
+}
+
 export async function api<T = any>(path: string, opts: { method?: string; json?: unknown } = {}): Promise<T> { // eslint-disable-line @typescript-eslint/no-explicit-any
+  const headers: Record<string, string> = {}
+  if (opts.json !== undefined) headers['Content-Type'] = 'application/json'
+  if (path.startsWith('/api/crm/ai') && browserAnthropicKey()) headers['x-anthropic-key'] = browserAnthropicKey()
   const res = await fetch(path, {
     method: opts.method || (opts.json !== undefined ? 'POST' : 'GET'),
-    headers: opts.json !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+    headers,
     body: opts.json !== undefined ? JSON.stringify(opts.json) : undefined,
     cache: 'no-store',
   })

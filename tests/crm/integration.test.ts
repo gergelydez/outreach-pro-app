@@ -123,6 +123,20 @@ describe('Google Places (classic API, same key as RO/HU tools)', () => {
     expect(m.calls.details).toBe(2)
   })
 
+  it('works with the key saved in the app Settings page when Vercel has none (like the RO/HU tools)', async () => {
+    const saved = process.env.GOOGLE_PLACES_API_KEY
+    delete process.env.GOOGLE_PLACES_API_KEY
+    const m = legacyPlacesMock([[place('k1')]])
+    vi.stubGlobal('fetch', m.fetch)
+    try {
+      const none = await discoveryPost(req('/x', { method: 'POST', json: { city: 'Birmingham', category: 'plumber', limit: 1 } }))
+      expect(none.status).toBe(503)
+      const ok = await discoveryPost(req('/x', { method: 'POST', json: { city: 'Birmingham', category: 'plumber', limit: 1, google_api_key: 'browser-key' } }))
+      expect((await ok.json()).newCount).toBe(1)
+      expect(m.calls.urls.every(u => new URL(u).searchParams.get('key') === 'browser-key')).toBe(true)
+    } finally { vi.unstubAllGlobals(); if (saved) process.env.GOOGLE_PLACES_API_KEY = saved }
+  })
+
   it('explains a denied key clearly', async () => {
     const denied = (async () => new Response(JSON.stringify({ status: 'REQUEST_DENIED', error_message: 'This API project is not authorized to use this API.' }), { status: 200 })) as unknown as typeof fetch
     const r = await runDiscovery({ city: 'Birmingham', category: 'plumber', limit: 5 }, denied)
@@ -300,6 +314,13 @@ describe('AI assistant', () => {
     delete process.env.ANTHROPIC_API_KEY
     const r = await aiPost(req('/x', { method: 'POST', json: { kind: 'reply', reply_text: 'Not interested thanks' } }))
     expect(r.status).toBe(503)
+  })
+
+  it('uses the Claude key from the app Settings page when Vercel has none', async () => {
+    delete process.env.ANTHROPIC_API_KEY
+    await expect(runAi('reply', { extra: { REPLY: 'hi' } })).rejects.toThrow(/Setări|ANTHROPIC_API_KEY/)
+    const r = await aiPost(req('/x', { method: 'POST', headers: { 'x-anthropic-key': 'sk-ant-browser' }, json: { kind: 'reply', reply_text: 'Not now' } }))
+    expect(r.status).not.toBe(503) // cheia a fost acceptată (apelul real e blocat în teste)
   })
 
   it('caches identical requests, logs usage and cost, and rate-limits', async () => {
