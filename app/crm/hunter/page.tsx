@@ -68,7 +68,7 @@ export default function HunterPage() {
       {info.error && <div className="mb-4"><ApiErrorNotice error={info.error} onRetry={info.reload} /></div>}
       {info.data && !info.data.configured && (
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <b>Google Places API is not configured.</b> Add <code>GOOGLE_PLACES_API_KEY</code> to the server environment (with “Places API (New)” enabled in Google Cloud). Until then discovery is disabled. <Link href="/crm/settings" className="underline">Setup guide</Link>
+          <b>Google Places API is not configured.</b> Add <code>GOOGLE_PLACES_API_KEY</code> to the server environment (the same key the Romanian/Hungarian tools use, with “Places API” enabled). Until then discovery is disabled. <Link href="/crm/settings" className="underline">Setup guide</Link>
         </div>
       )}
       {err && <div className="mb-4"><ApiErrorNotice error={err} /></div>}
@@ -125,7 +125,7 @@ export default function HunterPage() {
           </div>
           <Card title="How it works">
             <ol className="text-[13px] text-slate-600 space-y-1.5 list-decimal pl-4">
-              <li>Google Places (New) Text Search, max. 60 results per query.</li>
+              <li>Google Places Text Search (max. 60 results per query), then Place Details for phone and website — only for new businesses that pass your filters.</li>
               <li>Duplicates are matched by Place ID, website domain and phone; name + postcode matches are flagged, not merged.</li>
               <li>Each new lead gets a website audit job. The Python worker checks the site, WhatsApp links and PageSpeed.</li>
               <li>The opportunity score is calculated from verified evidence only.</li>
