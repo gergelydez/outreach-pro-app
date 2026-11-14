@@ -155,7 +155,7 @@ export default function HunterPage() {
                     <td className="px-2 tabular-nums font-medium text-teal-700">{j.new_count}</td>
                     <td className="px-2 tabular-nums">{j.duplicates}</td>
                     <td className="px-2 tabular-nums">{j.filtered}</td>
-                    <td className="px-4">{j.status === 'failed' ? <Badge tone="bad" title={j.error}>Failed</Badge> : j.status === 'done' ? <Badge tone="good">Done</Badge> : <Badge>{j.status}</Badge>}</td>
+                    <td className="px-4">{j.status === 'failed' ? <span className="inline-flex flex-col items-start gap-0.5"><Badge tone="bad" title={j.error}>Failed</Badge>{j.error && <span className="text-[11px] text-rose-700 max-w-[260px] whitespace-normal">{j.error}</span>}</span> : j.status === 'done' ? <Badge tone="good">Done</Badge> : <Badge>{j.status}</Badge>}</td>
                   </tr>
                 ))}
               </tbody>

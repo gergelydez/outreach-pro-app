@@ -10,10 +10,15 @@
 //   modificările locale, reîncărcăm și re-executăm cererea (concurență optimistă) — nu se pierde nimic.
 // Potrivit pentru un singur utilizator și volume mici (sute–mii de lead-uri).
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto'
+import { AsyncLocalStorage } from 'async_hooks'
 import type { PGlite as PGliteType } from '@electric-sql/pglite'
 import type { Database, Queryable } from './db'
 
 export class SnapshotConflict extends Error {}
+
+// Ține minte, per cerere (nu per instanță), dacă suntem deja într-o sesiune — pe Vercel
+// aceeași instanță poate servi mai multe cereri în paralel.
+const sessionContext = new AsyncLocalStorage<SnapshotDatabase>()
 
 export interface SnapshotStore {
   // null = nu există încă; notModified = etag-ul dat e încă actual
@@ -94,7 +99,6 @@ export class SnapshotDatabase implements Database {
   private etag: string | null = null
   private dirty = false
   private lock: Promise<void> = Promise.resolve()
-  private inSession = false
 
   constructor(private store: SnapshotStore, private migrate: (d: Database) => Promise<string[]>) {}
 
@@ -113,12 +117,17 @@ export class SnapshotDatabase implements Database {
     }
   }
 
-  async query(text: string, params?: unknown[]) {
+  private inside() { return sessionContext.getStore() === this }
+
+  // În afara unei sesiuni (ex. scripturi) fiecare interogare devine propria sesiune
+  async query(text: string, params?: unknown[]): Promise<{ rows: any[] }> { // eslint-disable-line @typescript-eslint/no-explicit-any
+    if (!this.inside()) return this.session(() => this.query(text, params))
     if (!this.pg) await this.sync()
     return this.wrap((t, p) => this.pg!.query(t, p)).query(text, params)
   }
 
   async transaction<T>(fn: (tx: Queryable) => Promise<T>): Promise<T> {
+    if (!this.inside()) return this.session(() => this.transaction(fn))
     if (!this.pg) await this.sync()
     return this.pg!.transaction(tx => fn(this.wrap((t, p) => tx.query(t, p))))
   }
@@ -164,13 +173,20 @@ export class SnapshotDatabase implements Database {
   // O cerere HTTP = o sesiune: sincronizare → handler → salvare. Cererile din aceeași
   // instanță se execută pe rând (PGlite are o singură conexiune).
   async session<T>(fn: () => Promise<T>): Promise<T> {
-    if (this.inSession) return fn() // apel imbricat
+    if (this.inside()) return fn() // apel imbricat din aceeași cerere
     const prev = this.lock
     let release!: () => void
     this.lock = new Promise(r => { release = r })
     await prev
-    this.inSession = true
     try {
+      return await sessionContext.run(this, () => this.runSession(fn))
+    } finally {
+      release()
+    }
+  }
+
+  private async runSession<T>(fn: () => Promise<T>): Promise<T> {
+    {
       for (let attempt = 0; ; attempt++) {
         await this.sync()
         let out: T
@@ -190,9 +206,6 @@ export class SnapshotDatabase implements Database {
           throw e
         }
       }
-    } finally {
-      this.inSession = false
-      release()
     }
   }
 }
