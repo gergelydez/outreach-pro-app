@@ -42,7 +42,7 @@ docker run -e CRM_API_URL=... -e CRM_WORKER_TOKEN=... -e PAGESPEED_API_KEY=... c
 | `PAGESPEED_API_KEY` | no | Without it, speed is shown as "not verified" |
 | `AUDIT_USE_PLAYWRIGHT` | no | `1` = real-browser mobile overflow check |
 | `PLAYWRIGHT_CHROMIUM_PATH` | no | Custom Chromium binary |
-| `WORKER_POLL_SECONDS` | no | Idle poll interval, default 30 |
+| `WORKER_POLL_SECONDS` | no | Poll interval, default 30 s; doubles while the queue is empty (max 10 min) |
 | `WORKER_BATCH` | no | Jobs per claim (1–10), default 3 |
 | `AUDIT_ALLOW_PRIVATE_TARGETS` | **never in production** | Lets tests reach 127.0.0.1 |
 

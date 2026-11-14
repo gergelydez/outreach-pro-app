@@ -20,7 +20,7 @@ const NAV = [
   { href: '/crm/settings', label: 'Settings & API', icon: Settings },
 ]
 
-export default function Shell({ children }: { children: ReactNode }) {
+export default function Shell({ children, passwordProtected = false }: { children: ReactNode; passwordProtected?: boolean }) {
   const path = usePathname()
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -50,9 +50,11 @@ export default function Shell({ children }: { children: ReactNode }) {
       </div>
       <div className="p-2 border-t border-white/5 space-y-0.5">
         <Link href="/" className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-slate-500 hover:text-slate-300">← Outreach Pro (RO)</Link>
-        <button onClick={logout} className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] text-slate-400 hover:text-white hover:bg-white/5">
+        {passwordProtected && (
+          <button onClick={logout} className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] text-slate-400 hover:text-white hover:bg-white/5">
           <LogOut className="w-4 h-4" /> Sign out
         </button>
+        )}
       </div>
     </nav>
   )

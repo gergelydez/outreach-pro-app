@@ -30,11 +30,11 @@ export default function AssistantPage() {
     setBusy(false)
   }
 
-  const openai = usage.data?.byProvider?.find((p: any) => p.provider === 'openai')
+  const claude = usage.data?.byProvider?.find((p: any) => p.provider === 'anthropic')
   return (
     <>
       <PageHeader title="AI Sales Assistant" subtitle={<>Understand English replies in Romanian, handle objections and keep an eye on API costs. Model: <b>{usage.data?.model || 'not configured'}</b></>} />
-      {usage.data && !usage.data.model && <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><b>OpenAI is not configured.</b> Set <code>OPENAI_API_KEY</code> and <code>OPENAI_MODEL</code> in the server environment. A ChatGPT subscription does not include API usage — the API is billed separately at platform.openai.com.</div>}
+      {usage.data && !usage.data.configured && <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><b>Claude is not configured.</b> Set <code>ANTHROPIC_API_KEY</code> in Vercel (the same key the Romanian tools use) and redeploy.</div>}
 
       <div className="grid xl:grid-cols-[1fr_380px] gap-4 items-start">
         <div className="space-y-4">
@@ -67,12 +67,12 @@ export default function AssistantPage() {
           {usage.error ? <ApiErrorNotice error={usage.error} /> : (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
-                <Kpi label="OpenAI requests" value={openai?.requests || 0} />
-                <Kpi label="Est. OpenAI cost" value={usage.data?.costsConfigured ? `$${(openai?.cost || 0).toFixed(2)}` : 'n/a'} hint={usage.data?.costsConfigured ? undefined : 'set OPENAI_*_COST_PER_1M'} />
-                <Kpi label="Tokens in / out" value={<span className="text-base">{(openai?.input_tokens || 0).toLocaleString('en-GB')} / {(openai?.output_tokens || 0).toLocaleString('en-GB')}</span>} />
-                <Kpi label="Errors" value={openai?.errors || 0} />
+                <Kpi label="Claude requests" value={claude?.requests || 0} />
+                <Kpi label="Est. Claude cost" value={usage.data?.costsConfigured ? `$${(claude?.cost || 0).toFixed(2)}` : 'n/a'} hint={usage.data?.costsConfigured ? undefined : 'set CLAUDE_*_COST_PER_1M'} />
+                <Kpi label="Tokens in / out" value={<span className="text-base">{(claude?.input_tokens || 0).toLocaleString('en-GB')} / {(claude?.output_tokens || 0).toLocaleString('en-GB')}</span>} />
+                <Kpi label="Errors" value={claude?.errors || 0} />
               </div>
-              {(usage.data?.byProvider || []).filter((p: any) => p.provider !== 'openai').map((p: any) => (
+              {(usage.data?.byProvider || []).filter((p: any) => p.provider !== 'anthropic').map((p: any) => (
                 <div key={p.provider} className="flex justify-between text-sm"><span className="text-slate-600">{p.provider.replace('_', ' ')}</span><span className="tabular-nums">{p.requests} req · est. ${p.cost.toFixed(2)}</span></div>
               ))}
               <div className="pt-2 border-t border-slate-100">

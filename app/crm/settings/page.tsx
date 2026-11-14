@@ -58,17 +58,13 @@ export default function SettingsPage() {
       <div className="grid lg:grid-cols-2 gap-4 items-start">
         <Card title="Setup status" action={<Button size="sm" variant="ghost" onClick={setup.reload}>Refresh</Button>}>
           {setup.data && <>
-            <Status ok={env.DATABASE_URL && db?.connected} label="Database (PostgreSQL)" detail={!env.DATABASE_URL ? 'Set DATABASE_URL (Supabase or Neon connection string).' : db?.error || (db?.connected ? 'Connected' : '')} />
-            {db?.connected && <Status ok={!db.pending.length} label="Database tables" detail={db.pending.length ? `Pending migrations: ${db.pending.join(', ')}` : 'Up to date'} />}
+            <Status ok={env.STORAGE !== 'none' && db?.connected} label={env.STORAGE === 'postgres' ? 'Database (PostgreSQL)' : 'Database (Vercel Blob)'}
+              detail={env.STORAGE === 'none' ? 'Connect the Vercel Blob store to this project (Vercel → Storage → Blob → Connect), then redeploy.' : db?.error || (env.STORAGE === 'vercel_blob' ? 'Stored encrypted in your existing Blob store — tables are created automatically.' : 'Connected')} />
             {db?.connected && db.pending.length > 0 && <Button variant="primary" size="sm" className="ml-4 mb-2" loading={busy === 'migrate'} onClick={migrate}>Initialise / update database</Button>}
-            <Status ok={env.CRM_PASSWORD} label="CRM password" detail="CRM_PASSWORD protects this area." />
-            <Status ok={env.CRM_SESSION_SECRET} label="Session secret" detail={env.CRM_SESSION_SECRET ? 'Set' : 'Recommended: CRM_SESSION_SECRET (a long random string). Falls back to the password.'} />
-            <Status ok={env.GOOGLE_PLACES_API_KEY} label="Google Places API (New)" detail="GOOGLE_PLACES_API_KEY — needed for Business Hunter." />
-            <Status ok={env.CRM_WORKER_TOKEN} label="Audit worker token" detail="CRM_WORKER_TOKEN — shared with the Python worker." />
-            <Status ok={!!setup.data.worker?.last_seen} label="Audit worker" detail={setup.data.worker?.last_seen ? `Last job picked up ${relative(setup.data.worker.last_seen)}` : 'No job picked up yet. Start the worker (worker/README.md). PageSpeed key goes in the worker env: PAGESPEED_API_KEY.'} />
-            <Status ok={env.OPENAI_API_KEY && !!env.OPENAI_MODEL} label="OpenAI API" detail={env.OPENAI_API_KEY ? `Model: ${env.OPENAI_MODEL || 'OPENAI_MODEL not set'}` : 'Set OPENAI_API_KEY and OPENAI_MODEL. API usage is billed separately from ChatGPT.'} />
-            <Status ok={env.OPENAI_COSTS_SET} label="AI cost estimates" detail="OPENAI_INPUT_COST_PER_1M / OPENAI_OUTPUT_COST_PER_1M (USD per 1M tokens, from OpenAI pricing)." />
-            <Status ok={env.CRON_SECRET} label="Daily retention job" detail="CRON_SECRET enables the daily clean-up of expired Google data (vercel.json cron)." />
+            <Status ok={env.ANTHROPIC_API_KEY} label="Claude API" detail={env.ANTHROPIC_API_KEY ? `ANTHROPIC_API_KEY set · model ${env.CLAUDE_MODEL}` : 'Set ANTHROPIC_API_KEY (same key as the Romanian tools) and redeploy.'} />
+            <Status ok={env.GOOGLE_PLACES_API_KEY} label="Google Places API (New)" detail="GOOGLE_PLACES_API_KEY — needed for Business Hunter. Enable “Places API (New)” in Google Cloud." />
+            <Status ok={!!setup.data.worker?.last_seen} label="Audit worker (optional)" detail={setup.data.worker?.last_seen ? `Last seen ${relative(setup.data.worker.last_seen)}` : env.CRM_WORKER_TOKEN ? 'Token set. Start the worker (worker/README.md) to audit websites.' : 'To audit websites, set CRM_WORKER_TOKEN and start the Python worker (worker/README.md).'} />
+            <Status ok={true} label="Access" detail={env.CRM_PASSWORD ? 'Protected with CRM_PASSWORD.' : 'Open, like the rest of the app. Optional: set CRM_PASSWORD to require a login.'} />
           </>}
         </Card>
 

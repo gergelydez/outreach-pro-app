@@ -1,8 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { SESSION_COOKIE, verifySession } from '@/lib/crm/session'
 
-// Protejează doar modulul CRM (/crm, /api/crm). Restul aplicației rămâne neschimbat.
-// - pagini: fără sesiune → /crm/login
+// Modulul CRM (/crm, /api/crm). Restul aplicației rămâne neschimbat.
+// - parola e OPȚIONALĂ: fără CRM_PASSWORD, CRM-ul e deschis, ca restul aplicației
+// - cu CRM_PASSWORD setat: pagini fără sesiune → /crm/login
 // - API: fără sesiune → 401; cereri care modifică date trebuie să vină de pe același domeniu (anti-CSRF)
 // - /api/crm/worker/* și /api/crm/maintenance/* folosesc tokenuri proprii, verificate în rută
 
@@ -22,6 +23,10 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  if (!process.env.CRM_PASSWORD) {
+    if (pathname === '/crm/login') return NextResponse.redirect(new URL('/crm', req.url))
+    return NextResponse.next()
+  }
   if (pathname === '/crm/login' || PUBLIC_API.includes(pathname)) return NextResponse.next()
 
   const ok = await verifySession(req.cookies.get(SESSION_COOKIE)?.value)

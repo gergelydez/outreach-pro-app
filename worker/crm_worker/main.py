@@ -5,7 +5,7 @@ Environment:
   CRM_WORKER_TOKEN   same value as CRM_WORKER_TOKEN in the Next.js app
   PAGESPEED_API_KEY  optional; without it speed is reported as "not verified"
   AUDIT_USE_PLAYWRIGHT=1  optional real-browser mobile check
-  WORKER_POLL_SECONDS (default 30), WORKER_BATCH (default 3), WORKER_ID
+  WORKER_POLL_SECONDS (default 30; doubles while the queue is empty, up to 10 min), WORKER_BATCH (default 3), WORKER_ID
   AUDIT_ALLOW_PRIVATE_TARGETS=1  ONLY for local tests against 127.0.0.1 — never in production
 """
 from __future__ import annotations
@@ -75,6 +75,7 @@ def run(once: bool = False) -> int:
     signal.signal(signal.SIGINT, _handle_stop)
     signal.signal(signal.SIGTERM, _handle_stop)
     failures = 0
+    idle = 0
     while not _stop:
         try:
             jobs = api.claim(worker_id, batch)
@@ -98,8 +99,13 @@ def run(once: bool = False) -> int:
                 log.warning("could not report job %s: %s", job["id"], e)
         if once:
             return 0
-        if not jobs:
-            time.sleep(poll)
+        if jobs:
+            idle = 0
+        else:
+            # coadă goală: așteptăm tot mai mult (30s → 1m → 2m … max 10m), ca să nu facem
+            # cereri inutile; după un job găsit revenim la intervalul normal
+            idle += 1
+            time.sleep(min(600, poll * 2 ** min(idle - 1, 5)))
     return 0
 
 

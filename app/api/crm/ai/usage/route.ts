@@ -4,7 +4,7 @@ import { aiConfig } from '@/lib/crm/ai'
 
 export const dynamic = 'force-dynamic'
 
-// Consum API pe furnizori (OpenAI, Google Places, PageSpeed) — ultimele 30 de zile
+// Consum API pe furnizori (Claude, Google Places, PageSpeed) — ultimele 30 de zile
 export const GET = route(async () => {
   const byProvider = await q<{ provider: string; requests: string; errors: string; input_tokens: string; output_tokens: string; cost: string }>(`
     SELECT provider, count(*)::text AS requests, count(*) FILTER (WHERE NOT ok)::text AS errors,
@@ -18,7 +18,8 @@ export const GET = route(async () => {
   return json({
     byProvider: byProvider.map(r => ({ ...r, requests: Number(r.requests), errors: Number(r.errors), input_tokens: Number(r.input_tokens), output_tokens: Number(r.output_tokens), cost: Number(r.cost) })),
     byOperation, daily, recent,
-    model: aiConfig().model || null,
-    costsConfigured: !!(process.env.OPENAI_INPUT_COST_PER_1M && process.env.OPENAI_OUTPUT_COST_PER_1M),
+    model: aiConfig().model,
+    configured: !!aiConfig().key,
+    costsConfigured: aiConfig().inputPer1M > 0,
   })
 })

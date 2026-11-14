@@ -34,7 +34,7 @@ export const GET = route(async (req: Request) => {
     SELECT coalesce(channel,'unknown') AS channel, count(*) FILTER (WHERE event_type = 'contacted')::text AS contacted, count(*) FILTER (WHERE event_type = 'reply')::text AS replies
     FROM outreach_events WHERE occurred_at >= $1::date AND occurred_at < ($2::date + interval '1 day') GROUP BY 1 ORDER BY 2 DESC`, P)
   const ai = await one<{ requests: string; cost: string; tokens: string }>(`SELECT count(*)::text AS requests, coalesce(sum(cost_usd),0)::text AS cost, coalesce(sum(input_tokens + output_tokens),0)::text AS tokens
-                                                                          FROM api_usage WHERE provider = 'openai' AND ${range}`, P)
+                                                                          FROM api_usage WHERE provider = 'anthropic' AND ${range}`, P)
   const top = await q(`SELECT id, name, city, category, website_status, opportunity_score, stage FROM businesses WHERE ${range} AND opportunity_score >= 60 ORDER BY opportunity_score DESC LIMIT 20`, P)
 
   const n = (k: string) => Number(funnel?.[k] || 0)

@@ -1,8 +1,7 @@
-// Asistentul AI de vânzări — OpenAI API, doar pe server.
-// Modelul vine din OPENAI_MODEL (nu e fixat în cod). Răspunsuri structurate cu
-// JSON Schema strictă; cache după hash-ul intrării; limită de cereri pe oră;
-// costul estimat din OPENAI_INPUT_COST_PER_1M / OPENAI_OUTPUT_COST_PER_1M.
-import OpenAI from 'openai'
+// Asistentul AI de vânzări — Claude API (aceeași cheie ANTHROPIC_API_KEY ca restul aplicației),
+// doar pe server. Răspunsuri structurate cu JSON Schema (output_config.format); cache după
+// hash-ul intrării; limită de cereri pe oră; costul estimat din tokenii raportați de API.
+import Anthropic from '@anthropic-ai/sdk'
 import { q, one } from './db'
 import { logUsage } from './activity'
 import { getSettings, type CrmSettings } from './settings'
@@ -15,8 +14,22 @@ import { WEBSITE_STATUS_LABEL } from './constants'
 export class AiConfigError extends Error {}
 export class AiRateLimitError extends Error {}
 
+export const DEFAULT_MODEL = 'claude-opus-5-5'
+// Prețuri USD per 1M tokeni (intrare / ieșire) pentru estimarea costului; suprascrise de
+// CLAUDE_INPUT_COST_PER_1M / CLAUDE_OUTPUT_COST_PER_1M dacă folosești alt model.
+const PRICES: Record<string, [number, number]> = {
+  'claude-opus-5-5': [4, 20], 'claude-sonnet-5-5': [2, 10], 'claude-haiku-5-5': [0.1, 0.5],
+  'claude-sonnet-4-6': [3, 15], 'claude-opus-4-8': [5, 25],
+}
 export function aiConfig() {
-  return { key: process.env.OPENAI_API_KEY || '', model: process.env.OPENAI_MODEL || '' }
+  const model = process.env.CLAUDE_MODEL || DEFAULT_MODEL
+  const [inP, outP] = PRICES[model] || [0, 0]
+  return {
+    key: process.env.ANTHROPIC_API_KEY || '',
+    model,
+    inputPer1M: Number(process.env.CLAUDE_INPUT_COST_PER_1M || inP),
+    outputPer1M: Number(process.env.CLAUDE_OUTPUT_COST_PER_1M || outP),
+  }
 }
 
 const PROMPT_VERSIONS = { analysis: 'analysis-v1', outreach: 'outreach-v1', proposal: 'proposal-v1', reply: 'reply-v1', next_action: 'next-action-v1' } as const
@@ -90,9 +103,10 @@ export async function buildContext(b: BusinessRow, settings: CrmSettings) {
 
 export interface AiRunResult<T = Record<string, unknown>> { id: string; output: T; cached: boolean; model: string; inputTokens: number; outputTokens: number; costUsd: number }
 
-export async function runAi<T = Record<string, unknown>>(kind: AiKind, opts: { business?: BusinessRow | null; extra?: Record<string, unknown>; force?: boolean; client?: OpenAI }): Promise<AiRunResult<T>> {
-  const { key, model } = aiConfig()
-  if (!opts.client && (!key || !model)) throw new AiConfigError('OpenAI is not configured: set OPENAI_API_KEY and OPENAI_MODEL on the server.')
+export async function runAi<T = Record<string, unknown>>(kind: AiKind, opts: { business?: BusinessRow | null; extra?: Record<string, unknown>; force?: boolean; client?: Anthropic }): Promise<AiRunResult<T>> {
+  const cfg = aiConfig()
+  const { model } = cfg
+  if (!opts.client && !cfg.key) throw new AiConfigError('Claude is not configured: set ANTHROPIC_API_KEY on the server (Vercel → Settings → Environment Variables).')
   const settings = await getSettings()
   const context = opts.business ? await buildContext(opts.business, settings) : { services: settings.services, seller: settings.business_profile }
   const payload = JSON.stringify({ context, extra: opts.extra || {} })
@@ -106,30 +120,39 @@ export async function runAi<T = Record<string, unknown>>(kind: AiKind, opts: { b
   }
 
   const limit = settings.limits.ai_requests_per_hour
-  const used = await one<{ n: string }>(`SELECT count(*)::text AS n FROM api_usage WHERE provider = 'openai' AND created_at > now() - interval '1 hour'`)
+  const used = await one<{ n: string }>(`SELECT count(*)::text AS n FROM api_usage WHERE provider = 'anthropic' AND created_at > now() - interval '1 hour'`)
   if (Number(used?.n || 0) >= limit) throw new AiRateLimitError(`AI limit reached (${limit} requests per hour). Change it in Settings.`)
 
-  const client = opts.client || new OpenAI({ apiKey: key })
-  let res
+  const client = opts.client || new Anthropic({ apiKey: cfg.key })
+  let res: Anthropic.Beta.BetaMessage
   try {
-    res = await client.responses.create({
+    res = await client.beta.messages.create({
       model,
-      instructions: `${SYSTEM}\n\nTASK: ${INSTRUCTIONS[kind]}`,
-      input: `CONTEXT (verified data; "unknown" means we do not know):\n${payload}`,
-      text: { format: { type: 'json_schema', name: `crm_${kind}`, schema: SCHEMAS[kind], strict: true } },
-      max_output_tokens: 4000,
+      max_tokens: 16000,
+      // promptul de sistem e identic la fiecare cerere → se poate refolosi din cache
+      system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
+      messages: [{ role: 'user', content: `TASK: ${INSTRUCTIONS[kind]}\n\nCONTEXT (verified data; "unknown" means we do not know):\n${payload}` }],
+      output_config: { effort: 'medium', format: { type: 'json_schema', schema: SCHEMAS[kind] } },
+      // dacă modelul refuză din motive de siguranță, API-ul reîncearcă automat pe un model de rezervă
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default',
     })
   } catch (e) {
-    await logUsage({ provider: 'openai', operation: kind, ok: false, error: e instanceof Error ? e.message : String(e) })
+    await logUsage({ provider: 'anthropic', operation: kind, ok: false, error: e instanceof Error ? e.message : String(e) })
     throw e
   }
-  const inputTokens = res.usage?.input_tokens ?? 0
-  const outputTokens = res.usage?.output_tokens ?? 0
-  const costUsd = (inputTokens * Number(process.env.OPENAI_INPUT_COST_PER_1M || 0) + outputTokens * Number(process.env.OPENAI_OUTPUT_COST_PER_1M || 0)) / 1_000_000
-  await logUsage({ provider: 'openai', operation: kind, inputTokens, outputTokens, costUsd })
+  const u = res.usage
+  const inputTokens = (u?.input_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0) + (u?.cache_read_input_tokens ?? 0)
+  const outputTokens = u?.output_tokens ?? 0
+  const costUsd = ((u?.input_tokens ?? 0) * cfg.inputPer1M + (u?.cache_creation_input_tokens ?? 0) * cfg.inputPer1M * 1.25
+    + (u?.cache_read_input_tokens ?? 0) * cfg.inputPer1M * 0.1 + outputTokens * cfg.outputPer1M) / 1_000_000
+  await logUsage({ provider: 'anthropic', operation: kind, inputTokens, outputTokens, costUsd, ok: res.stop_reason !== 'refusal' && res.stop_reason !== 'max_tokens' })
 
+  if (res.stop_reason === 'refusal') throw new Error('Claude declined this request. Edit the notes or reply text and try again.')
+  if (res.stop_reason === 'max_tokens') throw new Error('The AI response was cut off. Try again.')
+  const text = res.content.map(b => (b.type === 'text' ? b.text : '')).join('')
   let output: T
-  try { output = JSON.parse(res.output_text) as T } catch { throw new Error('The AI response was not valid JSON. Try again.') }
+  try { output = JSON.parse(text) as T } catch { throw new Error('The AI response was not valid JSON. Try again.') }
   const row = await one<{ id: string }>(
     `INSERT INTO ai_analyses (business_id, kind, prompt_version, input_hash, model, output, input_tokens, output_tokens, cost_usd)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
