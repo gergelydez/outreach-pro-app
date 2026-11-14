@@ -1,6 +1,10 @@
 import { route, json, body, requireUuid, HttpError } from '@/lib/crm/api'
 import { cancelJob, retryJob } from '@/lib/crm/jobs'
 
+// pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
+export const maxDuration = 60
+
+
 type Ctx = { params: { id: string } }
 
 export const POST = route(async (req: Request, { params }: Ctx) => {

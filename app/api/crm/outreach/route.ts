@@ -1,6 +1,8 @@
 import { route, json } from '@/lib/crm/api'
 import { q } from '@/lib/crm/db'
 
+// pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
+export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
 // Toate mesajele (ciorne / trimise manual) și evenimentele recente, pe toate lead-urile

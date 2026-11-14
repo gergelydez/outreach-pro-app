@@ -4,6 +4,8 @@ import { getSettings } from '@/lib/crm/settings'
 import { changeStage } from '@/lib/crm/businesses'
 import { logActivity } from '@/lib/crm/activity'
 
+// pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
+export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 type Ctx = { params: { id: string } }
 

@@ -2,6 +2,8 @@ import { route, json } from '@/lib/crm/api'
 import { db, runMigrations, pendingMigrations, storageKind } from '@/lib/crm/db'
 import { aiConfig } from '@/lib/crm/ai'
 
+// pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
+export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
 // Starea configurării: ce variabile există (fără valori) și dacă baza e migrată

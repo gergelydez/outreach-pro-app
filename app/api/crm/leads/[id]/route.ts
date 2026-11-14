@@ -5,6 +5,8 @@ import { checkContact } from '@/lib/crm/compliance'
 import { logActivity } from '@/lib/crm/activity'
 import { normalizeUkPhone } from '@/lib/crm/normalize'
 
+// pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
+export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 type Ctx = { params: { id: string } }
 

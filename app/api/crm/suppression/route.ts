@@ -2,6 +2,8 @@ import { route, json, body, str, requireUuid, HttpError } from '@/lib/crm/api'
 import { q, one } from '@/lib/crm/db'
 import { normalizeUkPhone, normalizeDomain } from '@/lib/crm/normalize'
 
+// pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
+export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
 // Lista de excludere (opt-out): contactele de aici nu mai primesc mesaje și nu mai sunt importate

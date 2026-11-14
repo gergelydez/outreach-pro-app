@@ -2,6 +2,8 @@ import { route, json, body, str, isUuid, HttpError } from '@/lib/crm/api'
 import { q, one } from '@/lib/crm/db'
 import { logActivity } from '@/lib/crm/activity'
 
+// pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
+export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
 // Sarcini de follow-up: azi, întârziate, viitoare, plus interval pentru calendar

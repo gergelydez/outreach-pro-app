@@ -2,6 +2,10 @@ import { route, json, body, str, requireUuid, HttpError } from '@/lib/crm/api'
 import { q, one } from '@/lib/crm/db'
 import { logActivity } from '@/lib/crm/activity'
 
+// pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
+export const maxDuration = 60
+
+
 type Ctx = { params: { id: string } }
 
 async function syncNext(businessId: string | null) {

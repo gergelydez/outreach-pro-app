@@ -4,6 +4,10 @@ import { logActivity } from '@/lib/crm/activity'
 import { changeStage, type BusinessRow } from '@/lib/crm/businesses'
 import { getSettings } from '@/lib/crm/settings'
 
+// pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
+export const maxDuration = 60
+
+
 type Ctx = { params: { id: string } }
 const TYPES = ['contacted', 'reply', 'call', 'meeting', 'opt_out', 'bounced'] as const
 

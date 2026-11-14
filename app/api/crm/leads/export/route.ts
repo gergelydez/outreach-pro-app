@@ -3,6 +3,8 @@ import { q } from '@/lib/crm/db'
 import { buildLeadFilter, LEAD_COLUMNS } from '@/lib/crm/leads-query'
 import { csvCell } from '@/lib/crm/csv'
 
+// pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
+export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
 export const GET = route(async (req: Request) => {
