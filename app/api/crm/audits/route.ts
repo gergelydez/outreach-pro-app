@@ -2,6 +2,8 @@ import { route, json } from '@/lib/crm/api'
 import { q } from '@/lib/crm/db'
 import { jobCounts } from '@/lib/crm/jobs'
 
+// pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
+export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
 // Ultimele audituri + distribuția statusurilor de site + starea cozii

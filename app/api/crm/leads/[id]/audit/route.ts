@@ -2,6 +2,10 @@ import { route, json, requireUuid } from '@/lib/crm/api'
 import { enqueueJob } from '@/lib/crm/jobs'
 import { logActivity } from '@/lib/crm/activity'
 
+// pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
+export const maxDuration = 60
+
+
 type Ctx = { params: { id: string } }
 
 // Pune în coadă un audit nou (îl rulează workerul Python)

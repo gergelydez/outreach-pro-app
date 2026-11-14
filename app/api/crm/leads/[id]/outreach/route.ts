@@ -3,6 +3,10 @@ import { q, one } from '@/lib/crm/db'
 import { logActivity } from '@/lib/crm/activity'
 import { OUTREACH_CHANNELS } from '@/lib/crm/constants'
 
+// pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
+export const maxDuration = 60
+
+
 type Ctx = { params: { id: string } }
 
 // Ciorne de mesaje (manuale sau generate de AI). Aplicația NU trimite nimic:

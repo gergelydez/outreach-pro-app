@@ -4,6 +4,8 @@ import { claimJobs } from '@/lib/crm/jobs'
 import { workerTokenOk } from '@/lib/crm/session'
 import { normalizeName } from '@/lib/crm/normalize'
 
+// pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
+export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
 // Workerul Python preia joburi (autentificat cu CRM_WORKER_TOKEN). Primește doar ce îi

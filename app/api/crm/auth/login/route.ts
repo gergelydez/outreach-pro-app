@@ -1,6 +1,10 @@
 import { route, json, body, HttpError } from '@/lib/crm/api'
 import { checkPassword, createSession, SESSION_COOKIE, SESSION_DAYS } from '@/lib/crm/session'
 
+// pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
+export const maxDuration = 60
+
+
 // Încercări greșite repetate sunt încetinite (limită simplă per instanță)
 const attempts = new Map<string, { n: number; until: number }>()
 

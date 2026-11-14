@@ -19,17 +19,31 @@ export async function api<T = any>(path: string, opts: { method?: string; json?:
   const headers: Record<string, string> = {}
   if (opts.json !== undefined) headers['Content-Type'] = 'application/json'
   if (path.startsWith('/api/crm/ai') && browserAnthropicKey()) headers['x-anthropic-key'] = browserAnthropicKey()
-  const res = await fetch(path, {
-    method: opts.method || (opts.json !== undefined ? 'POST' : 'GET'),
-    headers,
-    body: opts.json !== undefined ? JSON.stringify(opts.json) : undefined,
-    cache: 'no-store',
-  })
+  const method = opts.method || (opts.json !== undefined ? 'POST' : 'GET')
+  let res: Response | null = null
+  // citirile se reîncearcă automat dacă pică conexiunea (internet slab, server care pornește, deploy în curs)
+  const tries = method === 'GET' ? 3 : 1
+  for (let i = 0; i < tries; i++) {
+    try {
+      res = await fetch(path, { method, headers, body: opts.json !== undefined ? JSON.stringify(opts.json) : undefined, cache: 'no-store' })
+      if (method === 'GET' && (res.status === 502 || res.status === 503 || res.status === 504) && i < tries - 1 && !res.headers.get('content-type')?.includes('json')) {
+        await new Promise(r => setTimeout(r, 1500 * (i + 1))); continue
+      }
+      break
+    } catch {
+      if (i < tries - 1) { await new Promise(r => setTimeout(r, 1500 * (i + 1))); continue }
+      throw new ApiError('Could not reach the server (weak connection, or the app is restarting after an update). Tap Retry.', 0)
+    }
+  }
+  if (!res) throw new ApiError('Could not reach the server. Tap Retry.', 0)
   if (res.status === 401 && typeof window !== 'undefined' && !path.includes('/auth/')) {
     window.location.href = `/crm/login?next=${encodeURIComponent(window.location.pathname)}`
   }
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new ApiError(data.error || `Request failed (${res.status})`, res.status, data.setup)
+  if (!res.ok) {
+    const fallback = res.status === 504 ? 'The server took too long to answer (timeout). Tap Retry.' : `Request failed (${res.status})`
+    throw new ApiError(data.error || fallback, res.status, data.setup)
+  }
   return data as T
 }
 

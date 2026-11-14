@@ -2,6 +2,8 @@ import { route, json, HttpError } from '@/lib/crm/api'
 import { purgeExpiredProviderData } from '@/lib/crm/businesses'
 import { logActivity } from '@/lib/crm/activity'
 
+// pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
+export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
 // Rulat zilnic de Vercel Cron (vezi vercel.json), autentificat cu CRON_SECRET.

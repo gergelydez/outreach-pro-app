@@ -3,6 +3,8 @@ import { q, one } from '@/lib/crm/db'
 import { toCsv } from '@/lib/crm/csv'
 import { CONTACTED_STAGES } from '@/lib/crm/constants'
 
+// pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
+export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
 // Rapoarte pe interval (implicit ultimele 30 de zile), din date reale. ?format=csv pentru export.

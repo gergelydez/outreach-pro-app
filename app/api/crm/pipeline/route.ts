@@ -2,6 +2,8 @@ import { route, json } from '@/lib/crm/api'
 import { q } from '@/lib/crm/db'
 import { STAGES } from '@/lib/crm/constants'
 
+// pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
+export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
 // Kanban: cele mai bune 100 de lead-uri din fiecare etapă (după scor)
