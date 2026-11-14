@@ -252,20 +252,18 @@ describe('CRM API', () => {
 
 describe('AI assistant', () => {
   const fakeClient = (output: Record<string, unknown>) => {
-    const create = vi.fn(async () => ({ output_text: JSON.stringify(output), usage: { input_tokens: 1000, output_tokens: 500 }, model: 'test-model' }))
-    return { client: { responses: { create } } as never, create }
+    const create = vi.fn(async () => ({ content: [{ type: 'thinking', thinking: '' }, { type: 'text', text: JSON.stringify(output) }], stop_reason: 'end_turn',
+      usage: { input_tokens: 1000, output_tokens: 500, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }, model: 'claude-opus-5-5' }))
+    return { client: { beta: { messages: { create } } } as never, create }
   }
 
   it('requires configuration instead of pretending', async () => {
-    delete process.env.OPENAI_API_KEY
+    delete process.env.ANTHROPIC_API_KEY
     const r = await aiPost(req('/x', { method: 'POST', json: { kind: 'reply', reply_text: 'Not interested thanks' } }))
     expect(r.status).toBe(503)
   })
 
   it('caches identical requests, logs usage and cost, and rate-limits', async () => {
-    process.env.OPENAI_MODEL = 'test-model'
-    process.env.OPENAI_INPUT_COST_PER_1M = '2'
-    process.env.OPENAI_OUTPUT_COST_PER_1M = '8'
     await runDiscovery({ city: 'Birmingham', category: 'plumber', limit: 1 }, mockPlaces([[place('ai1')]]))
     const b = (await one<BusinessRow>('SELECT * FROM businesses'))!
     const { client, create } = fakeClient({ action: 'Call', reason: 'r', reason_ro: 'r', suggested_stage: 'ready_to_contact' })
@@ -273,11 +271,14 @@ describe('AI assistant', () => {
     const r2 = await runAi('next_action', { business: b, client })
     expect(create).toHaveBeenCalledTimes(1)
     expect(r2.cached).toBe(true)
-    expect(r1.costUsd).toBeCloseTo((1000 * 2 + 500 * 8) / 1e6)
-    const sent = (create.mock.calls[0] as unknown[])[0] as { input: string; text: { format: { strict: boolean } } }
-    expect(sent.text.format.strict).toBe(true)
-    expect(sent.input).toContain('"google_review_count":40')
-    expect(sent.input).toContain('"email":"unknown"')
+    // claude-opus-5-5: $4 / $20 per 1M tokeni
+    expect(r1.costUsd).toBeCloseTo((1000 * 4 + 500 * 20) / 1e6)
+    expect(r1.model).toBe('claude-opus-5-5')
+    const sent = (create.mock.calls[0] as unknown[])[0] as { model: string; output_config: { format: { type: string } }; messages: { content: string }[] }
+    expect(sent.model).toBe('claude-opus-5-5')
+    expect(sent.output_config.format.type).toBe('json_schema')
+    expect(sent.messages[0].content).toContain('"google_review_count":40')
+    expect(sent.messages[0].content).toContain('"email":"unknown"')
     await runAi('next_action', { business: b, client, force: true })
     expect(create).toHaveBeenCalledTimes(2)
     await saveSetting('limits', { ...DEFAULT_SETTINGS.limits, ai_requests_per_hour: 2 })
@@ -300,5 +301,15 @@ describe('middleware', () => {
     expect((await mw('/api/crm/leads', { cookie, method: 'POST', origin: 'https://evil.example' })).status).toBe(403)
     expect((await mw('/api/crm/leads', { cookie, method: 'POST', origin: 'http://localhost' })).status).toBe(200)
     expect((await mw('/api/crm/worker/claim', { method: 'POST' })).status).toBe(200)
+  })
+  it('without CRM_PASSWORD the CRM is open (like the rest of the app) but still blocks cross-origin writes', async () => {
+    const saved = process.env.CRM_PASSWORD
+    delete process.env.CRM_PASSWORD
+    try {
+      expect((await mw('/crm/leads')).status).toBe(200)
+      expect((await mw('/api/crm/leads')).status).toBe(200)
+      expect((await mw('/crm/login')).headers.get('location')).toMatch(/\/crm$/)
+      expect((await mw('/api/crm/leads', { method: 'POST', origin: 'https://evil.example' })).status).toBe(403)
+    } finally { process.env.CRM_PASSWORD = saved }
   })
 })

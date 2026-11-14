@@ -1,7 +1,7 @@
 // Ajutoare pentru rutele API ale CRM: răspunsuri JSON, erori sigure, validare simplă.
 import { NextResponse } from 'next/server'
-import OpenAI from 'openai'
-import { CrmSetupError } from './db'
+import Anthropic from '@anthropic-ai/sdk'
+import { CrmSetupError, withDbSession } from './db'
 import { AiConfigError, AiRateLimitError } from './ai'
 import { ProviderError } from './providers/google-places'
 
@@ -15,17 +15,21 @@ export const json = (data: unknown, status = 200) => NextResponse.json(data, { s
 export function route<A extends unknown[]>(fn: (...args: A) => Promise<Response>) {
   return async (...args: A): Promise<Response> => {
     try {
-      return await fn(...args)
+      // cererea poate fi re-executată (conflict la salvarea în Blob) → corpul trebuie citit din nou,
+      // așa că fiecare încercare primește o copie a cererii originale
+      const [first, ...rest] = args
+      return await withDbSession(() => fn(...((first instanceof Request ? [first.clone(), ...rest] : args) as A)))
     } catch (e) {
       if (e instanceof HttpError) return json({ error: e.message }, e.status)
       if (e instanceof CrmSetupError) return json({ error: e.message, setup: e.missing }, 503)
-      if (e instanceof AiConfigError) return json({ error: e.message, setup: 'OPENAI_API_KEY' }, 503)
+      if (e instanceof AiConfigError) return json({ error: e.message, setup: 'ANTHROPIC_API_KEY' }, 503)
       if (e instanceof AiRateLimitError) return json({ error: e.message }, 429)
       if (e instanceof ProviderError) return json({ error: e.message }, e.status === 503 ? 503 : 502)
-      if (e instanceof OpenAI.AuthenticationError) return json({ error: 'OpenAI rejected the API key. Check OPENAI_API_KEY.' }, 502)
-      if (e instanceof OpenAI.RateLimitError) return json({ error: 'OpenAI rate limit or quota reached. Check your OpenAI billing.' }, 429)
-      if (e instanceof OpenAI.NotFoundError) return json({ error: 'The configured OPENAI_MODEL was not found for this API key.' }, 502)
-      if (e instanceof OpenAI.APIError) return json({ error: `OpenAI error ${e.status ?? ''}`.trim() }, 502)
+      if (e instanceof Anthropic.AuthenticationError) return json({ error: 'Claude rejected the API key. Check ANTHROPIC_API_KEY in Vercel and redeploy.' }, 502)
+      if (e instanceof Anthropic.PermissionDeniedError) return json({ error: 'This Anthropic key has no access to the configured model (CLAUDE_MODEL).' }, 502)
+      if (e instanceof Anthropic.NotFoundError) return json({ error: 'The configured CLAUDE_MODEL was not found for this API key.' }, 502)
+      if (e instanceof Anthropic.RateLimitError) return json({ error: 'Too many Claude requests right now (or credit limit reached). Wait a minute and try again.' }, 429)
+      if (e instanceof Anthropic.APIError) return json({ error: `Claude error ${e.status ?? ''}: ${e.message}`.trim() }, 502)
       const code = (e as { code?: string })?.code
       if (code === '42P01') return json({ error: 'Database tables are missing. Open Settings & API and run the database setup.', setup: 'MIGRATIONS' }, 503)
       console.error('[crm]', e)

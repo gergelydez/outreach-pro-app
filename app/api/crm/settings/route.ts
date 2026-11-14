@@ -15,8 +15,8 @@ export const GET = route(async () => {
     integrations: {
       google_places: !!process.env.GOOGLE_PLACES_API_KEY,
       pagespeed: 'configured on the worker (PAGESPEED_API_KEY)',
-      openai: !!aiConfig().key,
-      openai_model: aiConfig().model || null,
+      claude: !!aiConfig().key,
+      claude_model: aiConfig().model,
       worker_token: !!process.env.CRM_WORKER_TOKEN,
     },
   })

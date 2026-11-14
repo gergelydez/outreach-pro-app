@@ -1,14 +1,26 @@
 import { Pool } from 'pg'
 import { MIGRATIONS } from './migrations'
+import { SnapshotDatabase, vercelBlobStore } from './blob-db'
 
-// Acces la Postgres printr-o interfață minimă (query + tranzacție), ca aceeași
-// logică să ruleze pe `pg` în producție și pe PGlite în teste.
+// Acces la Postgres printr-o interfață minimă (query + tranzacție). Două variante:
+// 1) implicit: baza de date ținută în Vercel Blob-ul existent (BLOB_READ_WRITE_TOKEN), vezi blob-db.ts
+// 2) opțional: un server Postgres extern, dacă setezi DATABASE_URL (Supabase/Neon)
+// În teste se folosește PGlite direct (setDatabase).
 
 export interface Queryable {
   query: (text: string, params?: unknown[]) => Promise<{ rows: any[] }> // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 export interface Database extends Queryable {
   transaction: <T>(fn: (tx: Queryable) => Promise<T>) => Promise<T>
+  // dacă există: încadrează o cerere HTTP (sincronizare la început, salvare la final)
+  session?: <T>(fn: () => Promise<T>) => Promise<T>
+}
+
+export type StorageKind = 'postgres' | 'vercel_blob' | 'none'
+export function storageKind(): StorageKind {
+  if (process.env.DATABASE_URL) return 'postgres'
+  if (process.env.BLOB_READ_WRITE_TOKEN) return 'vercel_blob'
+  return 'none'
 }
 
 export class CrmSetupError extends Error {
@@ -25,7 +37,11 @@ export function setDatabase(database: Database | null) { current = database }
 export function db(): Database {
   if (current) return current
   const url = process.env.DATABASE_URL
-  if (!url) throw new CrmSetupError('DATABASE_URL', 'Baza de date nu e configurată (DATABASE_URL lipsește).')
+  if (!url) {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) throw new CrmSetupError('BLOB_READ_WRITE_TOKEN', 'No storage configured: connect the Vercel Blob store to this project (Vercel → Storage → Blob → Connect), then redeploy.')
+    current = new SnapshotDatabase(vercelBlobStore(), runMigrations)
+    return current
+  }
   // Pool mic: pe serverless fiecare instanță are propriul pool
   pool = new Pool({ connectionString: url, max: Number(process.env.DATABASE_POOL_MAX || 3), idleTimeoutMillis: 10_000 })
   const p = pool
@@ -47,6 +63,13 @@ export function db(): Database {
     },
   }
   return current
+}
+
+// Rulează o cerere HTTP într-o sesiune de bază de date (necesar pentru varianta Blob)
+export async function withDbSession<T>(fn: () => Promise<T>): Promise<T> {
+  let d: Database
+  try { d = db() } catch { return fn() } // fără configurare: handler-ul arată mesajul de setup
+  return d.session ? d.session(fn) : fn()
 }
 
 export async function q<T = Record<string, unknown>>(text: string, params: unknown[] = [], on: Queryable = db()): Promise<T[]> {

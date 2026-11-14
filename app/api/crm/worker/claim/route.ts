@@ -12,10 +12,13 @@ export const POST = route(async (req: Request) => {
   if (!workerTokenOk(req.headers.get('authorization'))) throw new HttpError(401, 'Invalid worker token')
   const b = await body<{ worker_id?: string; limit?: number }>(req)
   const workerId = str(b.worker_id, 80) || 'worker'
-  // heartbeat: arată în Settings / Website Audits că workerul rulează, chiar dacă coada e goală
-  await q(`INSERT INTO app_settings (key, value, updated_at) VALUES ($1, $2, now())
-           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`, [`worker:${workerId}`, JSON.stringify({ last_seen: new Date().toISOString() })])
   const jobs = await claimJobs(workerId, int(b.limit, 3, 1, 10))
+  // heartbeat (arată în Settings că workerul rulează): la fiecare preluare de joburi, iar cu coada
+  // goală cel mult o dată la 30 de minute — fiecare scriere înseamnă o salvare a bazei de date
+  await q(`INSERT INTO app_settings (key, value, updated_at) VALUES ($1, $2, now())
+           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()
+           WHERE $3 OR app_settings.updated_at < now() - interval '30 minutes'`,
+    [`worker:${workerId}`, JSON.stringify({ last_seen: new Date().toISOString() }), jobs.length > 0])
   if (!jobs.length) return json({ jobs: [] })
   const ids = jobs.map(j => j.business_id).filter(Boolean)
   const biz = await q<{ id: string; name: string; city: string | null; website_url: string | null; phone: string | null }>(
