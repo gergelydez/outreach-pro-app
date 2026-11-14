@@ -6,6 +6,7 @@ import { api, useApi, ApiError, relative } from '@/lib/crm/client'
 import { PageHeader, Card, Button, Field, Input, Select, Badge, ApiErrorNotice, Skeleton, Kpi, Empty } from '@/components/crm/ui'
 import { Progress } from '@/components/crm/charts'
 import { UK_CATEGORIES, UK_REGIONS, categoryLabel } from '@/lib/crm/constants'
+import { getSettings as getAppSettings } from '@/lib/storage'
 
 interface Run { id: number; city: string; category: string; limit: number }
 interface RunResult { jobId: string; found: number; newCount: number; duplicates: number; filtered: number; stoppedReason: string; error?: string }
@@ -15,6 +16,10 @@ let nextId = 3
 
 export default function HunterPage() {
   const info = useApi<HunterInfo>('/api/crm/discovery')
+  // cheia Google salvată în pagina Setări a aplicației (aceeași ca la uneltele RO/HU)
+  const [browserKey, setBrowserKey] = useState('')
+  useEffect(() => { setBrowserKey(getAppSettings().googlePlacesApiKey || '') }, [])
+  const googleReady = !!info.data?.configured || !!browserKey
   const settings = useApi<{ settings: { target_market: { region: string; cities: string[]; categories: string[]; daily_target: number } } }>('/api/crm/settings')
   const [region, setRegion] = useState('West Midlands')
   const [runs, setRuns] = useState<Run[]>([{ id: 1, city: 'Birmingham', category: 'plumber', limit: 25 }, { id: 2, city: 'Wolverhampton', category: 'electrician', limit: 25 }])
@@ -45,7 +50,7 @@ export default function HunterPage() {
     for (const r of runs) {
       setResults(s => ({ ...s, [r.id]: 'running' }))
       try {
-        const res = await api<RunResult>('/api/crm/discovery', { json: { city: r.city, region, category: r.category, limit: r.limit, min_rating: minRating, min_reviews: minReviews, website_filter: websiteFilter } })
+        const res = await api<RunResult>('/api/crm/discovery', { json: { city: r.city, region, category: r.category, limit: r.limit, min_rating: minRating, min_reviews: minReviews, website_filter: websiteFilter, google_api_key: info.data?.configured ? undefined : browserKey } })
         setResults(s => ({ ...s, [r.id]: res }))
         if (res.stoppedReason === 'daily_limit') break
       } catch (e) {
@@ -66,9 +71,9 @@ export default function HunterPage() {
         actions={info.data && <div className="w-56"><div className="flex justify-between text-[11px] text-slate-500 mb-1"><span>Today</span><span>{info.data.today} / {info.data.daily_target} target</span></div><Progress value={info.data.today} max={info.data.daily_target} /></div>} />
 
       {info.error && <div className="mb-4"><ApiErrorNotice error={info.error} onRetry={info.reload} /></div>}
-      {info.data && !info.data.configured && (
+      {info.data && !googleReady && (
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <b>Google Places API is not configured.</b> Add <code>GOOGLE_PLACES_API_KEY</code> to the server environment (the same key the Romanian/Hungarian tools use, with “Places API” enabled). Until then discovery is disabled. <Link href="/crm/settings" className="underline">Setup guide</Link>
+          <b>No Google Places key found.</b> Add it in the app <Link href="/settings" className="underline">Setări</Link> page (the same key the Romanian/Hungarian tools use) or as <code>GOOGLE_PLACES_API_KEY</code> in Vercel.
         </div>
       )}
       {err && <div className="mb-4"><ApiErrorNotice error={err} /></div>}
@@ -112,7 +117,7 @@ export default function HunterPage() {
             <Button size="sm" onClick={() => setRuns(rs => [...rs, { id: nextId++, city: cities[0] || 'Birmingham', category: 'heating_engineer', limit: 10 }])}>+ Add city / category</Button>
             <span className="flex-1" />
             <span className="text-xs text-slate-500">Up to {totalRequested} new leads · max {info.data?.daily_max ?? '—'} per day</span>
-            <Button variant="primary" onClick={discover} loading={running} disabled={!info.data?.configured}>Discover businesses</Button>
+            <Button variant="primary" onClick={discover} loading={running} disabled={!googleReady}>Discover businesses</Button>
           </div>
         </Card>
 
