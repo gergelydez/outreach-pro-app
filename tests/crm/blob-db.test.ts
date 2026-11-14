@@ -92,6 +92,31 @@ describe('CRM database stored in Vercel Blob (snapshot)', () => {
     setDatabase(null)
   }, 60_000)
 
+  it('handles concurrent requests on the same server instance (Vercel runs several at once)', async () => {
+    const { store } = memoryStore()
+    const a = instance(store)
+    await a.session(() => a.query('SELECT 1'))
+    const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+    // cererea 1 se termină repede; cererea 2 pornește în timpul ei și scrie după ce prima a salvat
+    await Promise.all([
+      a.session(async () => { await a.query(`INSERT INTO suppression_list (kind, value) VALUES ('email', 'fast@x.co.uk')`) }),
+      (async () => { await sleep(5); await a.session(async () => { await sleep(300); await a.query(`INSERT INTO suppression_list (kind, value) VALUES ('email', 'slow@x.co.uk')`) }) })(),
+      (async () => { await sleep(10); await a.session(() => a.query('SELECT count(*) FROM suppression_list')) })(),
+    ])
+    const fresh = instance(store) // instanță rece: vede doar ce s-a salvat în Blob
+    const vals = (await fresh.session(() => fresh.query('SELECT value FROM suppression_list ORDER BY value'))).rows.map(r => r.value)
+    expect(vals).toEqual(['fast@x.co.uk', 'slow@x.co.uk'])
+  }, 60_000)
+
+  it('cold start with several parallel requests does not break', async () => {
+    const { store } = memoryStore()
+    const seed = instance(store)
+    await seed.session(async () => { await seed.query(`INSERT INTO suppression_list (kind, value) VALUES ('email', 'seed@x.co.uk')`) })
+    const cold = instance(store)
+    const results = await Promise.all(Array.from({ length: 4 }, () => cold.session(() => cold.query('SELECT count(*)::int AS n FROM suppression_list'))))
+    expect(results.map(r => r.rows[0].n)).toEqual([1, 1, 1, 1])
+  }, 60_000)
+
   it('encrypts the snapshot and keeps the path unguessable', () => {
     const enc = encrypt(Buffer.from('secret data'))
     expect(enc.includes(Buffer.from('secret data'))).toBe(false)

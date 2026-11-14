@@ -33,7 +33,9 @@ export function route<A extends unknown[]>(fn: (...args: A) => Promise<Response>
       const code = (e as { code?: string })?.code
       if (code === '42P01') return json({ error: 'Database tables are missing. Open Settings & API and run the database setup.', setup: 'MIGRATIONS' }, 503)
       console.error('[crm]', e)
-      return json({ error: 'Something went wrong. Check the server logs.' }, 500)
+      // aplicație cu un singur utilizator: arătăm cauza (scurtată, fără chei) ca să se poată repara
+      const msg = (e instanceof Error ? e.message : String(e)).replace(/(key|token|secret)=[^&\s]+/gi, '$1=***').slice(0, 300)
+      return json({ error: `Server error: ${msg}` }, 500)
     }
   }
 }
