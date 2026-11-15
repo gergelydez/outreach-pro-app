@@ -315,4 +315,9 @@ UPDATE businesses SET country = 'UK' WHERE country IN ('GB', 'gb', 'United Kingd
 ALTER TABLE businesses ALTER COLUMN country SET DEFAULT 'UK';
 CREATE INDEX IF NOT EXISTS businesses_country_stage_idx ON businesses (country, stage);`,
   },
+  {
+    // Problemele bifate de utilizator la site (după ce l-a verificat el): ele decid mesajul
+    id: '005_manual_problems',
+    sql: `ALTER TABLE businesses ADD COLUMN IF NOT EXISTS manual_problems jsonb;`,
+  },
 ]

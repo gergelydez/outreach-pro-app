@@ -80,9 +80,11 @@ const FALLBACK: Record<Country, string> = { UK: 'it could do with a refresh', HU
 // ordinea contează: întâi ce vede imediat un client
 const PRIORITY = ['broken', 'not_mobile_friendly', 'no_https', 'outdated_signal', 'mobile_overflow', 'slow_mobile', 'free_subdomain', 'no_contact_form', 'no_cta', 'no_click_to_call', 'no_local_signals', 'weak_title', 'no_meta_description', 'no_service_pages']
 
-export function mainProblem(codes: string[], country: Country = 'UK'): string {
-  const c = PRIORITY.find(p => codes.includes(p))
-  return c ? PROBLEM[country][c] : FALLBACK[country]
+// Cele mai importante 1–2 probleme, legate natural („… and …” / „… és …”)
+export function mainProblem(codes: string[], country: Country = 'UK', max = 2): string {
+  const picked = PRIORITY.filter(p => codes.includes(p)).slice(0, max).map(c => PROBLEM[country][c])
+  if (!picked.length) return FALLBACK[country]
+  return picked.join(country === 'HU' ? ', és ' : ' and ')
 }
 
 export function fill(t: string, v: Record<string, string>): string {

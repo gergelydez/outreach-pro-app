@@ -3,6 +3,7 @@ import { q, one } from '@/lib/crm/db'
 import { changeStage, isSuppressed, type BusinessRow } from '@/lib/crm/businesses'
 import { checkContact } from '@/lib/crm/compliance'
 import { logActivity } from '@/lib/crm/activity'
+import { MANUAL_PROBLEM_CODES } from '@/lib/crm/ro'
 import { normalizePhone, asCountry } from '@/lib/crm/countries'
 
 // pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
@@ -76,6 +77,14 @@ export const PATCH = route(async (req: Request, { params }: Ctx) => {
   if (typeof b.preview_url === 'string' && /^https?:\/\/[^\s]+\/p\/[a-z0-9-]+$/.test(b.preview_url)) {
     await q(`UPDATE businesses SET preview_url = $2, demo_at = now(), updated_at = now() WHERE id = $1`, [id, b.preview_url])
     await logActivity(id, 'demo_published', `Demo website published: ${b.preview_url}`)
+  }
+  // probleme bifate de utilizator la site: decid mesajul; dacă a bifat ceva, site-ul e „de refăcut”
+  if (Array.isArray(b.manual_problems)) {
+    const codes = Array.from(new Set(b.manual_problems.map(String).filter(c => MANUAL_PROBLEM_CODES.includes(c))))
+    await q(`UPDATE businesses SET manual_problems = $2::jsonb,
+               website_status = CASE WHEN jsonb_array_length($2::jsonb) > 0 AND website_status IN ('GOOD_WEBSITE', 'UNVERIFIED') AND website_url IS NOT NULL
+                                     THEN 'NEEDS_REDESIGN' ELSE website_status END,
+               updated_at = now() WHERE id = $1`, [id, JSON.stringify(codes)])
   }
   if (Array.isArray(b.tags)) await q('UPDATE businesses SET tags = $2, updated_at = now() WHERE id = $1', [id, b.tags.map(t => String(t).toLowerCase().slice(0, 40)).slice(0, 20)])
   return json({ ok: true })
