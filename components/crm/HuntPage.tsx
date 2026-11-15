@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '@/lib/crm/client'
 import { Button, Select, Badge, cx } from '@/components/crm/ui'
 import { categoriesFor, citiesFor, waDigits, type Country } from '@/lib/crm/countries'
-import { STATUS_RO, findingRo, CATEGORY_RO } from '@/lib/crm/ro'
+import { STATUS_RO, findingRo, CATEGORY_RO, MANUAL_PROBLEMS } from '@/lib/crm/ro'
 import { TEMPLATES, DEMO_STATUSES, buildMessages, type UkTemplates } from '@/lib/crm/uk-templates'
 import { getSettings as getAppSettings } from '@/lib/storage'
 
@@ -19,6 +19,7 @@ interface Lead {
   website_url: string | null; website_status: string; whatsapp_status: string; whatsapp_source: string | null
   google_rating: number | null; google_review_count: number | null; google_maps_url: string | null
   opportunity_score: number | null; stage: string; findings: { code: string; what: string }[] | null; audited_at: string | null
+  manual_problems: string[] | null
 }
 
 // eticheta în română a unei meserii, pentru țara dată
@@ -156,7 +157,13 @@ function LeadCard({ r, country, templates, keys, onChange, onDone }: { r: Lead; 
   const noWa = r.whatsapp_status === 'NOT_FOUND' && r.whatsapp_source === 'manual'
   const score = r.opportunity_score
   const trades = (categoriesFor(country).find(c => c.key === r.category)?.label || (country === 'HU' ? 'vállalkozások' : 'businesses')).toLowerCase()
-  const msgs = buildMessages(templates, { name: r.name, trades, website_status: r.website_status, findingCodes: (r.findings || []).map(f => f.code), previewUrl: r.preview_url, country })
+  const autoCodes = (r.findings || []).map(f => f.code)
+  const problemCodes = r.manual_problems && r.manual_problems.length ? r.manual_problems : autoCodes
+  const ownSite = !!r.website_url && !['NO_WEBSITE', 'SOCIAL_ONLY', 'DIRECTORY_ONLY'].includes(r.website_status)
+  const [siteOpen, setSiteOpen] = useState(false)
+  const [siteUrl, setSiteUrl] = useState('')
+  const [siteMsg, setSiteMsg] = useState('')
+  const msgs = buildMessages(templates, { name: r.name, trades, website_status: r.website_status, findingCodes: problemCodes, previewUrl: r.preview_url, country })
   const [first, setFirst] = useState(msgs.first)
   const [second, setSecond] = useState(msgs.second)
   useEffect(() => { setFirst(msgs.first); setSecond(msgs.second) }, [msgs.first, msgs.second])
@@ -174,6 +181,24 @@ function LeadCard({ r, country, templates, keys, onChange, onDone }: { r: Lead; 
     try { await api(`/api/crm/leads/${r.id}/events`, { json: { event_type: 'contacted', channel, notes: `${first}\n\n${second}`.slice(0, 1000), schedule_follow_ups: true } }); onDone() }
     catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
     setBusy('')
+  }
+  async function addSite() {
+    setBusy('site'); setErr(''); setSiteMsg('Verific site-ul…')
+    try {
+      const res = await api<{ website_url: string; status: string; findingCodes: string[]; reachable: boolean }>(`/api/crm/leads/${r.id}/site`, { json: { url: siteUrl } })
+      const st2 = STATUS_RO[res.status] || STATUS_RO.UNVERIFIED
+      setSiteMsg(res.reachable ? `Gata: ${st2.label}. Bifează mai jos ce nu e ok — mesajul se adaptează.` : 'Site-ul n-a putut fi deschis automat. Uită-te tu la el și bifează problemele mai jos.')
+      setSiteOpen(false); setSiteUrl('')
+      onChange({ website_url: res.website_url, website_status: res.status, manual_problems: null, findings: res.findingCodes.map(code => ({ code, what: code })) })
+    } catch (e) { setSiteMsg(''); setErr(e instanceof Error ? e.message : String(e)) }
+    setBusy('')
+  }
+  async function toggleProblem(code: string) {
+    const current = r.manual_problems && r.manual_problems.length ? r.manual_problems : autoCodes.filter(c => MANUAL_PROBLEMS.some(p => p.code === c))
+    const next = current.includes(code) ? current.filter(c => c !== code) : [...current, code]
+    const status = next.length && ['GOOD_WEBSITE', 'UNVERIFIED'].includes(r.website_status) ? 'NEEDS_REDESIGN' : r.website_status
+    onChange({ manual_problems: next, website_status: status })
+    await api(`/api/crm/leads/${r.id}`, { method: 'PATCH', json: { manual_problems: next } }).catch(() => {})
   }
   async function notFit() {
     await api(`/api/crm/leads/${r.id}`, { method: 'PATCH', json: { stage: 'not_a_fit' } }).catch(() => {})
@@ -293,11 +318,50 @@ function LeadCard({ r, country, templates, keys, onChange, onDone }: { r: Lead; 
             <button className={cx('px-2.5 h-8 rounded-md border', noWa ? 'bg-rose-600 text-white border-rose-600' : 'border-slate-300')} onClick={() => setWa('NOT_FOUND')}>✗ Nu</button>
           </div>
         )}
+        {/* Site găsit pe Google, deși profilul nu-l arată */}
+        {!ownSite && (
+          <div className="mt-3">
+            {!siteOpen ? (
+              <button className="text-xs text-teal-700 underline" onClick={() => setSiteOpen(true)}>🌐 Are totuși site (l-ai găsit pe Google)? Adaugă linkul</button>
+            ) : (
+              <div className="flex gap-2">
+                <input value={siteUrl} onChange={e => setSiteUrl(e.target.value)} placeholder="ex. www.firma.co.uk" inputMode="url" autoCapitalize="none"
+                  className="flex-1 min-w-0 h-10 rounded-lg border border-slate-300 px-2 text-sm" />
+                <Button size="sm" variant="primary" className="h-10" loading={busy === 'site'} disabled={!siteUrl.trim()} onClick={addSite}>Verifică</Button>
+              </div>
+            )}
+          </div>
+        )}
+        {siteMsg && <p className="mt-2 text-xs text-teal-800">{siteMsg}</p>}
+        {ownSite && (
+          <div className="mt-3 rounded-lg border border-slate-200 p-2.5">
+            <div className="text-[12px] font-medium text-slate-700 mb-1.5">Ce nu e ok la site? <span className="font-normal text-slate-500">(bifează ce vezi — mesajul folosește primele 2)</span></div>
+            <div className="grid gap-1">
+              {MANUAL_PROBLEMS.map(p => {
+                const on = (r.manual_problems && r.manual_problems.length ? r.manual_problems : autoCodes).includes(p.code)
+                return (
+                  <label key={p.code} className="flex items-start gap-2 text-[13px] text-slate-700">
+                    <input type="checkbox" className="mt-0.5 w-4 h-4" checked={on} onChange={() => toggleProblem(p.code)} />
+                    <span>{p.ro}{!r.manual_problems?.length && autoCodes.includes(p.code) ? <span className="text-[11px] text-slate-400"> · găsit la audit</span> : null}</span>
+                  </label>
+                )
+              })}
+            </div>
+            {r.website_status === 'GOOD_WEBSITE' && !r.manual_problems?.length && <p className="text-[11px] text-slate-500 mt-1.5">Auditul zice că site-ul e bun. Dacă tu vezi probleme, bifează-le și firma rămâne în listă; dacă nu, apasă „Nu e potrivit”.</p>}
+            <button className="mt-1.5 text-[11px] text-slate-500 underline" onClick={() => setSiteOpen(v => !v)}>Alt link pentru site?</button>
+            {siteOpen && (
+              <div className="flex gap-2 mt-1.5">
+                <input value={siteUrl} onChange={e => setSiteUrl(e.target.value)} placeholder="linkul corect" inputMode="url" autoCapitalize="none" className="flex-1 min-w-0 h-9 rounded-lg border border-slate-300 px-2 text-sm" />
+                <Button size="sm" className="h-9" loading={busy === 'site'} disabled={!siteUrl.trim()} onClick={addSite}>Verifică</Button>
+              </div>
+            )}
+          </div>
+        )}
         {!mobile && r.phone && <p className="text-xs text-slate-500 mt-2">Număr fix — WhatsApp merge doar pe mobil ({country === 'HU' ? '+36 20/30/31/50/70…' : '07…'}). Sună sau trimite email{r.email ? ` (${r.email})` : ''}.</p>}
       </Step>
 
       {/* 2. Mesaj în 2 părți scurte */}
-      <Step n={2} title="Mesaj (2 părți scurte, în {country === 'HU' ? 'maghiară' : 'engleză'})">
+      <Step n={2} title={`Mesaj (2 părți scurte, în ${country === 'HU' ? 'maghiară' : 'engleză'})`}>
         <label className="block text-[11px] text-slate-500 mb-1">Partea 1 — se deschide direct în WhatsApp</label>
         <textarea value={first} onChange={e => setFirst(e.target.value)} rows={3} className="w-full rounded-lg border border-slate-300 p-2 text-sm leading-relaxed" />
         <div className="flex flex-wrap gap-2 mt-1.5">

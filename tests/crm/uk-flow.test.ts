@@ -49,3 +49,39 @@ describe('UK flow: messages, demo link, addresses', () => {
     expect((await q(`SELECT 1 FROM crm_activity WHERE type = 'demo_published'`)).length).toBe(1)
   })
 })
+
+describe('"has a website" button + ticked problems', () => {
+  beforeEach(async () => { await freshDb() })
+
+  it('adds the website found on Google, audits it now, and ticked problems drive the rebuild message', async () => {
+    const { POST: sitePost } = await import('@/app/api/crm/leads/[id]/site/route')
+    const { buildMessages, TEMPLATES } = await import('@/lib/crm/uk-templates')
+    process.env.AUDIT_ALLOW_PRIVATE_TARGETS = '1'
+    const b = await one<{ id: string }>(`INSERT INTO businesses (name, category, city, lead_source, website_status, phone_e164) VALUES ('Moseley Plumbing', 'plumber', 'Birmingham', 'google_places', 'NO_WEBSITE', '+447700900123') RETURNING id`)
+    const html = '<!doctype html><html><head><meta name="viewport" content="width=device-width"><title>Moseley Plumbing Birmingham</title></head><body><a href="tel:07700900123">Call now</a><form><textarea></textarea></form><p>Birmingham B13 8AR © 2026</p></body></html>'
+    const realFetch = globalThis.fetch
+    globalThis.fetch = (async () => new Response(html, { status: 200, headers: { 'content-type': 'text/html' } })) as typeof fetch
+    try {
+      const res = await (await sitePost(req('/x', { method: 'POST', json: { url: 'moseleyplumbing.co.uk' } }), { params: { id: b!.id } })).json()
+      expect(res.website_url).toBe('https://moseleyplumbing.co.uk/')
+      expect(res.status).toBe('GOOD_WEBSITE') // auditul nu vede probleme…
+    } finally { globalThis.fetch = realFetch; delete process.env.AUDIT_ALLOW_PRIVATE_TARGETS }
+    // …dar tu vezi că arată vechi și nu e ok pe telefon → bifezi; firma rămâne „de refăcut”
+    await leadPatch(req('/x', { method: 'PATCH', json: { manual_problems: ['outdated_signal', 'not_mobile_friendly', 'hacker'] } }), { params: { id: b!.id } })
+    const row = (await one<{ website_status: string; manual_problems: string[]; website_url: string }>('SELECT website_status, manual_problems, website_url FROM businesses WHERE id = $1', [b!.id]))!
+    expect(row).toEqual({ website_status: 'NEEDS_REDESIGN', manual_problems: ['outdated_signal', 'not_mobile_friendly'], website_url: 'https://moseleyplumbing.co.uk/' })
+    const m = buildMessages(TEMPLATES.UK, { name: 'Moseley Plumbing', trades: 'plumbers', website_status: row.website_status, findingCodes: row.manual_problems })
+    expect(m.first).toBe("Hi, I'm Geri 👋 I came across Moseley Plumbing on Google and had a look at your website – I noticed it isn't set up for phones, so the text is tiny on mobile and it looks a bit dated.")
+    expect(m.second).toMatch(/modern version of your website/)
+    // în lista zilei (are mobil, site de refăcut)
+    const pool = await (await simpleGet(req('/api/crm/simple?show=pool'))).json()
+    expect(pool.rows.map((x: { id: string }) => x.id)).toContain(b!.id)
+  })
+
+  it('rejects invalid links', async () => {
+    const { POST: sitePost } = await import('@/app/api/crm/leads/[id]/site/route')
+    const b = await one<{ id: string }>(`INSERT INTO businesses (name, category, city, lead_source) VALUES ('X', 'plumber', 'Birmingham', 'google_places') RETURNING id`)
+    expect((await sitePost(req('/x', { method: 'POST', json: { url: 'javascript:alert(1)' } }), { params: { id: b!.id } })).status).toBe(400)
+    expect((await sitePost(req('/x', { method: 'POST', json: { url: '' } }), { params: { id: b!.id } })).status).toBe(400)
+  })
+})

@@ -56,3 +56,20 @@ export const CATEGORY_RO: Record<string, string> = {
   tailor: 'Croitorii', phone_repair: 'Reparații telefoane', computer_repair: 'Reparații calculatoare', photographer: 'Fotografi', tutor: 'Meditații',
   damp_proofing: 'Hidroizolații / igrasie', double_glazing: 'Termopane', chimney_sweep: 'Coșari', accountant: 'Contabili',
 }
+
+// Probleme pe care le poți bifa manual după ce te uiți la site (în ordinea în care contează)
+export const MANUAL_PROBLEMS: { code: string; ro: string }[] = [
+  { code: 'not_mobile_friendly', ro: 'Nu arată bine pe telefon' },
+  { code: 'outdated_signal', ro: 'Arată vechi / demodat' },
+  { code: 'no_https', ro: 'Apare „Nesigur” lângă adresă (fără HTTPS)' },
+  { code: 'slow_mobile', ro: 'Se încarcă greu' },
+  { code: 'no_contact_form', ro: 'N-are formular de contact / cerere ofertă' },
+  { code: 'no_cta', ro: 'N-are buton clar „Cere ofertă” / „Sună acum”' },
+  { code: 'no_click_to_call', ro: 'Telefonul nu e clickabil' },
+  { code: 'broken', ro: 'Nu se deschide / e stricat' },
+  { code: 'free_subdomain', ro: 'E pe o platformă gratuită (Wix, etc.)' },
+  { code: 'no_local_signals', ro: 'Nu scrie orașul / zona în care lucrează' },
+  { code: 'weak_title', ro: 'Nu e clar ce fac și unde' },
+  { code: 'no_service_pages', ro: 'Serviciile nu sunt prezentate clar' },
+]
+export const MANUAL_PROBLEM_CODES = MANUAL_PROBLEMS.map(p => p.code)
