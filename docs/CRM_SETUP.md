@@ -74,7 +74,7 @@ Marking ✗ (no WhatsApp) removes a business; press the button again to refill.
   Each call does one step and re-invokes itself until the list is full (max 80 steps/day).
 - **Cost**: if "Places API (New)" is enabled for the key, one call returns 20 businesses with phone
   and website (~$0.04). Otherwise the app falls back to the classic API (Text Search + one Place
-  Details per business, ~$0.40 per 20) and retries the new API once a day. Daily cap:
+  Details per business, ~$0.40 per 20) and retries the new API every hour. Daily cap:
   **Settings → Limits → max new businesses per day** (default 400). Today's estimated Google cost is
   shown on the page.
 

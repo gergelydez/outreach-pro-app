@@ -170,8 +170,8 @@ async function finishJob(r: DiscoveryResult, status: string) {
 export async function placesMode(): Promise<'auto' | 'new' | 'legacy'> {
   const r = await one<{ value: { mode?: string; at?: string } }>(`SELECT value FROM app_settings WHERE key = 'places_mode'`)
   const m = r?.value?.mode
-  // reîncercăm API-ul nou o dată pe zi (poate între timp a fost activat)
-  if (m === 'legacy' && r?.value?.at && Date.now() - new Date(r.value.at).getTime() > 86400_000) return 'auto'
+  // reîncercăm API-ul nou o dată pe oră (poate între timp a fost activat) — o încercare respinsă nu costă
+  if (m === 'legacy' && r?.value?.at && Date.now() - new Date(r.value.at).getTime() > 3600_000) return 'auto'
   return m === 'new' || m === 'legacy' ? m : 'auto'
 }
 async function setPlacesMode(mode: 'new' | 'legacy') {

@@ -105,7 +105,7 @@ describe('daily hunt: 50 qualified UK businesses with a mobile number', () => {
     expect(await placesMode()).toBe('legacy')
     const m2 = legacyPlacesMock([[place('l2', { nationalPhoneNumber: '07700 900333' })]])
     await runDiscovery({ city: 'York', category: 'barber', limit: 10, mobileOnly: true }, m2.fetch)
-    expect(m2.calls.newApi).toBe(0) // nu mai încearcă API-ul nou în aceeași zi
+    expect(m2.calls.newApi).toBe(0) // nu mai încearcă API-ul nou în aceeași oră
   })
 
   it('the automatic morning run only accepts Vercel Cron / its own chain token', async () => {
