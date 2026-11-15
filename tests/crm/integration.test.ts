@@ -137,6 +137,19 @@ describe('Google Places (classic API, same key as RO/HU tools)', () => {
     } finally { vi.unstubAllGlobals(); if (saved) process.env.GOOGLE_PLACES_API_KEY = saved }
   })
 
+  it('treats an unusable next-page token as "no more results", keeping page 1', async () => {
+    const m = legacyPlacesMock([[place('t1'), place('t2')], [place('t3')]])
+    const flaky = (async (input: string | URL | Request) => {
+      const u = new URL(typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url)
+      if (u.searchParams.get('pagetoken')) return new Response(JSON.stringify({ status: 'INVALID_REQUEST' }), { status: 200 })
+      return m.fetch(input as string)
+    }) as unknown as typeof fetch
+    const r = await runDiscovery({ city: 'Birmingham', category: 'plumber', limit: 10 }, flaky)
+    expect(r).toMatchObject({ newCount: 2, stoppedReason: 'no_more_results' })
+    expect(r.error).toBeUndefined()
+    expect((await one<{ status: string }>('SELECT status FROM discovery_jobs WHERE id = $1', [r.jobId]))!.status).toBe('done')
+  })
+
   it('explains a denied key clearly', async () => {
     const denied = (async () => new Response(JSON.stringify({ status: 'REQUEST_DENIED', error_message: 'This API project is not authorized to use this API.' }), { status: 200 })) as unknown as typeof fetch
     const r = await runDiscovery({ city: 'Birmingham', category: 'plumber', limit: 5 }, denied)

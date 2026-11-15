@@ -60,14 +60,19 @@ export async function searchText(opts: { textQuery: string; pageToken?: string |
   else { u.searchParams.set('query', opts.textQuery); u.searchParams.set('region', 'uk'); u.searchParams.set('language', 'en-GB') }
   u.searchParams.set('key', key)
 
-  // tokenul paginii următoare devine valid după ~2 secunde; dacă nu e gata, Google dă INVALID_REQUEST
+  // Tokenul paginii următoare devine valid după ~2 secunde; dacă nu e gata, Google dă INVALID_REQUEST.
+  // Google trimite uneori un token chiar dacă nu mai are rezultate: dacă după reîncercări tot
+  // INVALID_REQUEST e, înseamnă „nu mai sunt pagini” — nu o eroare (prima pagină e deja salvată).
   const attempts = opts.pageToken ? 3 : 1
   let data: { status?: string; error_message?: string; results?: Record<string, any>[]; next_page_token?: string } = {} // eslint-disable-line @typescript-eslint/no-explicit-any
   for (let i = 0; i < attempts; i++) {
-    if (opts.pageToken) await sleep(opts.pageDelayMs ?? 2000)
+    if (opts.pageToken) await sleep((opts.pageDelayMs ?? 2000) * (i === 0 ? 1 : 1.5))
     const res = await (opts.fetchImpl || fetch)(u.toString(), { signal: AbortSignal.timeout(15000) })
     data = await res.json().catch(() => ({}))
-    if (opts.pageToken && data.status === 'INVALID_REQUEST' && i < attempts - 1) continue
+    if (opts.pageToken && data.status === 'INVALID_REQUEST') {
+      if (i < attempts - 1) continue
+      return { results: [], nextPageToken: null }
+    }
     checkStatus(data, res.status)
     break
   }
