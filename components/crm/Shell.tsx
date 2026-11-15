@@ -3,11 +3,12 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, type ReactNode } from 'react'
-import { LayoutDashboard, Radar, Users, SquareKanban, Send, Globe, Sparkles, CalendarClock, BarChart3, Settings, LogOut, Menu, X } from 'lucide-react'
+import { Search, LayoutDashboard, Radar, Users, SquareKanban, Send, Globe, Sparkles, CalendarClock, BarChart3, Settings, LogOut, Menu, X } from 'lucide-react'
 import { cx } from './ui'
 import { api } from '@/lib/crm/client'
 
 const NAV = [
+  { href: '/crm/gaseste', label: 'Găsește clienți (simplu)', icon: Search },
   { href: '/crm', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/crm/hunter', label: 'Business Hunter AI', icon: Radar },
   { href: '/crm/leads', label: 'All Leads', icon: Users },

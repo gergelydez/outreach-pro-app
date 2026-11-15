@@ -61,14 +61,23 @@ Structured JSON output, identical requests cached, hourly limit in **Settings �
 and estimated cost on the AI Sales Assistant page. Every output is a draft you review; prompts tell
 the model to use only verified facts and never invent reviews, prices or claims.
 
+## Simple page (Romanian): /crm/gaseste
+
+The easiest way to use the CRM: pick a city and a trade, press **Caută firme**. The app finds the
+businesses on Google, **audits their websites itself** (no extra program needed), and shows each one
+with the problems found in Romanian. **Scrie mesajul** writes a short English message with Claude plus
+a Romanian translation; **Deschide WhatsApp** opens WhatsApp on the business's UK mobile number
+(+44 7…) with the message filled in. WhatsApp itself tells you if the number is not on WhatsApp —
+then mark ✓/✗ so the CRM remembers. Nothing is sent automatically.
+
 ## Optional
 
 - **Password:** set `CRM_PASSWORD` (and ideally `CRM_SESSION_SECRET`) to require a login on `/crm`.
   Without it the CRM is open, like the rest of the app — anyone with the URL can see it.
-- **Website audits (Python worker):** set `CRM_WORKER_TOKEN` in Vercel and run the worker
+- **Python worker (extra):** website audits now run inside the app. The worker only adds Google PageSpeed scores and a real-browser phone test; to use it set `CRM_WORKER_TOKEN` in Vercel and run the worker
   ([`worker/README.md`](../worker/README.md)) on any always-on machine with `CRM_API_URL`,
   the same token, and optionally `PAGESPEED_API_KEY` and `AUDIT_USE_PLAYWRIGHT=1`.
-  Without the worker, leads are still found and scored on Google data; websites stay “unverified”.
+  `PAGESPEED_API_KEY` in Vercel also enables PageSpeed in the built-in audit.
 - **CRON_SECRET:** optional; without it the daily retention job accepts Vercel Cron calls.
 
 ## Run locally
