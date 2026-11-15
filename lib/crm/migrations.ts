@@ -300,4 +300,10 @@ CREATE TABLE IF NOT EXISTS app_settings (
     id: '002_enable_rls',
     sql: TABLES.map(t => `ALTER TABLE ${t} ENABLE ROW LEVEL SECURITY;`).join('\n'),
   },
+  {
+    // Linkul demo-ului (site concept) publicat pentru afacere, ca la Rebuild RO
+    id: '003_demo_preview',
+    sql: `ALTER TABLE businesses ADD COLUMN IF NOT EXISTS preview_url text;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS demo_at timestamptz;`,
+  },
 ]
