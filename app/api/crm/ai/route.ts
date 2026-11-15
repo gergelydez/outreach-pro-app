@@ -7,12 +7,12 @@ import type { BusinessRow } from '@/lib/crm/businesses'
 export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
-const KINDS: AiKind[] = ['analysis', 'outreach', 'proposal', 'reply', 'next_action']
+const KINDS: AiKind[] = ['analysis', 'outreach', 'proposal', 'reply', 'next_action', 'quick']
 
 // Rulează o sarcină AI pe datele verificate ale unui lead. Rezultatele identice sunt
 // luate din cache (fără cost) până când datele lead-ului se schimbă sau ceri „Regenerate”.
 export const POST = route(async (req: Request) => {
-  const b = await body<{ kind?: string; business_id?: string; reply_text?: string; force?: boolean; note?: string }>(req)
+  const b = await body<{ kind?: string; business_id?: string; reply_text?: string; force?: boolean; note?: string; sender?: string }>(req)
   const kind = KINDS.find(k => k === b.kind)
   if (!kind) throw new HttpError(400, 'Unknown AI task')
   let business: BusinessRow | null = null
@@ -29,6 +29,7 @@ export const POST = route(async (req: Request) => {
     extra.REPLY = text
   }
   if (b.note) extra.user_note = str(b.note, 1000)
+  if (b.sender) extra.SENDER = str(b.sender, 200)
   const result = await runAi(kind, { business, extra, force: !!b.force, apiKey: str(req.headers.get('x-anthropic-key'), 300) })
   if (business && !result.cached) await logActivity(business.id, `ai_${kind}`, `AI ${kind.replace('_', ' ')} generated`)
   return json(result)

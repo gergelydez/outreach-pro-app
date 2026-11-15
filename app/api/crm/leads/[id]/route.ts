@@ -64,6 +64,12 @@ export const PATCH = route(async (req: Request, { params }: Ctx) => {
     vals.push(JSON.stringify(sources)); sets.push(`field_sources = field_sources || $${vals.length}::jsonb`)
     await q(`UPDATE businesses SET ${sets.join(', ')}, updated_at = now() WHERE id = $1`, vals)
   }
+  // verificat de utilizator în WhatsApp (deschizând chatul): are / nu are
+  if (b.whatsapp_status === 'FOUND' || b.whatsapp_status === 'NOT_FOUND' || b.whatsapp_status === 'UNVERIFIED') {
+    await q(`UPDATE businesses SET whatsapp_status = $2, whatsapp_source = $3, whatsapp_checked_at = now(), updated_at = now() WHERE id = $1`,
+      [id, b.whatsapp_status, b.whatsapp_status === 'UNVERIFIED' ? null : 'manual'])
+    await logActivity(id, 'whatsapp_checked', b.whatsapp_status === 'FOUND' ? 'WhatsApp confirmed manually' : b.whatsapp_status === 'NOT_FOUND' ? 'No WhatsApp on this number (checked manually)' : 'WhatsApp check reset')
+  }
   if (Array.isArray(b.tags)) await q('UPDATE businesses SET tags = $2, updated_at = now() WHERE id = $1', [id, b.tags.map(t => String(t).toLowerCase().slice(0, 40)).slice(0, 20)])
   return json({ ok: true })
 })

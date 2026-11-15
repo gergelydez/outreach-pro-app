@@ -110,7 +110,8 @@ export async function applyAudit(businessId: string, facts: AuditFacts): Promise
   // WhatsApp: FOUND doar cu link public; NOT_FOUND = nimic detectat pe pagină (nu înseamnă că nu are)
   const waLinks = facts.whatsapp_links || []
   const audited = facts.reachable && !!b.website_url
-  const waStatus = waLinks.length || facts.whatsapp_widget ? 'FOUND' : audited ? 'NOT_FOUND' : b.whatsapp_status
+  const manualWa = (b as { whatsapp_source?: string | null }).whatsapp_source === 'manual'
+  const waStatus = manualWa ? b.whatsapp_status : waLinks.length || facts.whatsapp_widget ? 'FOUND' : audited ? 'NOT_FOUND' : b.whatsapp_status
   const sources: Record<string, unknown> = { ...b.field_sources }
   const updates: Record<string, unknown> = {}
   if (!b.email && facts.emails?.length) { updates.email = facts.emails[0]; sources.email = { source: 'website', verified: true, checked_at: new Date().toISOString(), url: facts.final_url } }
@@ -126,7 +127,7 @@ export async function applyAudit(businessId: string, facts: AuditFacts): Promise
              opportunity_score = $7, opportunity_label = $8, field_sources = $9,
              email = COALESCE($10, email), phone = COALESCE($11, phone), phone_e164 = COALESCE($12, phone_e164), updated_at = now()
            WHERE id = $1`,
-    [businessId, cls.status, waStatus, waLinks[0] || null, waLinks.length || facts.whatsapp_widget ? (facts.final_url || b.website_url) : null, audited,
+    [businessId, cls.status, waStatus, manualWa ? (b as { whatsapp_url?: string | null }).whatsapp_url ?? null : waLinks[0] || null, manualWa ? 'manual' : waLinks.length || facts.whatsapp_widget ? (facts.final_url || b.website_url) : null, audited && !manualWa,
       score.score, score.label, JSON.stringify(sources), updates.email ?? null, updates.phone ?? null, updates.phone_e164 ?? null])
 
   await logActivity(businessId, 'audit_completed', `Website audit: ${cls.status.replace(/_/g, ' ').toLowerCase()} · score ${score.score}`, { status: cls.status, findings: cls.findings.length })

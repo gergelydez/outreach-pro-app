@@ -32,7 +32,7 @@ export function aiConfig() {
   }
 }
 
-const PROMPT_VERSIONS = { analysis: 'analysis-v1', outreach: 'outreach-v1', proposal: 'proposal-v1', reply: 'reply-v1', next_action: 'next-action-v1' } as const
+const PROMPT_VERSIONS = { analysis: 'analysis-v1', outreach: 'outreach-v1', proposal: 'proposal-v1', reply: 'reply-v1', next_action: 'next-action-v1', quick: 'quick-v1' } as const
 export type AiKind = keyof typeof PROMPT_VERSIONS
 
 const S = (props: Record<string, unknown>) => ({ type: 'object', additionalProperties: false, required: Object.keys(props), properties: props })
@@ -57,6 +57,7 @@ const SCHEMAS: Record<AiKind, Record<string, unknown>> = {
     suggested_reply_en: str, suggested_reply_ro: str, next_step: str,
   }),
   next_action: S({ action: str, reason: str, reason_ro: str, suggested_stage: str }),
+  quick: S({ whatsapp_en: str, whatsapp_ro: str, email_subject_en: str, email_en: str, email_ro: str, finding_used_ro: str }),
 }
 
 const SYSTEM = `You are a careful sales assistant for a small web design business selling to UK trades and local service businesses.
@@ -73,6 +74,12 @@ const INSTRUCTIONS: Record<AiKind, string> = {
   outreach: `Write first-contact messages for this business. email_body: 80-130 words, greeting, who I am in half a sentence, one specific verified finding and why it matters to their customers, a low-pressure question as the next step, the sign-off, and this exact opt-out line at the end: "${OPT_OUT_LINE}". whatsapp_message: max 4 short lines. contact_form_message: 60-90 words. follow_up_message: a short, polite follow-up for 3-7 days later that adds one new useful point. linkedin_message: max 280 characters. finding_used: which finding you used. explanation_ro: explain in Romanian what each message says and why, so the user understands it before sending.`,
   proposal: 'Draft proposal text for this business: title, intro (personal, 2 short paragraphs, based on verified findings), scope (bullet-style lines describing deliverables), timeline_note (no fixed promises; say it will be agreed). recommended_service_keys must only contain keys from the SERVICES list. Do not mention prices; they are added separately.',
   reply: 'The user received a reply from this business (REPLY). Translate it into Romanian, classify the intent and any objection, and suggest a short, honest reply in British English plus its Romanian translation. If they ask to stop, the suggested reply only confirms they will not be contacted again.',
+  quick: `Write a short, personal first message from a web designer to this UK business, in the style of a real person (not an agency).
+whatsapp_en: max 5 short lines. Structure: "Hi" + their name or business name → who I am in half a sentence (use SENDER from extra if given) → I came across {business} on Google and noticed ONE or TWO verified things (from website_audit findings, or that they have no website / only a Facebook page) → why it matters for their customers in one plain sentence → offer to send a quick idea or a free mock-up of a better site, no obligation → last line: if not interested, just say and I will not message again.
+email_subject_en: short, specific, no clickbait. email_en: the same idea in max 110 words with a sign-off.
+whatsapp_ro and email_ro: exact, natural Romanian translations (with diacritics) so the user understands what is being sent.
+finding_used_ro: in Romanian, which observation you used and why.
+Rules: use only verified findings; no prices, no discounts, no urgency, at most one emoji, British English spelling, never insulting about their current site.`,
   next_action: 'Suggest the single best next action for this lead given its stage, history and findings, with a short reason in English and Romanian, and the stage key it should move to (or the current one).',
 }
 
@@ -152,7 +159,9 @@ export async function runAi<T = Record<string, unknown>>(kind: AiKind, opts: { b
 
   if (res.stop_reason === 'refusal') throw new Error('Claude declined this request. Edit the notes or reply text and try again.')
   if (res.stop_reason === 'max_tokens') throw new Error('The AI response was cut off. Try again.')
-  const text = res.content.map(b => (b.type === 'text' ? b.text : '')).join('')
+  // dacă un model de rezervă a preluat cererea, textul valid e după ultimul bloc „fallback”
+  const lastFallback = res.content.map(b => b.type as string).lastIndexOf('fallback')
+  const text = res.content.slice(lastFallback + 1).map(b => (b.type === 'text' ? b.text : '')).join('')
   let output: T
   try { output = JSON.parse(text) as T } catch { throw new Error('The AI response was not valid JSON. Try again.') }
   const row = await one<{ id: string }>(
