@@ -44,6 +44,14 @@ export function waNumber(phoneE164: string | null | undefined): string | null {
 
 export const CATEGORY_RO: Record<string, string> = {
   plumber: 'Instalatori', electrician: 'Electricieni', heating_engineer: 'Centrale termice', builder: 'Constructori',
-  roofer: 'Acoperișuri', painter_decorator: 'Zugravi', cleaning: 'Firme de curățenie', landscaping: 'Grădinari / amenajări',
+  roofer: 'Acoperișuri', painter_decorator: 'Zugravi', cleaning: 'Firme de curățenie', landscaping: 'Amenajări peisagistice',
   locksmith: 'Lăcătuși', carpenter: 'Tâmplari', plasterer: 'Tencuitori', handyman: 'Meșteri (handyman)',
+  tiler: 'Faianțari', gardener: 'Grădinari', tree_surgeon: 'Toaletare copaci', fencing: 'Garduri', driveways: 'Alei și pavaje',
+  window_cleaner: 'Spălători geamuri', carpet_cleaning: 'Curățare covoare', removals: 'Mutări / transport', pest_control: 'Dezinsecție',
+  scaffolding: 'Schele', car_repair: 'Service-uri auto', mobile_mechanic: 'Mecanici mobili', car_wash: 'Spălătorii auto',
+  tyres: 'Vulcanizări', body_shop: 'Tinichigerii', driving_instructor: 'Instructori auto', barber: 'Frizerii',
+  hairdresser: 'Coafuri', beauty_salon: 'Saloane de înfrumusețare', nail_salon: 'Saloane de unghii', lash_brow: 'Gene și sprâncene',
+  massage: 'Masaj', tattoo: 'Tatuaje', dog_groomer: 'Toaletaj câini', personal_trainer: 'Antrenori personali',
+  takeaway: 'Take-away', cafe: 'Cafenele', bakery: 'Brutării', caterer: 'Catering', florist: 'Florării',
+  tailor: 'Croitorii', phone_repair: 'Reparații telefoane', computer_repair: 'Reparații calculatoare', photographer: 'Fotografi', tutor: 'Meditații',
 }

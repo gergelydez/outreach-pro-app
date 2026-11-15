@@ -3,7 +3,7 @@
 // Pagina simplă, în română: alegi orașul și meseria → aplicația caută firmele pe Google,
 // le verifică site-ul și îți arată, pentru fiecare, problemele și butoanele de contact.
 import Link from 'next/link'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '@/lib/crm/client'
 import { Button, Select, Badge, cx } from '@/components/crm/ui'
 import { UK_CATEGORIES, UK_REGIONS } from '@/lib/crm/constants'
@@ -27,7 +27,8 @@ const regionOf = (city: string) => Object.entries(UK_REGIONS).find(([, cs]) => c
 export default function Gaseste() {
   const [city, setCity] = useState('Birmingham')
   const [category, setCategory] = useState('plumber')
-  const [show, setShow] = useState<'todo' | 'all'>('todo')
+  const [show, setShow] = useState<'pool' | 'todo' | 'all'>('pool')
+  const [manualOpen, setManualOpen] = useState(false)
   const [rows, setRows] = useState<Lead[] | null>(null)
   const [pending, setPending] = useState(0)
   const [busy, setBusy] = useState('')
@@ -49,6 +50,7 @@ export default function Gaseste() {
   const load = useCallback(async () => {
     try {
       const d = await api<{ rows: Lead[]; pendingAudits: number }>(`/api/crm/simple?city=${encodeURIComponent(city)}&category=${category}&show=${show}`)
+      setErr('')
       setRows(d.rows); setPending(d.pendingAudits)
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
   }, [city, category, show])
@@ -76,6 +78,7 @@ export default function Gaseste() {
       const r = await api<{ found: number; newCount: number; duplicates: number }>('/api/crm/discovery', {
         json: { city, region: regionOf(city), category, limit: 20, min_reviews: 3, google_api_key: keys.google || undefined },
       })
+      setShow('todo')
       setInfo(`Google a dat ${r.found} firme: ${r.newCount} noi${r.duplicates ? `, ${r.duplicates} le aveai deja` : ''}. Acum le verific site-urile…`)
       await load()
       setBusy('')
@@ -92,12 +95,15 @@ export default function Gaseste() {
     <div className="max-w-3xl mx-auto">
       <h1 className="text-[22px] font-semibold text-slate-900">Găsește clienți în UK</h1>
       <ol className="mt-2 mb-4 text-[13px] text-slate-600 space-y-0.5 list-decimal pl-5">
-        <li>Alegi <b>orașul</b> și <b>meseria</b>, apeși <b>Caută firme</b>.</li>
-        <li>Aplicația ia firmele de pe Google și le <b>verifică site-ul</b> singură (durează ~1 minut).</li>
-        <li>La fiecare firmă: <b>1. verifici</b> WhatsApp-ul și pe Google, <b>2. trimiți mesajul</b> în 2 părți scurte, <b>3. faci demo-ul</b> site-ului pentru el și îi trimiți linkul.</li>
+        <li>Aplicația caută <b>singură prin tot UK-ul</b> până ai <b>50 de firme fără site / cu site de refăcut</b>, cu număr de mobil.</li>
+        <li>La fiecare: <b>verifici WhatsApp-ul</b> (✓/✗). Cele fără WhatsApp ies din listă și apeși din nou <b>Completează până la 50</b>.</li>
+        <li>Trimiți <b>mesajul în 2 părți</b>, faci <b>demo-ul</b> site-ului pentru el și îi trimiți linkul.</li>
       </ol>
 
-      <section className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+      <HuntPanel googleKey={keys.google} onProgress={() => { if (show === 'pool') load() }} />
+
+      <button className="mt-3 text-sm text-slate-600 underline" onClick={() => setManualOpen(v => !v)}>{manualOpen ? 'Ascunde căutarea manuală' : 'Sau caută manual într-un oraș / o meserie anume'}</button>
+      {manualOpen && <section className="mt-2 bg-white border border-slate-200 rounded-xl p-4 space-y-3">
         <div className="grid grid-cols-2 gap-2">
           <label className="block"><span className="block text-xs text-slate-500 mb-1">Oraș</span>
             <Select value={city} onChange={e => setCity(e.target.value)}>{ALL_CITIES.map(c => <option key={c} value={c}>{c}</option>)}</Select></label>
@@ -110,20 +116,20 @@ export default function Gaseste() {
         </div>
         {info && <p className="text-sm text-teal-800">{info}</p>}
         {err && <p className="text-sm text-rose-700">{err}{/Google Places key/i.test(err) && <> — <Link href="/settings" className="underline">pune cheia Google în Setări</Link></>}</p>}
-      </section>
+      </section>}
 
       <TemplateEditor value={templates} onChange={saveTemplates} />
 
       <div className="flex items-center justify-between mt-5 mb-2">
-        <h2 className="text-sm font-semibold text-slate-700">{rows ? `${rows.length} firme` : 'Se încarcă…'} · {CATEGORY_RO[category]} în {city}</h2>
-        <Select className="w-44 h-8 text-xs" value={show} onChange={e => setShow(e.target.value as 'todo' | 'all')}>
-          <option value="todo">De contactat</option><option value="all">Toate</option>
+        <h2 className="text-sm font-semibold text-slate-700">{rows ? `${rows.length} firme` : 'Se încarcă…'}{show === 'pool' ? ' · lista zilei' : ` · ${CATEGORY_RO[category]} în ${city}`}</h2>
+        <Select className="w-48 h-8 text-xs" value={show} onChange={e => setShow(e.target.value as 'pool' | 'todo' | 'all')}>
+          <option value="pool">Lista zilei (cu mobil)</option><option value="todo">De contactat — orașul ales</option><option value="all">Toate — orașul ales</option>
         </Select>
       </div>
 
       {rows && rows.length === 0 && (
         <p className="text-sm text-slate-500 bg-white border border-slate-200 rounded-xl p-4">
-          {show === 'todo' ? 'Nicio firmă de contactat aici. Apasă „Caută firme” sau alege alt oraș / altă meserie.' : 'Nicio firmă salvată încă pentru acest oraș și această meserie.'}
+          {show === 'pool' ? 'Lista zilei e goală. Apasă „Completează până la 50”.' : show === 'todo' ? 'Nicio firmă de contactat aici. Apasă „Caută firme” sau alege alt oraș / altă meserie.' : 'Nicio firmă salvată încă pentru acest oraș și această meserie.'}
         </p>
       )}
 
@@ -374,6 +380,76 @@ function TemplateEditor({ value, onChange }: { value: UkTemplates; onChange: (t:
           {field('price', 'Dacă e interesat — prețul')}
           {field('demo', 'După demo — mesajul cu linkul')}
           <Button size="sm" variant="ghost" onClick={() => onChange(DEFAULT_TEMPLATES)}>Revino la textele inițiale</Button>
+        </div>
+      )}
+    </section>
+  )
+}
+
+interface HuntInfo {
+  pool: number; target: number; newToday: number; dailyNewMax: number; googleCostToday: number; googleRequestsToday: number
+  pendingAudits: number; placesMode: 'auto' | 'new' | 'legacy'; serverKey: boolean; maxSteps: number
+  state: { steps_today: number; last_auto_at?: string; log: string[] }
+}
+
+function HuntPanel({ googleKey, onProgress }: { googleKey: string; onProgress: () => void }) {
+  const [info, setInfo] = useState<HuntInfo | null>(null)
+  const [running, setRunning] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+  const stop = useRef(false)
+  const refresh = useCallback(async () => { try { setInfo(await api<HuntInfo>('/api/crm/hunt')) } catch (e) { setErr(e instanceof Error ? e.message : String(e)) } }, [])
+  useEffect(() => { refresh() }, [refresh])
+
+  async function run() {
+    setRunning(true); setErr(''); stop.current = false
+    try {
+      for (let i = 0; i < 60 && !stop.current; i++) {
+        if (i === 0) setMsg('Caut…')
+        const r = await api<{ pool: number; target: number; done: boolean; stoppedReason?: string; ran?: { city: string; category: string; found: number; newCount: number }; error?: string; log: string[] }>('/api/crm/hunt', { json: { google_api_key: googleKey || undefined } })
+        setInfo(x => x && { ...x, pool: r.pool, target: r.target, state: { ...x.state, log: r.log } })
+        onProgress()
+        if (r.ran) setMsg(`${CATEGORY_RO[r.ran.category] || r.ran.category} · ${r.ran.city}: ${r.ran.newCount} noi cu mobil`)
+        if (r.done) { setMsg(`Gata: lista zilei are ${r.pool} firme.`); break }
+        if (r.stoppedReason === 'daily_limit') { setMsg('Am atins limita zilnică de firme noi (o poți mări în Settings & API → Limits).'); break }
+        if (r.stoppedReason === 'step_limit') { setMsg('Am atins limita de căutări pe azi.'); break }
+        if (r.stoppedReason === 'error') { setErr(r.error || 'Eroare la Google'); break }
+      }
+      if (stop.current) setMsg('Oprit.')
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+    setRunning(false)
+    refresh(); onProgress()
+  }
+
+  const pct = info ? Math.min(100, Math.round((info.pool / info.target) * 100)) : 0
+  return (
+    <section className="bg-slate-900 text-white rounded-xl p-4">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <div className="text-[11px] uppercase tracking-wide text-slate-400">Lista zilei</div>
+          <div className="text-3xl font-semibold tabular-nums">{info ? info.pool : '…'}<span className="text-slate-500 text-xl"> / {info?.target ?? 50}</span></div>
+          <div className="text-[12px] text-slate-400">firme fără site / cu site de refăcut, cu mobil, necontactate</div>
+        </div>
+        {running
+          ? <Button className="h-11" onClick={() => { stop.current = true }}>⏸ Oprește</Button>
+          : <Button variant="primary" className="h-11 bg-teal-500 hover:bg-teal-400 text-slate-950" disabled={!info || info.pool >= info.target} onClick={run}>▶ Completează până la {info?.target ?? 50}</Button>}
+      </div>
+      <div className="mt-3 h-2 rounded-full bg-slate-700 overflow-hidden"><div className="h-full bg-teal-400 transition-all" style={{ width: `${pct}%` }} /></div>
+      {(msg || running) && <p className="mt-2 text-sm text-teal-200 flex items-center gap-2">{running && <span className="w-3.5 h-3.5 border-2 border-current border-r-transparent rounded-full animate-spin" />}{msg || 'Caut…'}</p>}
+      {err && <p className="mt-2 text-sm text-rose-300">{err}</p>}
+      {info && (
+        <div className="mt-3 text-[12px] text-slate-400 space-y-0.5">
+          <div>Azi: {info.state.steps_today} căutări · {info.newToday} firme noi salvate · cost Google estimat ${info.googleCostToday.toFixed(2)}</div>
+          <div>{info.placesMode === 'legacy'
+            ? <>API Google vechi (~$0.40 la 20 de firme). Activează „Places API (New)” în Google Cloud și costă de ~10 ori mai puțin — aplicația trece singură pe el.</>
+            : info.placesMode === 'new' ? <>API Google nou (ieftin: un apel pentru 20 de firme).</> : <>Prima căutare verifică ce API Google e activ la cheia ta.</>}</div>
+          <div>Automat în fiecare dimineață (~7:40): {info.serverKey ? <>activ{info.state.last_auto_at ? ` · ultima rulare ${new Date(info.state.last_auto_at).toLocaleString('ro-RO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''}</> : <>pune <b>GOOGLE_PLACES_API_KEY</b> în Vercel (Settings → Environment Variables) ca să meargă singur.</>}</div>
+          {info.pendingAudits > 0 && <div>Site-uri de verificat: {info.pendingAudits} (se verifică la următorul pas)</div>}
+          {!!info.state.log.length && (
+            <details className="mt-1"><summary className="cursor-pointer text-slate-300">Ce am căutat azi ({info.state.log.length})</summary>
+              <ul className="mt-1 space-y-0.5">{info.state.log.slice().reverse().map((l, i) => <li key={i}>• {l}</li>)}</ul>
+            </details>
+          )}
         </div>
       )}
     </section>

@@ -98,7 +98,8 @@ describe('Google Places (classic API, same key as RO/HU tools)', () => {
     expect(r.newCount).toBe(3)
     expect(m.calls.textSearch).toBe(2) // a doua pagină prin next_page_token
     expect(m.calls.details).toBe(3)
-    const first = new URL(m.calls.urls[0])
+    expect(m.calls.newApi).toBe(1) // API-ul nou încercat o dată; nu e activat → clasic
+    const first = new URL(m.calls.urls.find(u => u.includes('/maps/api/'))!)
     expect(first.pathname).toBe('/maps/api/place/textsearch/json')
     expect(first.searchParams.get('region')).toBe('uk')
     expect(first.searchParams.get('query')).toContain('Birmingham')
@@ -133,7 +134,7 @@ describe('Google Places (classic API, same key as RO/HU tools)', () => {
       expect(none.status).toBe(503)
       const ok = await discoveryPost(req('/x', { method: 'POST', json: { city: 'Birmingham', category: 'plumber', limit: 1, google_api_key: 'browser-key' } }))
       expect((await ok.json()).newCount).toBe(1)
-      expect(m.calls.urls.every(u => new URL(u).searchParams.get('key') === 'browser-key')).toBe(true)
+      expect(m.calls.urls.filter(u => u.includes('/maps/api/')).every(u => new URL(u).searchParams.get('key') === 'browser-key')).toBe(true)
     } finally { vi.unstubAllGlobals(); if (saved) process.env.GOOGLE_PLACES_API_KEY = saved }
   })
 
@@ -151,7 +152,9 @@ describe('Google Places (classic API, same key as RO/HU tools)', () => {
   })
 
   it('explains a denied key clearly', async () => {
-    const denied = (async () => new Response(JSON.stringify({ status: 'REQUEST_DENIED', error_message: 'This API project is not authorized to use this API.' }), { status: 200 })) as unknown as typeof fetch
+    const denied = (async (input: string | URL | Request) => String(input instanceof Request ? input.url : input).includes('places.googleapis.com')
+      ? new Response(JSON.stringify({ error: { message: 'PERMISSION_DENIED', status: 'PERMISSION_DENIED' } }), { status: 403 })
+      : new Response(JSON.stringify({ status: 'REQUEST_DENIED', error_message: 'This API project is not authorized to use this API.' }), { status: 200 })) as unknown as typeof fetch
     const r = await runDiscovery({ city: 'Birmingham', category: 'plumber', limit: 5 }, denied)
     expect(r.stoppedReason).toBe('error')
     expect(r.error).toMatch(/REQUEST_DENIED.*Places API/)

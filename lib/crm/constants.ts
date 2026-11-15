@@ -38,6 +38,7 @@ export const WEBSITE_STATUS_LABEL: Record<string, string> = {
 export const WHATSAPP_STATUSES = ['FOUND', 'NOT_FOUND', 'UNVERIFIED'] as const
 
 export const UK_CATEGORIES: { key: string; label: string; query: string; placesType?: string }[] = [
+  // meserii (casă și construcții)
   { key: 'plumber', label: 'Plumbers', query: 'plumber', placesType: 'plumber' },
   { key: 'electrician', label: 'Electricians', query: 'electrician', placesType: 'electrician' },
   { key: 'heating_engineer', label: 'Heating engineers', query: 'heating engineer boiler repair' },
@@ -45,20 +46,65 @@ export const UK_CATEGORIES: { key: string; label: string; query: string; placesT
   { key: 'roofer', label: 'Roofers', query: 'roofer', placesType: 'roofing_contractor' },
   { key: 'painter_decorator', label: 'Painters and decorators', query: 'painter and decorator', placesType: 'painter' },
   { key: 'cleaning', label: 'Cleaning companies', query: 'cleaning company' },
-  { key: 'landscaping', label: 'Landscaping companies', query: 'landscaping company landscaper' },
+  { key: 'landscaping', label: 'Landscapers', query: 'landscaping company landscaper' },
   { key: 'locksmith', label: 'Locksmiths', query: 'locksmith', placesType: 'locksmith' },
   { key: 'carpenter', label: 'Carpenters & joiners', query: 'carpenter joiner' },
   { key: 'plasterer', label: 'Plasterers', query: 'plasterer' },
   { key: 'handyman', label: 'Handymen', query: 'handyman' },
+  { key: 'tiler', label: 'Tilers', query: 'tiler tiling' },
+  { key: 'gardener', label: 'Gardeners', query: 'gardener garden maintenance' },
+  { key: 'tree_surgeon', label: 'Tree surgeons', query: 'tree surgeon' },
+  { key: 'fencing', label: 'Fencing contractors', query: 'fencing contractor' },
+  { key: 'driveways', label: 'Driveway & paving companies', query: 'driveway paving contractor' },
+  { key: 'window_cleaner', label: 'Window cleaners', query: 'window cleaner' },
+  { key: 'carpet_cleaning', label: 'Carpet cleaners', query: 'carpet cleaning' },
+  { key: 'removals', label: 'Removal companies', query: 'removals man and van' },
+  { key: 'pest_control', label: 'Pest control companies', query: 'pest control' },
+  { key: 'scaffolding', label: 'Scaffolders', query: 'scaffolding company' },
+  // auto
+  { key: 'car_repair', label: 'Garages', query: 'car garage mechanic MOT', placesType: 'car_repair' },
+  { key: 'mobile_mechanic', label: 'Mobile mechanics', query: 'mobile mechanic' },
+  { key: 'car_wash', label: 'Car washes', query: 'hand car wash valeting', placesType: 'car_wash' },
+  { key: 'tyres', label: 'Tyre shops', query: 'tyre shop' },
+  { key: 'body_shop', label: 'Body shops', query: 'car body repair' },
+  { key: 'driving_instructor', label: 'Driving instructors', query: 'driving instructor' },
+  // frumusețe și îngrijire
+  { key: 'barber', label: 'Barbers', query: 'barber shop' },
+  { key: 'hairdresser', label: 'Hairdressers', query: 'hair salon hairdresser', placesType: 'hair_care' },
+  { key: 'beauty_salon', label: 'Beauty salons', query: 'beauty salon', placesType: 'beauty_salon' },
+  { key: 'nail_salon', label: 'Nail salons', query: 'nail salon' },
+  { key: 'lash_brow', label: 'Lash & brow studios', query: 'lash and brow studio' },
+  { key: 'massage', label: 'Massage therapists', query: 'massage therapist' },
+  { key: 'tattoo', label: 'Tattoo studios', query: 'tattoo studio' },
+  { key: 'dog_groomer', label: 'Dog groomers', query: 'dog groomer' },
+  { key: 'personal_trainer', label: 'Personal trainers', query: 'personal trainer' },
+  // mâncare și local
+  { key: 'takeaway', label: 'Takeaways', query: 'takeaway', placesType: 'meal_takeaway' },
+  { key: 'cafe', label: 'Cafés', query: 'cafe', placesType: 'cafe' },
+  { key: 'bakery', label: 'Bakeries', query: 'bakery', placesType: 'bakery' },
+  { key: 'caterer', label: 'Caterers', query: 'catering company' },
+  { key: 'florist', label: 'Florists', query: 'florist', placesType: 'florist' },
+  { key: 'tailor', label: 'Tailors & alterations', query: 'tailor alterations' },
+  { key: 'phone_repair', label: 'Phone repair shops', query: 'phone repair shop' },
+  { key: 'computer_repair', label: 'Computer repair shops', query: 'computer repair' },
+  { key: 'photographer', label: 'Photographers', query: 'photographer' },
+  { key: 'tutor', label: 'Tutors', query: 'tutoring centre tutor' },
 ]
 export const categoryLabel = (k: string) => UK_CATEGORIES.find(c => c.key === k)?.label || k
 
 export const UK_REGIONS: Record<string, string[]> = {
-  'West Midlands': ['Birmingham', 'Wolverhampton', 'Coventry', 'Solihull', 'Dudley', 'Walsall', 'West Bromwich', 'Sutton Coldfield', 'Stourbridge', 'Halesowen'],
-  'East Midlands': ['Nottingham', 'Leicester', 'Derby', 'Northampton', 'Lincoln'],
-  'Greater London': ['London', 'Croydon', 'Bromley', 'Harrow', 'Ealing'],
-  'North West': ['Manchester', 'Liverpool', 'Bolton', 'Stockport', 'Preston'],
-  'Yorkshire': ['Leeds', 'Sheffield', 'Bradford', 'York', 'Hull'],
+  'West Midlands': ['Birmingham', 'Wolverhampton', 'Coventry', 'Solihull', 'Dudley', 'Walsall', 'West Bromwich', 'Sutton Coldfield', 'Stourbridge', 'Halesowen', 'Redditch', 'Kidderminster', 'Stoke-on-Trent', 'Telford', 'Worcester'],
+  'East Midlands': ['Nottingham', 'Leicester', 'Derby', 'Northampton', 'Lincoln', 'Mansfield', 'Loughborough', 'Chesterfield', 'Kettering'],
+  'Greater London': ['London', 'Croydon', 'Bromley', 'Harrow', 'Ealing', 'Enfield', 'Romford', 'Ilford', 'Wembley', 'Kingston upon Thames', 'Hounslow', 'Barnet'],
+  'South East': ['Reading', 'Slough', 'Milton Keynes', 'Oxford', 'Southampton', 'Portsmouth', 'Brighton', 'Maidstone', 'Crawley', 'Guildford', 'Basingstoke', 'Luton'],
+  'East of England': ['Cambridge', 'Peterborough', 'Norwich', 'Ipswich', 'Chelmsford', 'Colchester', 'Southend-on-Sea', 'Watford', 'Stevenage'],
+  'South West': ['Bristol', 'Plymouth', 'Exeter', 'Swindon', 'Gloucester', 'Cheltenham', 'Bath', 'Bournemouth', 'Poole', 'Taunton'],
+  'North West': ['Manchester', 'Liverpool', 'Bolton', 'Stockport', 'Preston', 'Oldham', 'Rochdale', 'Wigan', 'Warrington', 'Blackburn', 'Blackpool', 'Salford', 'Bury', 'Chester'],
+  'Yorkshire': ['Leeds', 'Sheffield', 'Bradford', 'York', 'Hull', 'Huddersfield', 'Wakefield', 'Doncaster', 'Rotherham', 'Barnsley', 'Halifax', 'Harrogate'],
+  'North East': ['Newcastle upon Tyne', 'Sunderland', 'Middlesbrough', 'Gateshead', 'Durham', 'Darlington', 'Hartlepool'],
+  'Scotland': ['Glasgow', 'Edinburgh', 'Aberdeen', 'Dundee', 'Paisley', 'East Kilbride', 'Livingston'],
+  'Wales': ['Cardiff', 'Swansea', 'Newport', 'Wrexham', 'Barry'],
+  'Northern Ireland': ['Belfast', 'Derry', 'Lisburn', 'Newry'],
 }
 
 export const OPPORTUNITY_LABELS = [

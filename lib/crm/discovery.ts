@@ -3,10 +3,10 @@
 import { q, one } from './db'
 import { getSettings } from './settings'
 import { findDuplicate, insertDiscovered, isSuppressed, ownDomain } from './businesses'
-import { normalizeUkPhone } from './normalize'
+import { normalizeUkPhone, ukPhoneType } from './normalize'
 import { enqueueJob } from './jobs'
 import { logActivity, logUsage } from './activity'
-import { searchText, placeDetails, textSearchCost, detailsCost, type DiscoveredBusiness } from './providers/google-places'
+import { searchText, searchTextNew, placeDetails, textSearchCost, detailsCost, newSearchCost, ApiNotEnabled, type DiscoveredBusiness, type SearchPage } from './providers/google-places'
 import { UK_CATEGORIES } from './constants'
 
 export interface DiscoveryRequest {
@@ -17,6 +17,8 @@ export interface DiscoveryRequest {
   minRating?: number | null
   minReviews?: number | null
   websiteFilter?: 'any' | 'no_website' | 'has_website'
+  // doar numere de mobil UK (07…), adică firme care pot avea WhatsApp
+  mobileOnly?: boolean
 }
 
 export interface DiscoveryResult {
@@ -78,11 +80,29 @@ export async function runDiscovery(r: DiscoveryRequest, fetchImpl?: typeof fetch
 
   let pageToken: string | null = null
   const pageDelayMs = opts.pageDelayMs ?? (fetchImpl ? 0 : 2000)
+  // API-ul nou (telefon + site într-un singur apel) dacă e activat la cheie; altfel cel clasic
+  let mode = await placesMode()
   try {
     // Text Search dă max. 3 pagini × 20 rezultate pentru o interogare
     for (let page = 0; page < 3; page++) {
-      const data = await searchText({ textQuery, pageToken, fetchImpl, pageDelayMs, apiKey: opts.apiKey })
-      await logUsage({ provider: 'google_places', operation: 'textSearch', costUsd: textSearchCost() })
+      let data: SearchPage | null = null
+      let usedNew = false
+      if (mode !== 'legacy') {
+        try {
+          data = await searchTextNew({ textQuery, pageToken, fetchImpl, apiKey: opts.apiKey })
+          usedNew = true
+          await logUsage({ provider: 'google_places', operation: 'textSearchNew', costUsd: newSearchCost() })
+          if (mode !== 'new') { mode = 'new'; await setPlacesMode('new') }
+        } catch (e) {
+          if (!(e instanceof ApiNotEnabled)) throw e
+          mode = 'legacy'; await setPlacesMode('legacy')
+          if (page > 0) break // tokenul paginii e al API-ului nou; ne oprim la ce avem
+        }
+      }
+      if (!data) {
+        data = await searchText({ textQuery, pageToken, fetchImpl, pageDelayMs, apiKey: opts.apiKey })
+        await logUsage({ provider: 'google_places', operation: 'textSearch', costUsd: textSearchCost() })
+      }
       res.found += data.results.length
 
       // 1) filtre gratuite + firme deja cunoscute (după place_id) — fără Place Details
@@ -100,17 +120,23 @@ export async function runDiscovery(r: DiscoveryRequest, fetchImpl?: typeof fetch
         candidates.push(b)
       }
 
-      // 2) Place Details (telefon, site) doar pentru cele noi; fără filtru de site nu cerem mai multe decât ne trebuie
-      const need = want - res.newCount
-      const toEnrich = r.websiteFilter && r.websiteFilter !== 'any' ? candidates : candidates.slice(0, need)
-      res.filtered += candidates.length - toEnrich.length
-      const enriched = await Promise.all(toEnrich.map(b => placeDetails(b, fetchImpl, opts.apiKey).then(d => d, () => null)))
-      const detailCalls = toEnrich.length
-      if (detailCalls) await logUsage({ provider: 'google_places', operation: 'placeDetails', units: detailCalls, costUsd: detailCalls * detailsCost() })
+      // 2) API-ul nou a dat deja telefonul și site-ul. Cel clasic cere Place Details, doar pentru cele noi;
+      //    fără filtre de site/mobil nu cerem mai multe decât ne trebuie
+      let enriched: (DiscoveredBusiness | null)[]
+      if (usedNew) enriched = candidates
+      else {
+        const need = want - res.newCount
+        const toEnrich = (r.websiteFilter && r.websiteFilter !== 'any') || r.mobileOnly ? candidates : candidates.slice(0, need)
+        res.filtered += candidates.length - toEnrich.length
+        enriched = await Promise.all(toEnrich.map(b => placeDetails(b, fetchImpl, opts.apiKey).then(d => d, () => null)))
+        const detailCalls = toEnrich.length
+        if (detailCalls) await logUsage({ provider: 'google_places', operation: 'placeDetails', units: detailCalls, costUsd: detailCalls * detailsCost() })
+      }
 
       for (const b of enriched) {
         if (!b) { res.filtered++; continue }
         if (!passesWebsiteFilter(b, r)) { res.filtered++; continue }
+        if (r.mobileOnly && ukPhoneType(normalizeUkPhone(b.phoneIntl || b.phone)) !== 'mobile') { res.filtered++; continue }
         // afacerile șterse la cerere / excluse nu se mai importă
         if (await isSuppressed({ google_place_id: b.providerId, website_domain: ownDomain(b.websiteUrl), phone_e164: normalizeUkPhone(b.phoneIntl || b.phone) })) { res.filtered++; continue }
         const dup = await findDuplicate({ placeId: b.providerId, websiteUrl: b.websiteUrl, phone: b.phoneIntl || b.phone, name: b.name, address: b.address })
@@ -138,4 +164,17 @@ export async function runDiscovery(r: DiscoveryRequest, fetchImpl?: typeof fetch
 async function finishJob(r: DiscoveryResult, status: string) {
   await q(`UPDATE discovery_jobs SET status = $2, found = $3, new_count = $4, duplicates = $5, filtered = $6, error = $7, finished_at = now() WHERE id = $1`,
     [r.jobId, status, r.found, r.newCount, r.duplicates, r.filtered, r.error ?? null])
+}
+
+// Ce variantă de Google Places folosim: 'auto' (încearcă API-ul nou), 'new' sau 'legacy'
+export async function placesMode(): Promise<'auto' | 'new' | 'legacy'> {
+  const r = await one<{ value: { mode?: string; at?: string } }>(`SELECT value FROM app_settings WHERE key = 'places_mode'`)
+  const m = r?.value?.mode
+  // reîncercăm API-ul nou o dată pe zi (poate între timp a fost activat)
+  if (m === 'legacy' && r?.value?.at && Date.now() - new Date(r.value.at).getTime() > 86400_000) return 'auto'
+  return m === 'new' || m === 'legacy' ? m : 'auto'
+}
+async function setPlacesMode(mode: 'new' | 'legacy') {
+  await q(`INSERT INTO app_settings (key, value, updated_at) VALUES ('places_mode', $1, now())
+           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`, [JSON.stringify({ mode, at: new Date().toISOString() })])
 }

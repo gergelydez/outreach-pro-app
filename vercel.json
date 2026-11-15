@@ -7,6 +7,10 @@
     {
       "path": "/api/crm/maintenance/retention",
       "schedule": "17 3 * * *"
+    },
+    {
+      "path": "/api/crm/hunt/cron",
+      "schedule": "41 6 * * *"
     }
   ]
 }
