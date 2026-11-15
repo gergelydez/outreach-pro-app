@@ -23,17 +23,20 @@ export function photosSupported(): boolean {
 
 // „Str. X 12, Ocna Șugatag 437210, România” → „Ocna Șugatag”
 export function localityFromAddress(address: string, fallback: string): string {
-  const parts = address.split(',').map(p => p.trim()).filter(Boolean)
-  const candidate = parts.length >= 2 ? parts[parts.length - 2] : ''
+  // UK: „1 High St, Kings Heath, Birmingham B14 7QH, UK” → „Birmingham” (fără cod poștal și țară)
+  // RO: „Str. X 12, Ocna Șugatag 437210, România” → „Ocna Șugatag”. Scoatem țara, apoi ultima parte e localitatea.
+  const parts = address.split(',').map(p => p.trim().replace(/\b[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}\b/i, '').trim())
+    .filter(p => p && !/^(uk|united kingdom|england|scotland|wales|românia|romania|magyarország|hungary)$/i.test(p))
+  const candidate = parts.length >= 2 ? parts[parts.length - 1] : ''
   const clean = candidate.replace(/\d+/g, '').replace(/\s+/g, ' ').trim()
   return clean.length >= 3 ? clean : fallback.replace(' 🏘️', '').trim()
 }
 
-async function googleDetails(placeId: string, key: string) {
+async function googleDetails(placeId: string, key: string, language = 'ro') {
   const u = new URL('https://maps.googleapis.com/maps/api/place/details/json')
   u.searchParams.set('place_id', placeId)
   u.searchParams.set('fields', 'photos,reviews')
-  u.searchParams.set('language', 'ro')
+  u.searchParams.set('language', language)
   u.searchParams.set('key', key)
   const res = await fetch(u.toString(), { signal: AbortSignal.timeout(8000) })
   const d = await res.json()
@@ -67,14 +70,14 @@ async function commonsPhotos(query: string, limit: number): Promise<ContextPhoto
     })
 }
 
-export async function placeContext(opts: { placeId: string; address: string; city: string; googleKey?: string; origin: string }): Promise<PlaceContext> {
+export async function placeContext(opts: { placeId: string; address: string; city: string; googleKey?: string; origin: string; language?: string }): Promise<PlaceContext> {
   const locality = localityFromAddress(opts.address, opts.city)
   const ctx: PlaceContext = { photos: [], reviews: [], locality, localityPhotos: [] }
 
   const key = process.env.GOOGLE_PLACES_API_KEY || opts.googleKey
   if (key) {
     try {
-      const r = await googleDetails(opts.placeId, key)
+      const r = await googleDetails(opts.placeId, key, opts.language)
       ctx.reviews = (r.reviews || [])
         .filter(rv => (rv.text || '').trim().length >= 20)
         .map(rv => ({ author: (rv.author_name || '').split(' ')[0], rating: rv.rating || 0, text: (rv.text || '').trim().slice(0, 500), when: rv.relative_time_description || '' }))

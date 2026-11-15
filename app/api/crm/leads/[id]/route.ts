@@ -70,6 +70,10 @@ export const PATCH = route(async (req: Request, { params }: Ctx) => {
       [id, b.whatsapp_status, b.whatsapp_status === 'UNVERIFIED' ? null : 'manual'])
     await logActivity(id, 'whatsapp_checked', b.whatsapp_status === 'FOUND' ? 'WhatsApp confirmed manually' : b.whatsapp_status === 'NOT_FOUND' ? 'No WhatsApp on this number (checked manually)' : 'WhatsApp check reset')
   }
+  if (typeof b.preview_url === 'string' && /^https?:\/\/[^\s]+\/p\/[a-z0-9-]+$/.test(b.preview_url)) {
+    await q(`UPDATE businesses SET preview_url = $2, demo_at = now(), updated_at = now() WHERE id = $1`, [id, b.preview_url])
+    await logActivity(id, 'demo_published', `Demo website published: ${b.preview_url}`)
+  }
   if (Array.isArray(b.tags)) await q('UPDATE businesses SET tags = $2, updated_at = now() WHERE id = $1', [id, b.tags.map(t => String(t).toLowerCase().slice(0, 40)).slice(0, 20)])
   return json({ ok: true })
 })

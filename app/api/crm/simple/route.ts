@@ -19,7 +19,7 @@ export const GET = route(async (req: Request) => {
   const rows = await q(`
     SELECT b.id, b.name, b.category, b.city, b.address, b.phone, b.phone_e164, b.email, b.website_url, b.website_status,
            b.whatsapp_status, b.whatsapp_source, b.google_rating, b.google_review_count, b.google_maps_url,
-           b.opportunity_score, b.stage, b.last_contacted_at, b.created_at,
+           b.opportunity_score, b.stage, b.last_contacted_at, b.created_at, b.preview_url, b.google_place_id, b.address AS full_address,
            a.findings, a.created_at AS audited_at,
            m.output AS message
       FROM businesses b

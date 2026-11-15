@@ -8,15 +8,17 @@ import { api, ApiError } from '@/lib/crm/client'
 import { Button, Select, Badge, cx } from '@/components/crm/ui'
 import { UK_CATEGORIES, UK_REGIONS } from '@/lib/crm/constants'
 import { STATUS_RO, findingRo, waNumber, CATEGORY_RO } from '@/lib/crm/ro'
+import { DEFAULT_TEMPLATES, DEMO_STATUSES, buildMessages, type UkTemplates } from '@/lib/crm/uk-templates'
 import { getSettings as getAppSettings } from '@/lib/storage'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-interface Msg { whatsapp_en: string; whatsapp_ro: string; email_subject_en: string; email_en: string; email_ro: string; finding_used_ro: string }
+interface Keys { google: string; anthropic: string }
 interface Lead {
-  id: string; name: string; category: string; city: string; phone: string | null; phone_e164: string | null; email: string | null
+  id: string; name: string; category: string; city: string; address: string | null; full_address: string | null; google_place_id: string | null; preview_url: string | null
+  phone: string | null; phone_e164: string | null; email: string | null
   website_url: string | null; website_status: string; whatsapp_status: string; whatsapp_source: string | null
   google_rating: number | null; google_review_count: number | null; google_maps_url: string | null
-  opportunity_score: number | null; stage: string; findings: { code: string; what: string }[] | null; audited_at: string | null; message: Msg | null
+  opportunity_score: number | null; stage: string; findings: { code: string; what: string }[] | null; audited_at: string | null
 }
 
 const ALL_CITIES = Object.values(UK_REGIONS).flat()
@@ -31,12 +33,18 @@ export default function Gaseste() {
   const [busy, setBusy] = useState('')
   const [info, setInfo] = useState('')
   const [err, setErr] = useState('')
-  const [keys, setKeys] = useState({ google: '', sender: '' })
+  const [keys, setKeys] = useState<Keys>({ google: '', anthropic: '' })
+  const [templates, setTemplates] = useState<UkTemplates>(DEFAULT_TEMPLATES)
 
   useEffect(() => {
     const s = getAppSettings()
-    setKeys({ google: s.googlePlacesApiKey || '', sender: [s.senderName, s.yourWebsite].filter(Boolean).join(', ') })
+    setKeys({ google: s.googlePlacesApiKey || '', anthropic: s.anthropicApiKey || '' })
+    try {
+      const saved = JSON.parse(localStorage.getItem('uk_templates') || 'null')
+      setTemplates({ ...DEFAULT_TEMPLATES, ...(s.senderName ? { me: s.senderName.split(' ')[0] } : {}), ...(saved || {}) })
+    } catch { /* ignore */ }
   }, [])
+  const saveTemplates = (t: UkTemplates) => { setTemplates(t); try { localStorage.setItem('uk_templates', JSON.stringify(t)) } catch { /* ignore */ } }
 
   const load = useCallback(async () => {
     try {
@@ -86,7 +94,7 @@ export default function Gaseste() {
       <ol className="mt-2 mb-4 text-[13px] text-slate-600 space-y-0.5 list-decimal pl-5">
         <li>Alegi <b>orașul</b> și <b>meseria</b>, apeși <b>Caută firme</b>.</li>
         <li>Aplicația ia firmele de pe Google și le <b>verifică site-ul</b> singură (durează ~1 minut).</li>
-        <li>Pentru fiecare firmă vezi <b>ce probleme are</b> (în română) și apeși <b>Scrie mesajul</b> → <b>WhatsApp</b>.</li>
+        <li>La fiecare firmă: <b>1. verifici</b> WhatsApp-ul și pe Google, <b>2. trimiți mesajul</b> în 2 părți scurte, <b>3. faci demo-ul</b> site-ului pentru el și îi trimiți linkul.</li>
       </ol>
 
       <section className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
@@ -104,6 +112,8 @@ export default function Gaseste() {
         {err && <p className="text-sm text-rose-700">{err}{/Google Places key/i.test(err) && <> — <Link href="/settings" className="underline">pune cheia Google în Setări</Link></>}</p>}
       </section>
 
+      <TemplateEditor value={templates} onChange={saveTemplates} />
+
       <div className="flex items-center justify-between mt-5 mb-2">
         <h2 className="text-sm font-semibold text-slate-700">{rows ? `${rows.length} firme` : 'Se încarcă…'} · {CATEGORY_RO[category]} în {city}</h2>
         <Select className="w-44 h-8 text-xs" value={show} onChange={e => setShow(e.target.value as 'todo' | 'all')}>
@@ -118,46 +128,111 @@ export default function Gaseste() {
       )}
 
       <div className="space-y-3">
-        {rows?.map(r => <LeadCard key={r.id} r={r} sender={keys.sender} onChange={p => patchRow(r.id, p)} onDone={load} />)}
+        {rows?.map(r => <LeadCard key={r.id} r={r} templates={templates} keys={keys} onChange={p => patchRow(r.id, p)} onDone={load} />)}
       </div>
     </div>
   )
 }
 
-function LeadCard({ r, sender, onChange, onDone }: { r: Lead; sender: string; onChange: (p: Partial<Lead>) => void; onDone: () => void }) {
+function LeadCard({ r, templates, keys, onChange, onDone }: { r: Lead; templates: UkTemplates; keys: Keys; onChange: (p: Partial<Lead>) => void; onDone: () => void }) {
   const [busy, setBusy] = useState('')
-  const [msg, setMsg] = useState<Msg | null>(r.message)
-  const [text, setText] = useState(r.message?.whatsapp_en || '')
-  const [showRo, setShowRo] = useState(false)
   const [err, setErr] = useState('')
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState('')
+  const [showPrice, setShowPrice] = useState(false)
+  const [demo, setDemo] = useState<{ step: string; started?: number } | null>(null)
   const st = STATUS_RO[r.website_status] || STATUS_RO.UNVERIFIED
   const wa = waNumber(r.phone_e164)
+  const mobile = !!wa
+  const noWa = r.whatsapp_status === 'NOT_FOUND' && r.whatsapp_source === 'manual'
   const score = r.opportunity_score
+  const trades = (UK_CATEGORIES.find(c => c.key === r.category)?.label || 'businesses').toLowerCase()
+  const msgs = buildMessages(templates, { name: r.name, trades, website_status: r.website_status, findingCodes: (r.findings || []).map(f => f.code), previewUrl: r.preview_url })
+  const [first, setFirst] = useState(msgs.first)
+  const [second, setSecond] = useState(msgs.second)
+  useEffect(() => { setFirst(msgs.first); setSecond(msgs.second) }, [msgs.first, msgs.second])
+  const waLink = (text?: string) => `https://wa.me/${wa}${text ? `?text=${encodeURIComponent(text)}` : ''}`
+  const canDemo = DEMO_STATUSES.includes(r.website_status)
+  const jobKey = `uk_demo_job_${r.id}`
 
-  async function write(force = false) {
-    setBusy('write'); setErr('')
-    try {
-      const res = await api<{ output: Msg }>('/api/crm/ai', { json: { kind: 'quick', business_id: r.id, sender: sender || undefined, force } })
-      setMsg(res.output); setText(res.output.whatsapp_en); setShowRo(true)
-    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
-    setBusy('')
-  }
+  const copy = (key: string, text: string) => { navigator.clipboard?.writeText(text); setCopied(key); setTimeout(() => setCopied(''), 1500) }
   async function setWa(status: 'FOUND' | 'NOT_FOUND') {
     onChange({ whatsapp_status: status, whatsapp_source: 'manual' })
     await api(`/api/crm/leads/${r.id}`, { method: 'PATCH', json: { whatsapp_status: status } }).catch(() => {})
   }
   async function sent(channel: string) {
     setBusy('sent')
-    try {
-      await api(`/api/crm/leads/${r.id}/events`, { json: { event_type: 'contacted', channel, notes: text.slice(0, 500), schedule_follow_ups: true } })
-      onDone()
-    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+    try { await api(`/api/crm/leads/${r.id}/events`, { json: { event_type: 'contacted', channel, notes: `${first}\n\n${second}`.slice(0, 1000), schedule_follow_ups: true } }); onDone() }
+    catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
     setBusy('')
   }
   async function notFit() {
     await api(`/api/crm/leads/${r.id}`, { method: 'PATCH', json: { stage: 'not_a_fit' } }).catch(() => {})
     onDone()
+  }
+
+  // ── Demo: ca la Rebuild RO — conținutul site-ului actual (dacă există) + pozele și recenziile
+  //    din Google → site concept generat de Claude pe server → publicat pe un link /p/…
+  async function waitForJob(jobId: string): Promise<string> {
+    for (let i = 0; i < 90; i++) {
+      await new Promise(res => setTimeout(res, 5000))
+      setDemo(d => ({ step: `Generez site-ul… ${Math.round((i + 1) * 5 / 60 * 10) / 10} min (durează 1–4 min, poți lăsa pagina deschisă)`, started: d?.started }))
+      const s = await (await fetch(`/api/generate-redesign?job=${jobId}`, { cache: 'no-store' })).json()
+      if (s.status === 'done') return s.html as string
+      if (s.status === 'error') throw new Error(s.error || 'Generarea a eșuat')
+    }
+    throw new Error('Generarea durează prea mult — apasă din nou „Fă demo” peste un minut.')
+  }
+  async function publish(html: string) {
+    setDemo({ step: 'Public demo-ul…' })
+    const res = await fetch('/api/publish-preview', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html, businessName: r.name, designer: templates.me, lang: 'en', existingUrl: r.preview_url || '' }) })
+    const d = await res.json()
+    if (!res.ok) throw new Error(d.code === 'no_blob' ? 'Hostingul de preview (Vercel Blob) nu e conectat.' : d.error || 'Publicarea a eșuat')
+    await api(`/api/crm/leads/${r.id}`, { method: 'PATCH', json: { preview_url: d.url } })
+    onChange({ preview_url: d.url })
+    try { localStorage.removeItem(jobKey) } catch { /* ignore */ }
+    setDemo(null)
+  }
+  async function makeDemo() {
+    setErr(''); setDemo({ step: 'Citesc site-ul actual și pozele din Google…', started: Date.now() })
+    try {
+      const ownSite = r.website_url && !['NO_WEBSITE', 'SOCIAL_ONLY', 'DIRECTORY_ONLY'].includes(r.website_status)
+      let audit: Record<string, unknown> = { url: r.website_url || '', final_url: r.website_url || '', phones: r.phone ? [r.phone] : [], emails: r.email ? [r.email] : [], title: '', description: '', headings: [], text_excerpt: '', logo_url: '', images: [], socials: r.website_url && !ownSite ? [r.website_url] : [], issues: [] }
+      if (ownSite) {
+        const res = await fetch('/api/audit-site', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: r.website_url }) })
+        const d = await res.json()
+        if (res.ok && d.audit) audit = d.audit
+      }
+      const lead = {
+        place_id: r.google_place_id || '', name: r.name, address: r.full_address || r.address || r.city, city: r.city,
+        category: r.category, category_label: UK_CATEGORIES.find(c => c.key === r.category)?.query || r.category,
+        phone: r.phone || '', phone_intl: r.phone_e164 || '', website: ownSite ? r.website_url : '', no_site: !ownSite,
+        rating: Number(r.google_rating || 0), reviews_count: r.google_review_count || 0, audit,
+      }
+      setDemo({ step: 'Pornesc generarea…', started: Date.now() })
+      const res = await fetch('/api/generate-redesign', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead, language: 'en', googleApiKey: keys.google || undefined, anthropicApiKey: keys.anthropic || undefined }) })
+      const type = res.headers.get('content-type') || ''
+      if (!type.includes('json')) throw new Error('Pentru demo trebuie conectat Vercel Blob (ca la Rebuild).')
+      const d = await res.json()
+      if (!res.ok || !d.jobId) throw new Error(d.error || 'Nu am putut porni generarea')
+      try { localStorage.setItem(jobKey, d.jobId) } catch { /* ignore */ }
+      await publish(await waitForJob(d.jobId))
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); setDemo(null) }
+  }
+  // dacă pagina a fost reîncărcată în timpul generării, continuăm același job
+  useEffect(() => {
+    let job: string | null = null
+    try { job = localStorage.getItem(jobKey) } catch { /* ignore */ }
+    if (!job || r.preview_url) return
+    setDemo({ step: 'Continui generarea începută…' })
+    waitForJob(job).then(publish).catch(e => { setErr(e instanceof Error ? e.message : String(e)); setDemo(null); try { localStorage.removeItem(jobKey) } catch { /* ignore */ } })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const Btn = ({ href, onClick, children, green, disabled }: { href?: string; onClick?: () => void; children: React.ReactNode; green?: boolean; disabled?: boolean }) => {
+    const cls = cx('h-10 px-3 inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-medium whitespace-nowrap', green ? 'bg-[#25D366] text-white' : 'border border-slate-300 text-slate-700 bg-white', disabled && 'opacity-40 pointer-events-none')
+    return href ? <a href={href} target="_blank" rel="noreferrer" className={cls}>{children}</a> : <button onClick={onClick} className={cls}>{children}</button>
   }
 
   return (
@@ -167,7 +242,7 @@ function LeadCard({ r, sender, onChange, onDone }: { r: Lead; sender: string; on
           <h3 className="font-semibold text-slate-900 leading-snug">{r.name}</h3>
           <div className="text-xs text-slate-500 mt-0.5">
             {r.google_rating != null && <>★ {Number(r.google_rating).toFixed(1)} ({r.google_review_count || 0} recenzii) · </>}{r.city}
-            {r.stage !== 'new_lead' && r.stage !== 'reviewed' && r.stage !== 'ready_to_contact' && <> · <b>{r.stage === 'contacted' ? 'contactat' : r.stage}</b></>}
+            {r.stage === 'contacted' && <> · <b>contactat</b></>}
           </div>
         </div>
         {score != null && (
@@ -180,65 +255,127 @@ function LeadCard({ r, sender, onChange, onDone }: { r: Lead; sender: string; on
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <Badge tone={st.tone}>{st.label}</Badge>
+        {r.phone ? <Badge tone={mobile ? 'info' : 'neutral'}>{mobile ? '📱 Mobil' : '☎️ Fix'}</Badge> : <Badge>Fără telefon</Badge>}
         {r.whatsapp_status === 'FOUND' && <Badge tone="good">✓ Are WhatsApp</Badge>}
-        {r.whatsapp_status === 'NOT_FOUND' && r.whatsapp_source === 'manual' && <Badge tone="bad">✗ Nu are WhatsApp</Badge>}
+        {noWa && <Badge tone="bad">✗ Nu are WhatsApp</Badge>}
+        {r.preview_url && <Badge tone="accent">🎨 Demo gata</Badge>}
       </div>
       <p className="text-[12px] text-slate-500 mt-1">{st.hint}</p>
-
       {!!r.findings?.length && (
         <ul className="mt-2 space-y-1">
           {r.findings.slice(0, 4).map(f => <li key={f.code} className="text-[13px] text-slate-700 flex gap-1.5"><span className="text-rose-500">•</span>{findingRo(f.code, f.what)}</li>)}
         </ul>
       )}
 
-      <div className="mt-3 flex flex-wrap gap-2 text-sm">
-        {r.phone && <a href={`tel:${r.phone_e164 || r.phone}`} className="px-3 h-9 inline-flex items-center rounded-lg border border-slate-300">📞 {r.phone}</a>}
-        {r.google_maps_url && <a href={r.google_maps_url} target="_blank" rel="noreferrer" className="px-3 h-9 inline-flex items-center rounded-lg border border-slate-300">🗺️ Google Maps</a>}
-        {r.website_url && <a href={r.website_url} target="_blank" rel="noreferrer" className="px-3 h-9 inline-flex items-center rounded-lg border border-slate-300 max-w-[200px] truncate">🌐 Site</a>}
-        <Link href={`/crm/leads/${r.id}`} className="px-3 h-9 inline-flex items-center rounded-lg text-slate-500">Detalii →</Link>
-      </div>
-
-      <div className="mt-3 border-t border-slate-100 pt-3">
-        {!msg ? (
-          <Button variant="primary" className="w-full h-10" loading={busy === 'write'} onClick={() => write()}>✍️ Scrie mesajul (engleză + traducere)</Button>
-        ) : (
-          <div className="space-y-2">
-            <textarea value={text} onChange={e => setText(e.target.value)} rows={6} className="w-full rounded-lg border border-slate-300 p-2 text-sm leading-relaxed" />
-            <button className="text-xs text-teal-700 underline" onClick={() => setShowRo(v => !v)}>{showRo ? 'Ascunde traducerea' : 'Ce spune mesajul? (traducere în română)'}</button>
-            {showRo && (
-              <div className="rounded-lg bg-slate-50 p-2 text-[13px] text-slate-700 whitespace-pre-wrap">
-                {msg.whatsapp_ro}
-                {msg.finding_used_ro && <div className="mt-2 text-xs text-slate-500">De ce: {msg.finding_used_ro}</div>}
-              </div>
-            )}
-            {wa ? (
-              <a href={`https://wa.me/${wa}?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer"
-                className="w-full h-11 inline-flex items-center justify-center gap-2 rounded-lg bg-[#25D366] text-white font-semibold whitespace-nowrap">
-                📱 Deschide WhatsApp · +44 {wa.slice(2, 6)} {wa.slice(6)}
-              </a>
-            ) : (
-              <p className="text-xs text-slate-500">{r.phone ? 'Număr fix — WhatsApp merge doar pe mobil (07…). Sună sau trimite email.' : 'Nu are telefon în Google.'}</p>
-            )}
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" className="h-10" onClick={() => { navigator.clipboard?.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500) }}>{copied ? 'Copiat ✓' : 'Copiază'}</Button>
-              {r.email && <a href={`mailto:${r.email}?subject=${encodeURIComponent(msg.email_subject_en)}&body=${encodeURIComponent(msg.email_en)}`} className="h-10 px-3 inline-flex items-center rounded-lg border border-slate-300 text-sm">✉️ Email</a>}
-              <Button size="sm" variant="ghost" className="h-10" loading={busy === 'write'} onClick={() => write(true)}>↻ Alt mesaj</Button>
-            </div>
-            {wa && (
-              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                După ce deschizi WhatsApp: numărul are WhatsApp?
-                <button className={cx('px-2 h-7 rounded-md border', r.whatsapp_status === 'FOUND' && r.whatsapp_source === 'manual' ? 'bg-emerald-600 text-white border-emerald-600' : 'border-slate-300')} onClick={() => setWa('FOUND')}>✓ Da</button>
-                <button className={cx('px-2 h-7 rounded-md border', r.whatsapp_status === 'NOT_FOUND' && r.whatsapp_source === 'manual' ? 'bg-rose-600 text-white border-rose-600' : 'border-slate-300')} onClick={() => setWa('NOT_FOUND')}>✗ Nu</button>
-              </div>
-            )}
-            <div className="flex gap-2 pt-1">
-              <Button size="sm" variant="primary" loading={busy === 'sent'} onClick={() => sent(wa && r.whatsapp_status !== 'NOT_FOUND' ? 'whatsapp' : r.email ? 'email' : 'phone')}>✅ Am trimis mesajul</Button>
-              <Button size="sm" variant="ghost" onClick={notFit}>Nu e potrivit</Button>
-            </div>
+      {/* 1. Verificare */}
+      <Step n={1} title="Verificare">
+        <div className="flex flex-wrap gap-2">
+          {mobile && <Btn green href={waLink()}>💬 Verifică WhatsApp</Btn>}
+          {r.phone && <Btn href={`tel:${r.phone_e164 || r.phone}`}>📞 {r.phone}</Btn>}
+          <Btn href={`https://www.google.com/search?q=${encodeURIComponent(`${r.name} ${r.city}`)}`}>🔎 Caută pe Google</Btn>
+          {r.google_maps_url && <Btn href={r.google_maps_url}>🗺️ Maps</Btn>}
+          {r.website_url && <Btn href={r.website_url}>🌐 Site</Btn>}
+        </div>
+        {mobile && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+            S-a deschis chatul (are WhatsApp)?
+            <button className={cx('px-2.5 h-8 rounded-md border', r.whatsapp_status === 'FOUND' && r.whatsapp_source === 'manual' ? 'bg-emerald-600 text-white border-emerald-600' : 'border-slate-300')} onClick={() => setWa('FOUND')}>✓ Da</button>
+            <button className={cx('px-2.5 h-8 rounded-md border', noWa ? 'bg-rose-600 text-white border-rose-600' : 'border-slate-300')} onClick={() => setWa('NOT_FOUND')}>✗ Nu</button>
           </div>
         )}
-        {err && <p className="text-xs text-rose-700 mt-2">{err}</p>}
+        {!mobile && r.phone && <p className="text-xs text-slate-500 mt-2">Număr fix — WhatsApp merge doar pe mobil (07…). Sună sau trimite email{r.email ? ` (${r.email})` : ''}.</p>}
+      </Step>
+
+      {/* 2. Mesaj în 2 părți scurte */}
+      <Step n={2} title="Mesaj (2 părți scurte, în engleză)">
+        <label className="block text-[11px] text-slate-500 mb-1">Partea 1 — se deschide direct în WhatsApp</label>
+        <textarea value={first} onChange={e => setFirst(e.target.value)} rows={3} className="w-full rounded-lg border border-slate-300 p-2 text-sm leading-relaxed" />
+        <div className="flex flex-wrap gap-2 mt-1.5">
+          {mobile && !noWa && <Btn green href={waLink(first)}>📱 Trimite partea 1 pe WhatsApp</Btn>}
+          <Btn onClick={() => copy('1', first)}>{copied === '1' ? 'Copiat ✓' : 'Copiază'}</Btn>
+        </div>
+        <label className="block text-[11px] text-slate-500 mt-3 mb-1">Partea 2 — o lipești imediat după (sau după ce răspunde)</label>
+        <textarea value={second} onChange={e => setSecond(e.target.value)} rows={5} className="w-full rounded-lg border border-slate-300 p-2 text-sm leading-relaxed" />
+        <div className="flex flex-wrap gap-2 mt-1.5">
+          <Btn onClick={() => copy('2', second)}>{copied === '2' ? 'Copiat ✓' : '📋 Copiază partea 2'}</Btn>
+          {r.email && <Btn href={`mailto:${r.email}?subject=${encodeURIComponent(`A quick idea for ${r.name}`)}&body=${encodeURIComponent(`${first}\n\n${second}`)}`}>✉️ Email</Btn>}
+        </div>
+        <button className="mt-2 text-xs text-teal-700 underline" onClick={() => setShowPrice(v => !v)}>{showPrice ? 'Ascunde' : 'Dacă răspunde că e interesat → mesajul despre preț'}</button>
+        {showPrice && (
+          <div className="mt-1.5 rounded-lg bg-slate-50 p-2 text-[13px] text-slate-700 whitespace-pre-wrap">
+            {msgs.price}
+            <div className="mt-2"><Btn onClick={() => copy('p', msgs.price)}>{copied === 'p' ? 'Copiat ✓' : 'Copiază'}</Btn></div>
+          </div>
+        )}
+      </Step>
+
+      {/* 3. Demo stilizat pe afacerea lui */}
+      {canDemo && (
+        <Step n={3} title="Demo site pentru el (ca la Rebuild)">
+          {r.preview_url ? (
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                <Btn href={r.preview_url}>👀 Vezi demo-ul</Btn>
+                {mobile && !noWa && <Btn green href={waLink(msgs.demo)}>📱 Trimite demo-ul pe WhatsApp</Btn>}
+                <Btn onClick={() => copy('d', msgs.demo)}>{copied === 'd' ? 'Copiat ✓' : 'Copiază mesajul cu link'}</Btn>
+              </div>
+              <button className="text-xs text-slate-500 underline" disabled={!!demo} onClick={makeDemo}>↻ Refă demo-ul (păstrează același link)</button>
+            </div>
+          ) : demo ? (
+            <p className="text-sm text-teal-800 flex items-center gap-2"><span className="w-3.5 h-3.5 border-2 border-current border-r-transparent rounded-full animate-spin" />{demo.step}</p>
+          ) : (
+            <>
+              <Button variant="primary" className="w-full h-10" onClick={makeDemo}>🎨 Fă demo site pentru {r.name}</Button>
+              <p className="text-[11px] text-slate-400 mt-1">Site concept în engleză, cu pozele și recenziile lui reale din Google{r.website_url && !['NO_WEBSITE', 'SOCIAL_ONLY', 'DIRECTORY_ONLY'].includes(r.website_status) ? ' și textele de pe site-ul actual' : ''}. Primești un link live.</p>
+            </>
+          )}
+        </Step>
+      )}
+
+      <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
+        <Button size="sm" variant="primary" loading={busy === 'sent'} onClick={() => sent(mobile && !noWa ? 'whatsapp' : r.email ? 'email' : 'phone')}>✅ Am trimis mesajul</Button>
+        <Button size="sm" variant="ghost" onClick={notFit}>Nu e potrivit</Button>
+        <Link href={`/crm/leads/${r.id}`} className="h-8 px-2 inline-flex items-center text-[13px] text-slate-500">Detalii →</Link>
       </div>
+      {err && <p className="text-xs text-rose-700 mt-2">{err}</p>}
     </article>
+  )
+}
+
+function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+  return (
+    <section className="mt-3 pt-3 border-t border-slate-100">
+      <h4 className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide mb-2"><span className="inline-flex w-5 h-5 mr-1.5 items-center justify-center rounded-full bg-slate-900 text-white text-[11px]">{n}</span>{title}</h4>
+      {children}
+    </section>
+  )
+}
+
+function TemplateEditor({ value, onChange }: { value: UkTemplates; onChange: (t: UkTemplates) => void }) {
+  const [open, setOpen] = useState(false)
+  const field = (k: keyof UkTemplates, label: string, rows = 3) => (
+    <label className="block">
+      <span className="block text-[11px] text-slate-500 mb-0.5">{label}</span>
+      {rows === 1 ? <input value={value[k]} onChange={e => onChange({ ...value, [k]: e.target.value })} className="w-full h-9 rounded-lg border border-slate-300 px-2 text-sm" />
+        : <textarea value={value[k]} onChange={e => onChange({ ...value, [k]: e.target.value })} rows={rows} className="w-full rounded-lg border border-slate-300 p-2 text-sm" />}
+    </label>
+  )
+  return (
+    <section className="mt-3 bg-white border border-slate-200 rounded-xl p-3">
+      <button className="text-sm font-medium text-slate-700 w-full text-left" onClick={() => setOpen(v => !v)}>✏️ Mesajele tale (șabloane) {open ? '▲' : '▼'}</button>
+      {open && (
+        <div className="mt-3 space-y-2">
+          <p className="text-[11px] text-slate-500">Se completează singure: {'{me}'} = numele tău, {'{name}'} = firma, {'{trades}'} = meseria (plumbers…), {'{problem}'} = problema găsită la site, {'{link}'} = linkul demo-ului. Se salvează pe acest telefon.</p>
+          {field('me', 'Numele tău', 1)}
+          {field('intro_nosite', 'Partea 1 — firmă fără site')}
+          {field('intro_social', 'Partea 1 — doar Facebook / director')}
+          {field('intro_site', 'Partea 1 — are site, dar cu probleme')}
+          {field('offer', 'Partea 2 — oferta + cine ești', 6)}
+          {field('price', 'Dacă e interesat — prețul')}
+          {field('demo', 'După demo — mesajul cu linkul')}
+          <Button size="sm" variant="ghost" onClick={() => onChange(DEFAULT_TEMPLATES)}>Revino la textele inițiale</Button>
+        </div>
+      )}
+    </section>
   )
 }
