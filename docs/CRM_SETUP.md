@@ -61,6 +61,23 @@ Structured JSON output, identical requests cached, hourly limit in **Settings �
 and estimated cost on the AI Sales Assistant page. Every output is a draft you review; prompts tell
 the model to use only verified facts and never invent reviews, prices or claims.
 
+## Daily hunt (50 leads a day)
+
+`/crm/gaseste` shows **Lista zilei**: businesses with no website or a website that needs rebuilding,
+with a UK **mobile** number, not marked "no WhatsApp" and not yet contacted. **Completează până la 50**
+searches the whole UK by itself — town by town, ~47 business types (barbers, nail salons, car washes,
+trades…) — saving only businesses with a mobile number and auditing them, until the list has 50.
+Marking ✗ (no WhatsApp) removes a business; press the button again to refill.
+
+- **Automatic every morning** (Vercel Cron `/api/crm/hunt/cron`, 06:41 UTC): needs
+  `GOOGLE_PLACES_API_KEY` in Vercel (the key saved in the browser cannot be used by the server).
+  Each call does one step and re-invokes itself until the list is full (max 80 steps/day).
+- **Cost**: if "Places API (New)" is enabled for the key, one call returns 20 businesses with phone
+  and website (~$0.04). Otherwise the app falls back to the classic API (Text Search + one Place
+  Details per business, ~$0.40 per 20) and retries the new API once a day. Daily cap:
+  **Settings → Limits → max new businesses per day** (default 400). Today's estimated Google cost is
+  shown on the page.
+
 ## Simple page (Romanian): /crm/gaseste
 
 The easiest way to use the CRM: pick a city and a trade, press **Caută firme**. The app finds the

@@ -116,3 +116,54 @@ export async function placeDetails(b: DiscoveredBusiness, fetchImpl?: typeof fet
     raw: { ...b.raw, details: d },
   }
 }
+
+// ── Places API (New) — Text Search cu telefon + site în același apel (fără Place Details) ──
+// ~10x mai ieftin pentru același rezultat. Dacă API-ul nou nu e activat la cheie, discovery
+// trece automat pe varianta clasică de mai sus.
+const NEW_FIELD_MASK = [
+  'places.id', 'places.displayName', 'places.formattedAddress', 'places.nationalPhoneNumber', 'places.internationalPhoneNumber',
+  'places.websiteUri', 'places.rating', 'places.userRatingCount', 'places.googleMapsUri', 'places.businessStatus',
+  'places.primaryType', 'nextPageToken',
+].join(',')
+
+export const newSearchCost = () => Number(process.env.GOOGLE_PLACES_NEW_COST || '0.040')
+
+export class ApiNotEnabled extends Error {}
+
+export async function searchTextNew(opts: { textQuery: string; pageToken?: string | null; fetchImpl?: typeof fetch; apiKey?: string | null }): Promise<SearchPage> {
+  const key = placesKey(opts.apiKey)
+  if (!key) throw new ProviderError('No Google Places key: add it in the app Settings page or as GOOGLE_PLACES_API_KEY in Vercel', 503, false)
+  const body: Record<string, unknown> = { textQuery: opts.textQuery, regionCode: 'GB', languageCode: 'en-GB', pageSize: 20 }
+  if (opts.pageToken) body.pageToken = opts.pageToken
+  const res = await (opts.fetchImpl || fetch)('https://places.googleapis.com/v1/places:searchText', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': NEW_FIELD_MASK },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(15000),
+  })
+  const data = await res.json().catch(() => ({})) as { places?: Record<string, any>[]; nextPageToken?: string; error?: { message?: string; status?: string } } // eslint-disable-line @typescript-eslint/no-explicit-any
+  if (!res.ok) {
+    const msg = data.error?.message || data.error?.status || 'request failed'
+    // API-ul nou nu e activat / cheia e restricționată doar la cel vechi → folosim varianta clasică
+    if (res.status === 403 || /not been used|disabled|not enabled|not authorized|API_KEY_SERVICE_BLOCKED|PERMISSION_DENIED/i.test(msg)) throw new ApiNotEnabled(msg)
+    throw new ProviderError(`Google Places ${res.status}: ${msg}`, res.status, res.status === 429 || res.status >= 500)
+  }
+  return {
+    nextPageToken: data.nextPageToken || null,
+    results: (data.places || []).map(p => ({
+      provider: 'google_places' as const,
+      providerId: String(p.id),
+      name: p.displayName?.text || '',
+      address: p.formattedAddress || null,
+      phone: p.nationalPhoneNumber || null,
+      phoneIntl: p.internationalPhoneNumber || null,
+      websiteUrl: p.websiteUri || null,
+      rating: typeof p.rating === 'number' ? p.rating : null,
+      reviewCount: typeof p.userRatingCount === 'number' ? p.userRatingCount : null,
+      mapsUrl: p.googleMapsUri || null,
+      businessStatus: p.businessStatus || null,
+      primaryType: p.primaryType || null,
+      raw: p,
+    })).filter(b => b.providerId && b.name),
+  }
+}

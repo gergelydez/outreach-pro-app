@@ -26,10 +26,15 @@ const jsonRes = (body: unknown) => new Response(JSON.stringify(body), { status: 
 // `place()` descrie firma; mock-ul o împarte în câmpurile întoarse de fiecare endpoint.
 export function legacyPlacesMock(pages: Record<string, any>[][]) { // eslint-disable-line @typescript-eslint/no-explicit-any
   const all = new Map(pages.flat().map(p => [p.id, p]))
-  const calls = { textSearch: 0, details: 0, urls: [] as string[] }
+  const calls = { textSearch: 0, details: 0, newApi: 0, urls: [] as string[] }
   const fn = async (input: string | URL | Request) => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url)
     calls.urls.push(url.toString())
+    // API-ul nou nu e activat la această cheie (ca la utilizator) → discovery trece pe cel clasic
+    if (url.hostname === 'places.googleapis.com') {
+      calls.newApi = (calls.newApi || 0) + 1
+      return new Response(JSON.stringify({ error: { code: 403, message: 'Places API (New) has not been used in project 123 before or it is disabled.', status: 'PERMISSION_DENIED' } }), { status: 403 })
+    }
     if (url.pathname.endsWith('/textsearch/json')) {
       const token = url.searchParams.get('pagetoken')
       const i = token ? Number(token.replace('token', '')) : 0
@@ -57,3 +62,17 @@ export const place = (id: string, extra: Record<string, unknown> = {}) => ({
   nationalPhoneNumber: `0121 496 ${String(1000 + Number(id.replace(/\D/g, '') || 0)).slice(-4)}`,
   rating: 4.7, userRatingCount: 40, googleMapsUri: `https://maps.google.com/?cid=${id}`, businessStatus: 'OPERATIONAL', ...extra,
 })
+
+// Imită Places API (New): un singur apel cu telefon + site pentru fiecare firmă
+export function newPlacesMock(pages: Record<string, any>[][]) { // eslint-disable-line @typescript-eslint/no-explicit-any
+  const calls = { search: 0, other: 0 }
+  const fn = async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url)
+    if (url.hostname !== 'places.googleapis.com') { calls.other++; return new Response('unexpected', { status: 404 }) }
+    const body = JSON.parse(String(init?.body || '{}'))
+    const i = body.pageToken ? Number(String(body.pageToken).replace('n', '')) : 0
+    calls.search++
+    return jsonRes({ places: pages[i] || [], nextPageToken: i < pages.length - 1 ? `n${i + 1}` : undefined })
+  }
+  return { fetch: fn as unknown as typeof fetch, calls }
+}

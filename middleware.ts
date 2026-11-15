@@ -8,7 +8,7 @@ import { SESSION_COOKIE, verifySession } from '@/lib/crm/session'
 // - /api/crm/worker/* și /api/crm/maintenance/* folosesc tokenuri proprii, verificate în rută
 
 const PUBLIC_API = ['/api/crm/auth/login', '/api/crm/auth/logout']
-const TOKEN_API = ['/api/crm/worker/', '/api/crm/maintenance/']
+const TOKEN_API = ['/api/crm/worker/', '/api/crm/maintenance/', '/api/crm/hunt/cron']
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
