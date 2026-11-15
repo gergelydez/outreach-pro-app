@@ -3,6 +3,7 @@ import { q } from '@/lib/crm/db'
 import { runDiscovery, newLeadsToday } from '@/lib/crm/discovery'
 import { getSettings } from '@/lib/crm/settings'
 import { placesKey } from '@/lib/crm/providers/google-places'
+import { asCountry } from '@/lib/crm/countries'
 
 export const maxDuration = 60
 export const dynamic = 'force-dynamic'
@@ -22,6 +23,7 @@ export const POST = route(async (req: Request) => {
     minRating: b.min_rating != null && b.min_rating !== '' ? Number(b.min_rating) : null,
     minReviews: b.min_reviews != null && b.min_reviews !== '' ? int(b.min_reviews, 0, 0, 100000) : null,
     websiteFilter: wf === 'no_website' || wf === 'has_website' ? wf : 'any',
+    country: asCountry(b.country),
   }, undefined, { apiKey: clientKey })
   return json(result, result.stoppedReason === 'error' ? 502 : 200)
 })

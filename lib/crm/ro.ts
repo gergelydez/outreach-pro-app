@@ -54,4 +54,5 @@ export const CATEGORY_RO: Record<string, string> = {
   massage: 'Masaj', tattoo: 'Tatuaje', dog_groomer: 'Toaletaj câini', personal_trainer: 'Antrenori personali',
   takeaway: 'Take-away', cafe: 'Cafenele', bakery: 'Brutării', caterer: 'Catering', florist: 'Florării',
   tailor: 'Croitorii', phone_repair: 'Reparații telefoane', computer_repair: 'Reparații calculatoare', photographer: 'Fotografi', tutor: 'Meditații',
+  damp_proofing: 'Hidroizolații / igrasie', double_glazing: 'Termopane', chimney_sweep: 'Coșari', accountant: 'Contabili',
 }

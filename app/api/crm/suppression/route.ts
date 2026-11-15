@@ -1,6 +1,7 @@
 import { route, json, body, str, requireUuid, HttpError } from '@/lib/crm/api'
 import { q, one } from '@/lib/crm/db'
-import { normalizeUkPhone, normalizeDomain } from '@/lib/crm/normalize'
+import { normalizeDomain } from '@/lib/crm/normalize'
+import { normalizePhone } from '@/lib/crm/countries'
 
 // pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
 export const maxDuration = 60
@@ -14,7 +15,7 @@ export const POST = route(async (req: Request) => {
   const kind = ['email', 'phone', 'domain'].find(k => k === b.kind)
   const raw = str(b.value, 200)
   if (!kind || !raw) throw new HttpError(400, 'Kind (email, phone, domain) and value are required')
-  const value = kind === 'email' ? raw.toLowerCase() : kind === 'phone' ? normalizeUkPhone(raw) : normalizeDomain(raw)
+  const value = kind === 'email' ? raw.toLowerCase() : kind === 'phone' ? normalizePhone(raw, /^(\+|00)36|^06/.test(raw.replace(/\s/g, '')) ? 'HU' : 'UK') : normalizeDomain(raw)
   if (!value) throw new HttpError(400, 'Value is not valid for this kind')
   const item = await one(`INSERT INTO suppression_list (kind, value, reason) VALUES ($1,$2,$3) ON CONFLICT (kind, value) DO UPDATE SET reason = EXCLUDED.reason RETURNING *`, [kind, value, str(b.reason, 300)])
   return json({ item })

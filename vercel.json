@@ -11,6 +11,10 @@
     {
       "path": "/api/crm/hunt/cron",
       "schedule": "41 6 * * *"
+    },
+    {
+      "path": "/api/crm/hunt/cron?country=HU",
+      "schedule": "11 7 * * *"
     }
   ]
 }

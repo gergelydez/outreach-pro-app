@@ -32,6 +32,9 @@ export default function Home() {
             <Link href="/crm/gaseste" className="px-4 py-2 rounded-lg text-white bg-teal-700 hover:bg-teal-600 transition-all text-sm font-semibold">
               🇬🇧 UK CRM
             </Link>
+            <Link href="/crm/ungaria" className="px-4 py-2 rounded-lg text-white bg-emerald-700 hover:bg-emerald-600 transition-all text-sm font-semibold">
+              🇭🇺 Ungaria
+            </Link>
             <Link href="/prospect" className="px-4 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all text-sm font-medium">
               🧭 Prospectare
             </Link>

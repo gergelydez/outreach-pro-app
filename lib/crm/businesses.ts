@@ -1,7 +1,8 @@
 // Operații pe lead-uri: deduplicare, inserare cu proveniență, aplicarea auditului,
 // recalcularea scorului, schimbarea etapei.
 import { q, one, db, type Queryable } from './db'
-import { normalizeUkPhone, normalizeDomain, normalizeName, extractUkPostcode } from './normalize'
+import { normalizeDomain, normalizeName, extractUkPostcode } from './normalize'
+import { normalizePhone, asCountry, type Country } from './countries'
 import { classifyWebsite } from './classify'
 import { scoreLead } from './scoring'
 import { getSettings } from './settings'
@@ -27,7 +28,7 @@ export type DedupeResult =
 
 // Potriviri sigure (Place ID, domeniu propriu, telefon) = duplicat. Numele + codul
 // poștal e doar o potrivire slabă: lead-ul se salvează, dar e marcat pentru verificare.
-export async function findDuplicate(b: { placeId?: string | null; websiteUrl?: string | null; phone?: string | null; name: string; address?: string | null }, on: Queryable = db()): Promise<DedupeResult> {
+export async function findDuplicate(b: { placeId?: string | null; websiteUrl?: string | null; phone?: string | null; name: string; address?: string | null; country?: Country }, on: Queryable = db()): Promise<DedupeResult> {
   if (b.placeId) {
     const r = await one<{ id: string }>('SELECT id FROM businesses WHERE google_place_id = $1', [b.placeId], on)
     if (r) return { kind: 'duplicate', id: r.id, matchedOn: 'place_id' }
@@ -37,12 +38,12 @@ export async function findDuplicate(b: { placeId?: string | null; websiteUrl?: s
     const r = await one<{ id: string }>('SELECT id FROM businesses WHERE website_domain = $1 LIMIT 1', [domain], on)
     if (r) return { kind: 'duplicate', id: r.id, matchedOn: 'domain' }
   }
-  const phone = normalizeUkPhone(b.phone)
+  const phone = normalizePhone(b.phone, b.country || 'UK')
   if (phone) {
     const r = await one<{ id: string }>('SELECT id FROM businesses WHERE phone_e164 = $1 LIMIT 1', [phone], on)
     if (r) return { kind: 'duplicate', id: r.id, matchedOn: 'phone' }
   }
-  const postcode = extractUkPostcode(b.address)
+  const postcode = (b.country || 'UK') === 'UK' ? extractUkPostcode(b.address) : null
   if (postcode) {
     const rows = await q<{ id: string; name: string }>('SELECT id, name FROM businesses WHERE postcode = $1', [postcode], on)
     const n = normalizeName(b.name)
@@ -62,19 +63,20 @@ export function ownDomain(url: string | null | undefined): string | null {
 
 const retentionDays = () => Number(process.env.GOOGLE_DATA_RETENTION_DAYS || '30')
 
-export async function insertDiscovered(b: DiscoveredBusiness, ctx: { city: string; region: string | null; category: string; jobId: string; possibleDuplicateOf?: string | null }, on: Queryable = db()): Promise<string> {
+export async function insertDiscovered(b: DiscoveredBusiness, ctx: { city: string; region: string | null; category: string; jobId: string; possibleDuplicateOf?: string | null; country?: Country }, on: Queryable = db()): Promise<string> {
+  const country = ctx.country || 'UK'
   const now = new Date().toISOString()
   const src = (field: string) => ({ [field]: { source: 'google_places', verified: true, checked_at: now } })
   const sources = { ...src('name'), ...src('address'), ...src('phone'), ...src('website_url'), ...src('google_rating'), ...src('google_review_count') }
   const row = await one<{ id: string }>(
     `INSERT INTO businesses (name, category, city, region, address, postcode, phone, phone_e164, website_url, website_domain,
        google_place_id, google_maps_url, google_rating, google_review_count, google_data_fetched_at, business_status,
-       website_status, lead_source, field_sources, discovery_job_id, possible_duplicate_of)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,now(),$15,'UNVERIFIED','google_places',$16,$17,$18)
+       website_status, lead_source, field_sources, discovery_job_id, possible_duplicate_of, country)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,now(),$15,'UNVERIFIED','google_places',$16,$17,$18,$19)
      RETURNING id`,
-    [b.name, ctx.category, ctx.city, ctx.region, b.address, extractUkPostcode(b.address), b.phone || b.phoneIntl, normalizeUkPhone(b.phoneIntl || b.phone),
+    [b.name, ctx.category, ctx.city, ctx.region, b.address, country === 'UK' ? extractUkPostcode(b.address) : null, b.phone || b.phoneIntl, normalizePhone(b.phoneIntl || b.phone, country),
       b.websiteUrl, ownDomain(b.websiteUrl), b.providerId, b.mapsUrl, b.rating, b.reviewCount, b.businessStatus,
-      JSON.stringify(sources), ctx.jobId, ctx.possibleDuplicateOf ?? null], on)
+      JSON.stringify(sources), ctx.jobId, ctx.possibleDuplicateOf ?? null, country], on)
   const id = row!.id
   await q(`INSERT INTO business_sources (business_id, provider, provider_id, payload, expires_at)
            VALUES ($1, 'google_places', $2, $3, now() + ($4 || ' days')::interval)`, [id, b.providerId, JSON.stringify(b.raw), String(retentionDays())], on)
@@ -115,7 +117,7 @@ export async function applyAudit(businessId: string, facts: AuditFacts): Promise
   const sources: Record<string, unknown> = { ...b.field_sources }
   const updates: Record<string, unknown> = {}
   if (!b.email && facts.emails?.length) { updates.email = facts.emails[0]; sources.email = { source: 'website', verified: true, checked_at: new Date().toISOString(), url: facts.final_url } }
-  if (!b.phone && facts.phones?.length) { updates.phone = facts.phones[0]; updates.phone_e164 = normalizeUkPhone(facts.phones[0]); sources.phone = { source: 'website', verified: true, checked_at: new Date().toISOString() } }
+  if (!b.phone && facts.phones?.length) { updates.phone = facts.phones[0]; updates.phone_e164 = normalizePhone(facts.phones[0], asCountry((b as { country?: string }).country)); sources.phone = { source: 'website', verified: true, checked_at: new Date().toISOString() } }
 
   const settings = await getSettings()
   const score = scoreLead({ websiteStatus: cls.status, facts, rating: b.google_rating != null ? Number(b.google_rating) : null, reviewCount: b.google_review_count, weights: settings.scoring })

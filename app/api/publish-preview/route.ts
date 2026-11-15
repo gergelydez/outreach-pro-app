@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   const slug = prevSlug || `${slugify(businessName)}-${randomBytes(3).toString('hex')}`
 
   try {
-    await put(`previews/${slug}.html`, withConceptBanner(html, businessName, designer, lang === 'en' ? 'en' : 'ro'), {
+    await put(`previews/${slug}.html`, withConceptBanner(html, businessName, designer, lang === 'en' ? 'en' : lang === 'hu' ? 'hu' : 'ro'), {
       access: 'public',
       contentType: 'text/html; charset=utf-8',
       addRandomSuffix: false,
