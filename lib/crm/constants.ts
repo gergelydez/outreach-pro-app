@@ -61,6 +61,10 @@ export const UK_CATEGORIES: { key: string; label: string; query: string; placesT
   { key: 'removals', label: 'Removal companies', query: 'removals man and van' },
   { key: 'pest_control', label: 'Pest control companies', query: 'pest control' },
   { key: 'scaffolding', label: 'Scaffolders', query: 'scaffolding company' },
+  { key: 'damp_proofing', label: 'Damp proofing companies', query: 'damp proofing specialist' },
+  { key: 'double_glazing', label: 'Double glazing companies', query: 'double glazing windows doors' },
+  { key: 'chimney_sweep', label: 'Chimney sweeps', query: 'chimney sweep' },
+  { key: 'accountant', label: 'Accountants', query: 'accountant small business' },
   // auto
   { key: 'car_repair', label: 'Garages', query: 'car garage mechanic MOT', placesType: 'car_repair' },
   { key: 'mobile_mechanic', label: 'Mobile mechanics', query: 'mobile mechanic' },

@@ -52,12 +52,12 @@ function checkStatus(data: { status?: string; error_message?: string }, httpStat
   throw new ProviderError(msg, 502, true)
 }
 
-export async function searchText(opts: { textQuery: string; pageToken?: string | null; fetchImpl?: typeof fetch; pageDelayMs?: number; apiKey?: string | null }): Promise<SearchPage> {
+export async function searchText(opts: { textQuery: string; pageToken?: string | null; fetchImpl?: typeof fetch; pageDelayMs?: number; apiKey?: string | null; region?: string; language?: string }): Promise<SearchPage> {
   const key = placesKey(opts.apiKey)
   if (!key) throw new ProviderError('No Google Places key: add it in the app Settings page or as GOOGLE_PLACES_API_KEY in Vercel', 503, false)
   const u = new URL(`${API}/textsearch/json`)
   if (opts.pageToken) u.searchParams.set('pagetoken', opts.pageToken)
-  else { u.searchParams.set('query', opts.textQuery); u.searchParams.set('region', 'uk'); u.searchParams.set('language', 'en-GB') }
+  else { u.searchParams.set('query', opts.textQuery); u.searchParams.set('region', opts.region || 'uk'); u.searchParams.set('language', opts.language || 'en-GB') }
   u.searchParams.set('key', key)
 
   // Tokenul paginii următoare devine valid după ~2 secunde; dacă nu e gata, Google dă INVALID_REQUEST.
@@ -94,13 +94,13 @@ export async function searchText(opts: { textQuery: string; pageToken?: string |
 }
 
 // Completează telefonul, site-ul și link-ul Google Maps (doar câmpurile necesare)
-export async function placeDetails(b: DiscoveredBusiness, fetchImpl?: typeof fetch, apiKey?: string | null): Promise<DiscoveredBusiness> {
+export async function placeDetails(b: DiscoveredBusiness, fetchImpl?: typeof fetch, apiKey?: string | null, language = 'en-GB'): Promise<DiscoveredBusiness> {
   const key = placesKey(apiKey)
   if (!key) throw new ProviderError('GOOGLE_PLACES_API_KEY is not configured', 503, false)
   const u = new URL(`${API}/details/json`)
   u.searchParams.set('place_id', b.providerId)
   u.searchParams.set('fields', 'formatted_phone_number,international_phone_number,website,url,business_status')
-  u.searchParams.set('language', 'en-GB')
+  u.searchParams.set('language', language)
   u.searchParams.set('key', key)
   const res = await (fetchImpl || fetch)(u.toString(), { signal: AbortSignal.timeout(15000) })
   const data = await res.json().catch(() => ({})) as { status?: string; error_message?: string; result?: Record<string, any> } // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -130,10 +130,10 @@ export const newSearchCost = () => Number(process.env.GOOGLE_PLACES_NEW_COST || 
 
 export class ApiNotEnabled extends Error {}
 
-export async function searchTextNew(opts: { textQuery: string; pageToken?: string | null; fetchImpl?: typeof fetch; apiKey?: string | null }): Promise<SearchPage> {
+export async function searchTextNew(opts: { textQuery: string; pageToken?: string | null; fetchImpl?: typeof fetch; apiKey?: string | null; regionCode?: string; languageCode?: string }): Promise<SearchPage> {
   const key = placesKey(opts.apiKey)
   if (!key) throw new ProviderError('No Google Places key: add it in the app Settings page or as GOOGLE_PLACES_API_KEY in Vercel', 503, false)
-  const body: Record<string, unknown> = { textQuery: opts.textQuery, regionCode: 'GB', languageCode: 'en-GB', pageSize: 20 }
+  const body: Record<string, unknown> = { textQuery: opts.textQuery, regionCode: opts.regionCode || 'GB', languageCode: opts.languageCode || 'en-GB', pageSize: 20 }
   if (opts.pageToken) body.pageToken = opts.pageToken
   const res = await (opts.fetchImpl || fetch)('https://places.googleapis.com/v1/places:searchText', {
     method: 'POST',

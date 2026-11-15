@@ -306,4 +306,13 @@ CREATE TABLE IF NOT EXISTS app_settings (
     sql: `ALTER TABLE businesses ADD COLUMN IF NOT EXISTS preview_url text;
 ALTER TABLE businesses ADD COLUMN IF NOT EXISTS demo_at timestamptz;`,
   },
+  {
+    // Țara afacerii (UK / HU): telefonul, căutarea și mesajele depind de ea
+    id: '004_country',
+    // coloana exista din 001 cu valoarea 'GB'; o unificăm la 'UK' / 'HU'
+    sql: `ALTER TABLE businesses ADD COLUMN IF NOT EXISTS country text NOT NULL DEFAULT 'UK';
+UPDATE businesses SET country = 'UK' WHERE country IN ('GB', 'gb', 'United Kingdom');
+ALTER TABLE businesses ALTER COLUMN country SET DEFAULT 'UK';
+CREATE INDEX IF NOT EXISTS businesses_country_stage_idx ON businesses (country, stage);`,
+  },
 ]

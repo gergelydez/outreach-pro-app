@@ -38,9 +38,12 @@ describe('daily hunt: 50 qualified UK businesses with a mobile number', () => {
   it('rotates through all UK towns and many business types', () => {
     expect(HUNT_CATEGORIES.length).toBeGreaterThanOrEqual(40)
     expect(HUNT_CITIES.length).toBeGreaterThanOrEqual(100)
-    expect(rotation(0)).toMatchObject({ category: 'barber', city: 'Birmingham' })
-    expect(rotation(1).category).toBe(HUNT_CATEGORIES[1])
-    expect(rotation(HUNT_CATEGORIES.length).city).toBe(HUNT_CITIES[1].city)
+    // iarna (decembrie): întâi meseriile care plătesc acum, primele 10 prin toate orașele
+    expect(rotation(0, 'UK', 11)).toMatchObject({ category: 'heating_engineer', city: 'Birmingham' })
+    expect(rotation(1, 'UK', 11).category).toBe('plumber')
+    expect(rotation(10, 'UK', 11)).toMatchObject({ category: 'heating_engineer', city: HUNT_CITIES[1].city })
+    expect(rotation(0, 'UK', 6).category).toBe('roofer') // vara: altă ordine
+    expect(rotation(0, 'HU', 11)).toMatchObject({ category: 'heating', city: 'Budapest I. kerület' })
   })
 
   it('keeps searching until the list has 50, saving only mobile numbers, then stops', async () => {
@@ -63,7 +66,7 @@ describe('daily hunt: 50 qualified UK businesses with a mobile number', () => {
     const st = await getHuntState()
     expect(st.steps_today).toBe(5)
     expect(st.cursor).toBe(5)
-    expect(st.log[0]).toMatch(/Barbers · Birmingham: 20 găsite, 10 noi cu mobil/)
+    expect(st.log[0]).toMatch(/· Birmingham: 20 găsite, 10 noi cu mobil/)
   })
 
   it('a business marked "no WhatsApp" leaves the list and the next hunt refills it', async () => {
@@ -123,5 +126,63 @@ describe('daily hunt: 50 qualified UK businesses with a mobile number', () => {
       expect(body.chained).toBe(false)
       expect((await getHuntState()).last_auto_at).toBeTruthy()
     } finally { vi.unstubAllGlobals() }
+  })
+})
+
+describe('Hungary + paying-first + rebuild message', () => {
+  beforeEach(async () => { await freshDb(); seq = 0 })
+
+  it('normalises Hungarian phones and knows which are mobile (WhatsApp)', async () => {
+    const { normalizePhone, isMobile, waDigits } = await import('@/lib/crm/countries')
+    expect(normalizePhone('+36 30 123 4567', 'HU')).toBe('+36301234567')
+    expect(normalizePhone('06 20 123 4567', 'HU')).toBe('+36201234567')
+    expect(normalizePhone('06 1 234 5678', 'HU')).toBe('+3612345678')
+    expect(isMobile('+36301234567', 'HU')).toBe(true)
+    expect(isMobile('+3612345678', 'HU')).toBe(false) // fix Budapesta
+    expect(waDigits('+36701234567')).toBe('36701234567')
+    expect(normalizePhone('07700 900123', 'UK')).toBe('+447700900123')
+  })
+
+  it('hunts in Hungary: Hungarian query, HU region, only +36 mobiles, separate list', async () => {
+    const bodies: Record<string, unknown>[] = []
+    const fn = (async (_u: string, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)))
+      const i = bodies.length * 100
+      return new Response(JSON.stringify({ places: [
+        place(`hu${i}`, { displayName: { text: 'Kovács Fűtés' }, nationalPhoneNumber: '06 30 123 45' + String(i).slice(-2).padStart(2, '0'), internationalPhoneNumber: `+36 30 123 ${String(4500 + i).slice(-4)}`, formattedAddress: 'Budapest, Fő u. 1, 1011 Hungary' }),
+        place(`hu${i + 1}`, { displayName: { text: 'Nagy Kazán' }, nationalPhoneNumber: '06 1 234 5678', internationalPhoneNumber: '+36 1 234 5678' }),
+      ] }), { status: 200 })
+    }) as unknown as typeof fetch
+    const r = await huntStep({ country: 'HU', fetchImpl: fn, siteFetch: noSites, allowPrivate: true, budgetMs: 60_000 })
+    expect(bodies[0]).toMatchObject({ textQuery: 'fűtésszerelő Budapest I. kerület', regionCode: 'HU', languageCode: 'hu' })
+    expect(r.country).toBe('HU')
+    expect(r.pool).toBe(1) // doar mobilul +36 30…
+    expect(await poolCount('UK')).toBe(0) // listele sunt separate
+    const b = await one<{ country: string; phone_e164: string }>(`SELECT country, phone_e164 FROM businesses`)
+    expect(b).toEqual({ country: 'HU', phone_e164: '+36301234600' })
+  })
+
+  it('part 2 of the message offers a rebuild to businesses that already have a website', async () => {
+    const { buildMessages, TEMPLATES } = await import('@/lib/crm/uk-templates')
+    const site = buildMessages(TEMPLATES.UK, { name: 'Kings Heath Plumbing', trades: 'plumbers', website_status: 'OUTDATED_WEBSITE', findingCodes: ['not_mobile_friendly'] })
+    expect(site.second).toMatch(/modern version of your website/)
+    expect(site.second).not.toMatch(/your own website/)
+    const none = buildMessages(TEMPLATES.UK, { name: 'X', trades: 'plumbers', website_status: 'NO_WEBSITE', findingCodes: [] })
+    expect(none.second).toMatch(/your own website/)
+    const hu = buildMessages(TEMPLATES.HU, { name: 'Kovács Fűtés', trades: '', website_status: 'OUTDATED_WEBSITE', findingCodes: ['not_mobile_friendly'], country: 'HU' })
+    expect(hu.first).toMatch(/nincs mobilra optimalizálva/)
+    expect(hu.second).toMatch(/modern változatát/)
+    expect(hu.second).toMatch(/egyetemista vagyok/)
+    expect(hu.price).toMatch(/70 000–100 000 Ft/)
+  })
+
+  it('only saves active businesses (rating ≥ 4, a few reviews)', async () => {
+    const fn = (async () => new Response(JSON.stringify({ places: [
+      place('a1', { nationalPhoneNumber: '07700 900501', rating: 4.6, userRatingCount: 30 }),
+      place('a2', { nationalPhoneNumber: '07700 900502', rating: 3.2, userRatingCount: 30 }),
+      place('a3', { nationalPhoneNumber: '07700 900503', rating: 4.9, userRatingCount: 2 }),
+    ] }), { status: 200 })) as unknown as typeof fetch
+    const r = await huntStep({ fetchImpl: fn, siteFetch: noSites, allowPrivate: true, budgetMs: 60_000 })
+    expect(r.ran?.newCount).toBe(1)
   })
 })

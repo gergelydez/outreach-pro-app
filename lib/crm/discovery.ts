@@ -3,7 +3,7 @@
 import { q, one } from './db'
 import { getSettings } from './settings'
 import { findDuplicate, insertDiscovered, isSuppressed, ownDomain } from './businesses'
-import { normalizeUkPhone, ukPhoneType } from './normalize'
+import { normalizePhone, isMobile, buildCountryQuery, COUNTRY_CFG, type Country } from './countries'
 import { enqueueJob } from './jobs'
 import { logActivity, logUsage } from './activity'
 import { searchText, searchTextNew, placeDetails, textSearchCost, detailsCost, newSearchCost, ApiNotEnabled, type DiscoveredBusiness, type SearchPage } from './providers/google-places'
@@ -17,8 +17,9 @@ export interface DiscoveryRequest {
   minRating?: number | null
   minReviews?: number | null
   websiteFilter?: 'any' | 'no_website' | 'has_website'
-  // doar numere de mobil UK (07…), adică firme care pot avea WhatsApp
+  // doar numere de mobil (UK 07…, HU 20/30/31/50/70), adică firme care pot avea WhatsApp
   mobileOnly?: boolean
+  country?: Country
 }
 
 export interface DiscoveryResult {
@@ -64,7 +65,9 @@ export async function runDiscovery(r: DiscoveryRequest, fetchImpl?: typeof fetch
   const already = await newLeadsToday()
   const remainingToday = Math.max(0, settings.limits.daily_discovery_max - already)
   const want = Math.max(1, Math.min(r.limit, settings.limits.max_per_run, remainingToday || 0))
-  const { textQuery } = buildQuery(r.category, r.city, r.region)
+  const country: Country = r.country || 'UK'
+  const cfg = COUNTRY_CFG[country]
+  const textQuery = buildCountryQuery(country, r.category, r.city, r.region)
 
   const job = await one<{ id: string }>(
     `INSERT INTO discovery_jobs (city, region, category, query, requested, filters) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
@@ -89,7 +92,7 @@ export async function runDiscovery(r: DiscoveryRequest, fetchImpl?: typeof fetch
       let usedNew = false
       if (mode !== 'legacy') {
         try {
-          data = await searchTextNew({ textQuery, pageToken, fetchImpl, apiKey: opts.apiKey })
+          data = await searchTextNew({ textQuery, pageToken, fetchImpl, apiKey: opts.apiKey, regionCode: cfg.regionCode, languageCode: cfg.lang })
           usedNew = true
           await logUsage({ provider: 'google_places', operation: 'textSearchNew', costUsd: newSearchCost() })
           if (mode !== 'new') { mode = 'new'; await setPlacesMode('new') }
@@ -100,7 +103,7 @@ export async function runDiscovery(r: DiscoveryRequest, fetchImpl?: typeof fetch
         }
       }
       if (!data) {
-        data = await searchText({ textQuery, pageToken, fetchImpl, pageDelayMs, apiKey: opts.apiKey })
+        data = await searchText({ textQuery, pageToken, fetchImpl, pageDelayMs, apiKey: opts.apiKey, region: cfg.legacyRegion, language: cfg.lang })
         await logUsage({ provider: 'google_places', operation: 'textSearch', costUsd: textSearchCost() })
       }
       res.found += data.results.length
@@ -128,7 +131,7 @@ export async function runDiscovery(r: DiscoveryRequest, fetchImpl?: typeof fetch
         const need = want - res.newCount
         const toEnrich = (r.websiteFilter && r.websiteFilter !== 'any') || r.mobileOnly ? candidates : candidates.slice(0, need)
         res.filtered += candidates.length - toEnrich.length
-        enriched = await Promise.all(toEnrich.map(b => placeDetails(b, fetchImpl, opts.apiKey).then(d => d, () => null)))
+        enriched = await Promise.all(toEnrich.map(b => placeDetails(b, fetchImpl, opts.apiKey, cfg.lang).then(d => d, () => null)))
         const detailCalls = toEnrich.length
         if (detailCalls) await logUsage({ provider: 'google_places', operation: 'placeDetails', units: detailCalls, costUsd: detailCalls * detailsCost() })
       }
@@ -136,12 +139,12 @@ export async function runDiscovery(r: DiscoveryRequest, fetchImpl?: typeof fetch
       for (const b of enriched) {
         if (!b) { res.filtered++; continue }
         if (!passesWebsiteFilter(b, r)) { res.filtered++; continue }
-        if (r.mobileOnly && ukPhoneType(normalizeUkPhone(b.phoneIntl || b.phone)) !== 'mobile') { res.filtered++; continue }
+        if (r.mobileOnly && !isMobile(normalizePhone(b.phoneIntl || b.phone, country), country)) { res.filtered++; continue }
         // afacerile șterse la cerere / excluse nu se mai importă
-        if (await isSuppressed({ google_place_id: b.providerId, website_domain: ownDomain(b.websiteUrl), phone_e164: normalizeUkPhone(b.phoneIntl || b.phone) })) { res.filtered++; continue }
-        const dup = await findDuplicate({ placeId: b.providerId, websiteUrl: b.websiteUrl, phone: b.phoneIntl || b.phone, name: b.name, address: b.address })
+        if (await isSuppressed({ google_place_id: b.providerId, website_domain: ownDomain(b.websiteUrl), phone_e164: normalizePhone(b.phoneIntl || b.phone, country) })) { res.filtered++; continue }
+        const dup = await findDuplicate({ placeId: b.providerId, websiteUrl: b.websiteUrl, phone: b.phoneIntl || b.phone, name: b.name, address: b.address, country })
         if (dup.kind === 'duplicate') { res.duplicates++; continue }
-        const id = await insertDiscovered(b, { city: r.city, region: r.region ?? null, category: r.category, jobId, possibleDuplicateOf: dup.kind === 'possible' ? dup.id : null })
+        const id = await insertDiscovered(b, { city: r.city, region: r.region ?? null, category: r.category, jobId, possibleDuplicateOf: dup.kind === 'possible' ? dup.id : null, country })
         await enqueueJob('audit', id, {}, { key: `audit:${id}:initial` })
         res.newIds.push(id)
         res.newCount++

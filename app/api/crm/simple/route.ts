@@ -1,6 +1,7 @@
 import { route, json, str } from '@/lib/crm/api'
 import { q, one } from '@/lib/crm/db'
-import { POOL_WHERE } from '@/lib/crm/hunt'
+import { poolWhere } from '@/lib/crm/hunt'
+import { asCountry } from '@/lib/crm/countries'
 
 export const maxDuration = 60
 export const dynamic = 'force-dynamic'
@@ -13,10 +14,12 @@ export const GET = route(async (req: Request) => {
   const category = str(sp.get('category'), 60)
   // pool = lista zilei (vânătoarea), todo = necontactate și fără site bun, all = toate
   const show = sp.get('show') || 'todo'
+  const country = asCountry(sp.get('country'))
   const where: string[] = []
   const P: unknown[] = []
-  if (show === 'pool') where.push(POOL_WHERE)
+  if (show === 'pool') where.push(poolWhere(country))
   else {
+    where.push(`b.country = '${country}'`)
     if (city) { P.push(city); where.push(`b.city = $${P.length}`) }
     if (category) { P.push(category); where.push(`b.category = $${P.length}`) }
     if (show === 'todo') where.push(`b.stage IN ('new_lead','reviewed','ready_to_contact') AND b.website_status <> 'GOOD_WEBSITE'`)
@@ -24,7 +27,7 @@ export const GET = route(async (req: Request) => {
   const rows = await q(`
     SELECT b.id, b.name, b.category, b.city, b.address, b.phone, b.phone_e164, b.email, b.website_url, b.website_status,
            b.whatsapp_status, b.whatsapp_source, b.google_rating, b.google_review_count, b.google_maps_url,
-           b.opportunity_score, b.stage, b.last_contacted_at, b.created_at, b.preview_url, b.google_place_id, b.address AS full_address,
+           b.opportunity_score, b.stage, b.last_contacted_at, b.created_at, b.preview_url, b.google_place_id, b.address AS full_address, b.country,
            a.findings, a.created_at AS audited_at,
            m.output AS message
       FROM businesses b

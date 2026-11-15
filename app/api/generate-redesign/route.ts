@@ -19,7 +19,7 @@ export const maxDuration = 300
 
 export async function POST(req: NextRequest) {
   const { lead, anthropicApiKey: clientKey, googleApiKey, extraInstructions = '', language }:
-    { lead: RebuildLead; anthropicApiKey?: string; googleApiKey?: string; extraInstructions?: string; language?: 'en' } = await req.json()
+    { lead: RebuildLead; anthropicApiKey?: string; googleApiKey?: string; extraInstructions?: string; language?: 'en' | 'hu' } = await req.json()
 
   const apiKey = process.env.ANTHROPIC_API_KEY || clientKey
   if (!apiKey) return Response.json({ error: 'Lipsă Anthropic API key (Setări)' }, { status: 400 })
@@ -27,13 +27,13 @@ export async function POST(req: NextRequest) {
 
   const a = lead.audit
   // UK (CRM): site în engleză britanică; altfel română / maghiară după oraș
-  const lang = language === 'en' ? 'engleză (British English, ortografie UK: colour, specialise etc.)' : HU_CITIES.includes(lead.city.replace(' 🏘️', '').trim()) ? 'maghiară' : 'română'
+  const lang = language === 'en' ? 'engleză (British English, ortografie UK: colour, specialise etc.)' : language === 'hu' || HU_CITIES.includes(lead.city.replace(' 🏘️', '').trim()) ? 'maghiară' : 'română'
   const tel = (a.phones[0] || lead.phone || '').replace(/\s/g, '')
   const hasRating = lead.rating >= 4.0 && lead.reviews_count >= 10
 
   const noSite = !!lead.no_site
   // Poze și recenzii reale din Google Maps + poze libere ale localității — ca site-ul să fie al LOR
-  const ctx = await placeContext({ placeId: lead.place_id, address: lead.address, city: lead.city, googleKey: googleApiKey, origin: req.nextUrl.origin, language: language === 'en' ? 'en' : 'ro' })
+  const ctx = await placeContext({ placeId: lead.place_id, address: lead.address, city: lead.city, googleKey: googleApiKey, origin: req.nextUrl.origin, language: language === 'en' ? 'en' : language === 'hu' ? 'hu' : 'ro' })
   const photoList = (list: { url: string; credit: string }[]) => list.map(p => `  • ${p.url}\n    credit: ${p.credit}`).join('\n')
   const prompt = `Ești un web designer senior. ${noSite
     ? 'Construiește PRIMUL site al unei afaceri locale reale care încă nu are site propriu'
@@ -76,7 +76,7 @@ ${a.issues.map(i => `- ${i}`).join('\n') || '- design învechit'}`}
 CE CONSTRUIEȘTI
 - Structură potrivită domeniului: hero clar cu ce fac și unde, ${noSite ? `servicii tipice pentru ${lead.category_label}, formulate general (fără prețuri, fără detalii pe care nu le știm — proprietarul le va confirma)` : 'serviciile LOR reale (din textul de mai sus)'}, de ce ei, ${hasRating ? 'dovada socială cu ratingul Google real, ' : ''}program/locație dacă apar în text, contact cu telefon clickabil (href="tel:${tel}") și, dacă e cazul, buton de programare / cerere ofertă.
 - Design 2026, nu template: tipografie bună (poți folosi Google Fonts), paletă derivată din domeniu și din identitatea lor actuală, spațiere generoasă, mobile-first, animații subtile la scroll, navigație sticky care pe mobil devine meniu.
-- Tot conținutul în limba ${lang}${language === 'en' ? '' : ', cu diacritice corecte'}. Ton profesionist, cald, specific afacerii lor.${language === 'en' ? ' Afacerea e în Marea Britanie: telefon în format UK, fără mențiuni despre România.' : ''}
+- Tot conținutul în limba ${lang}${language === 'en' ? '' : ', cu diacritice corecte'}. Ton profesionist, cald, specific afacerii lor.${language === 'en' ? ' Afacerea e în Marea Britanie: telefon în format UK, fără mențiuni despre România.' : language === 'hu' ? ' Afacerea e în Ungaria: telefon în format maghiar (+36), fără mențiuni despre România.' : ''}
 - PERSONALIZARE: proprietarul trebuie să simtă că e site-ul LUI. Numele ${lead.name}, localitatea ${ctx.locality}, pozele lor și detaliile din recenzii apar peste tot. Evită orice frază generică valabilă pentru orice ${lead.category_label.toLowerCase()}.
 - Un singur fișier: CSS în <style>, JS minimal în <script>. Fără framework-uri.
 - Fără imagini stock inventate; unde nu ai poze proprii folosește compoziții CSS (gradiente, forme, iconițe SVG inline).
@@ -85,7 +85,7 @@ ONESTITATE — OBLIGATORIU
 - NU inventa fapte: prețuri, ani de experiență, număr de clienți, certificări, nume de angajați, premii. Dacă nu apar în text, nu le pune.
 - NU inventa recenzii sau testimoniale. ${ctx.reviews.length ? 'Folosește DOAR recenziile reale de mai sus, citate exact.' : `Dacă vrei o secțiune de testimoniale, pune ${hasRating ? 'ratingul Google real și ' : ''}un card discret „Aici apar recenziile voastre reale de pe Google".`}
 - Folosește DOAR URL-urile de poze date mai sus (fără alte imagini de pe internet), fiecare cu creditul ei.
-- Formularele nu trimit nicăieri: la submit afișează un mesaj ${language === 'en' ? '„This is a demo form”' : '„Formular demonstrativ"'}.
+- Formularele nu trimit nicăieri: la submit afișează un mesaj ${language === 'en' ? '„This is a demo form”' : language === 'hu' ? '„Ez egy bemutató űrlap”' : '„Formular demonstrativ"'}.
 ${extraInstructions ? `\nINSTRUCȚIUNI SUPLIMENTARE DE LA DESIGNER\n${extraInstructions}\n` : ''}
 Răspunde DOAR cu documentul HTML complet, începând cu <!DOCTYPE html>. Fără explicații, fără blocuri de cod markdown.`
 

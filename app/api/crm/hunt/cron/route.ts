@@ -4,6 +4,7 @@ import { route, json, HttpError } from '@/lib/crm/api'
 import { huntStep, MAX_STEPS_PER_DAY } from '@/lib/crm/hunt'
 import { placesKey } from '@/lib/crm/providers/google-places'
 import { logActivity } from '@/lib/crm/activity'
+import { asCountry } from '@/lib/crm/countries'
 
 export const maxDuration = 60
 export const dynamic = 'force-dynamic'
@@ -35,12 +36,14 @@ export const GET = route(async (req: Request) => {
   if (!placesKey()) return json({ skipped: 'GOOGLE_PLACES_API_KEY is not set in Vercel — the automatic hunt needs it' })
   const url = new URL(req.url)
   const depth = Math.max(0, Number(url.searchParams.get('n') || 0))
-  const r = await huntStep({ budgetMs: 40_000, auto: true })
-  if (depth === 0) await logActivity(null, 'hunt_auto', `Automatic daily hunt started (list: ${r.pool}/${r.target})`)
+  const country = asCountry(url.searchParams.get('country'))
+  const r = await huntStep({ country, budgetMs: 40_000, auto: true })
+  if (depth === 0) await logActivity(null, 'hunt_auto', `Automatic daily hunt (${country}) started (list: ${r.pool}/${r.target})`)
   const keepGoing = !r.done && !r.stoppedReason && depth + 1 < MAX_STEPS_PER_DAY
   if (keepGoing) {
     const next = new URL(url.pathname, url.origin)
     next.searchParams.set('n', String(depth + 1))
+    next.searchParams.set('country', country)
     const day = new Date().toISOString().slice(0, 10)
     // nu așteptăm răspunsul pasului următor: doar îl pornim
     waitUntil(fetch(next, { headers: { 'x-hunt-token': chainToken(day) }, signal: AbortSignal.timeout(8000) }).then(() => undefined, () => undefined))

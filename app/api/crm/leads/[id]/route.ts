@@ -3,7 +3,7 @@ import { q, one } from '@/lib/crm/db'
 import { changeStage, isSuppressed, type BusinessRow } from '@/lib/crm/businesses'
 import { checkContact } from '@/lib/crm/compliance'
 import { logActivity } from '@/lib/crm/activity'
-import { normalizeUkPhone } from '@/lib/crm/normalize'
+import { normalizePhone, asCountry } from '@/lib/crm/countries'
 
 // pornirea la rece (încărcarea bazei din Blob) + așteptarea după alte cereri poate depăși 10 s
 export const maxDuration = 60
@@ -58,7 +58,10 @@ export const PATCH = route(async (req: Request, { params }: Ctx) => {
     if (v === undefined) continue
     vals.push(v); sets.push(`${k} = $${vals.length}`)
     if (['email', 'phone', 'website_url'].includes(k)) sources[k] = { source: 'manual', verified: true, checked_at: new Date().toISOString() }
-    if (k === 'phone') { vals.push(normalizeUkPhone(String(v || ''))); sets.push(`phone_e164 = $${vals.length}`) }
+    if (k === 'phone') {
+      const c = await one<{ country: string }>('SELECT country FROM businesses WHERE id = $1', [id])
+      vals.push(normalizePhone(String(v || ''), asCountry(c?.country))); sets.push(`phone_e164 = $${vals.length}`)
+    }
   }
   if (sets.length) {
     vals.push(JSON.stringify(sources)); sets.push(`field_sources = field_sources || $${vals.length}::jsonb`)
