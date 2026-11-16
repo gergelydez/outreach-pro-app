@@ -20,6 +20,7 @@ interface Lead {
   google_rating: number | null; google_review_count: number | null; google_maps_url: string | null
   opportunity_score: number | null; stage: string; findings: { code: string; what: string }[] | null; audited_at: string | null
   manual_problems: string[] | null
+  demo_status: string | null; demo_error: string | null; demo_started_at: string | null
 }
 
 // eticheta în română a unei meserii, pentru țara dată
@@ -158,7 +159,6 @@ function LeadCard({ r, country, templates, keys, onChange, onDone, onSent }: { r
   const [err, setErr] = useState('')
   const [copied, setCopied] = useState('')
   const [showPrice, setShowPrice] = useState(false)
-  const [demo, setDemo] = useState<{ step: string; started?: number } | null>(null)
   const st = STATUS_RO[r.website_status] || STATUS_RO.UNVERIFIED
   const wa = waDigits(r.phone_e164)
   const mobile = !!wa
@@ -179,7 +179,6 @@ function LeadCard({ r, country, templates, keys, onChange, onDone, onSent }: { r
   useEffect(() => { setFirst(msgs.first); setSecond(msgs.second) }, [msgs.first, msgs.second])
   const waLink = (text?: string) => `https://wa.me/${wa}${text ? `?text=${encodeURIComponent(text)}` : ''}`
   const canDemo = DEMO_STATUSES.includes(r.website_status)
-  const jobKey = `uk_demo_job_${r.id}`
 
   const copy = (key: string, text: string) => { navigator.clipboard?.writeText(text); setCopied(key); setTimeout(() => setCopied(''), 1500) }
   async function setWa(status: 'FOUND' | 'NOT_FOUND') {
@@ -225,65 +224,29 @@ function LeadCard({ r, country, templates, keys, onChange, onDone, onSent }: { r
     onDone()
   }
 
-  // ── Demo: ca la Rebuild RO — conținutul site-ului actual (dacă există) + pozele și recenziile
-  //    din Google → site concept generat de Claude pe server → publicat pe un link /p/…
-  async function waitForJob(jobId: string): Promise<string> {
-    for (let i = 0; i < 90; i++) {
-      await new Promise(res => setTimeout(res, 5000))
-      setDemo(d => ({ step: `Generez site-ul… ${Math.round((i + 1) * 5 / 60 * 10) / 10} min (durează 1–4 min, poți lăsa pagina deschisă)`, started: d?.started }))
-      const s = await (await fetch(`/api/generate-redesign?job=${jobId}`, { cache: 'no-store' })).json()
-      if (s.status === 'done') return s.html as string
-      if (s.status === 'error') throw new Error(s.error || 'Generarea a eșuat')
-    }
-    throw new Error('Generarea durează prea mult — apasă din nou „Fă demo” peste un minut.')
-  }
-  async function publish(html: string) {
-    setDemo({ step: 'Public demo-ul…' })
-    const res = await fetch('/api/publish-preview', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ html, businessName: r.name, designer: templates.me, lang: country === 'HU' ? 'hu' : 'en', existingUrl: r.preview_url || '' }) })
-    const d = await res.json()
-    if (!res.ok) throw new Error(d.code === 'no_blob' ? 'Hostingul de preview (Vercel Blob) nu e conectat.' : d.error || 'Publicarea a eșuat')
-    await api(`/api/crm/leads/${r.id}`, { method: 'PATCH', json: { preview_url: d.url } })
-    onChange({ preview_url: d.url })
-    try { localStorage.removeItem(jobKey) } catch { /* ignore */ }
-    setDemo(null)
-  }
+  // ── Demo: rulează complet pe server (ca la Rebuild RO, cu pozele și recenziile lui din Google).
+  //    Poți închide pagina: linkul apare singur pe firmă când e gata.
+  const demoRunning = r.demo_status === 'running'
   async function makeDemo() {
-    setErr(''); setDemo({ step: 'Citesc site-ul actual și pozele din Google…', started: Date.now() })
+    setErr(''); setBusy('demo')
     try {
-      const ownSite = r.website_url && !['NO_WEBSITE', 'SOCIAL_ONLY', 'DIRECTORY_ONLY'].includes(r.website_status)
-      let audit: Record<string, unknown> = { url: r.website_url || '', final_url: r.website_url || '', phones: r.phone ? [r.phone] : [], emails: r.email ? [r.email] : [], title: '', description: '', headings: [], text_excerpt: '', logo_url: '', images: [], socials: r.website_url && !ownSite ? [r.website_url] : [], issues: [] }
-      if (ownSite) {
-        const res = await fetch('/api/audit-site', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: r.website_url }) })
-        const d = await res.json()
-        if (res.ok && d.audit) audit = d.audit
-      }
-      const lead = {
-        place_id: r.google_place_id || '', name: r.name, address: r.full_address || r.address || r.city, city: r.city,
-        category: r.category, category_label: categoriesFor(country).find(c => c.key === r.category)?.query || r.category,
-        phone: r.phone || '', phone_intl: r.phone_e164 || '', website: ownSite ? r.website_url : '', no_site: !ownSite,
-        rating: Number(r.google_rating || 0), reviews_count: r.google_review_count || 0, audit,
-      }
-      setDemo({ step: 'Pornesc generarea…', started: Date.now() })
-      const res = await fetch('/api/generate-redesign', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lead, language: country === 'HU' ? 'hu' : 'en', googleApiKey: keys.google || undefined, anthropicApiKey: keys.anthropic || undefined }) })
-      const type = res.headers.get('content-type') || ''
-      if (!type.includes('json')) throw new Error('Pentru demo trebuie conectat Vercel Blob (ca la Rebuild).')
-      const d = await res.json()
-      if (!res.ok || !d.jobId) throw new Error(d.error || 'Nu am putut porni generarea')
-      try { localStorage.setItem(jobKey, d.jobId) } catch { /* ignore */ }
-      await publish(await waitForJob(d.jobId))
-    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); setDemo(null) }
+      await api(`/api/crm/leads/${r.id}/demo`, { json: { anthropic_key: keys.anthropic || undefined, google_key: keys.google || undefined, designer: templates.me } })
+      onChange({ demo_status: 'running', demo_error: null, demo_started_at: new Date().toISOString() })
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+    setBusy('')
   }
-  // dacă pagina a fost reîncărcată în timpul generării, continuăm același job
   useEffect(() => {
-    let job: string | null = null
-    try { job = localStorage.getItem(jobKey) } catch { /* ignore */ }
-    if (!job || r.preview_url) return
-    setDemo({ step: 'Continui generarea începută…' })
-    waitForJob(job).then(publish).catch(e => { setErr(e instanceof Error ? e.message : String(e)); setDemo(null); try { localStorage.removeItem(jobKey) } catch { /* ignore */ } })
+    if (!demoRunning) return
+    const t = setInterval(async () => {
+      try {
+        const d = await api<{ status: string | null; error: string | null; preview_url: string | null }>(`/api/crm/leads/${r.id}/demo`)
+        if (d.status === 'done') onChange({ demo_status: 'done', preview_url: d.preview_url })
+        else if (d.status === 'error') onChange({ demo_status: 'error', demo_error: d.error })
+      } catch { /* reîncercăm la următorul pas */ }
+    }, 12_000)
+    return () => clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [demoRunning, r.id])
 
   const Btn = ({ href, onClick, children, green, disabled }: { href?: string; onClick?: () => void; children: React.ReactNode; green?: boolean; disabled?: boolean }) => {
     const cls = cx('h-10 px-3 inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-medium whitespace-nowrap', green ? 'bg-[#25D366] text-white' : 'border border-slate-300 text-slate-700 bg-white', disabled && 'opacity-40 pointer-events-none')
@@ -313,7 +276,8 @@ function LeadCard({ r, country, templates, keys, onChange, onDone, onSent }: { r
         {r.phone ? <Badge tone={mobile ? 'info' : 'neutral'}>{mobile ? '📱 Mobil' : '☎️ Fix'}</Badge> : <Badge>Fără telefon</Badge>}
         {r.whatsapp_status === 'FOUND' && <Badge tone="good">✓ Are WhatsApp</Badge>}
         {noWa && <Badge tone="bad">✗ Nu are WhatsApp</Badge>}
-        {r.preview_url && <Badge tone="accent">🎨 Demo gata</Badge>}
+        {r.preview_url && !demoRunning && <Badge tone="accent">🎨 Demo gata</Badge>}
+        {demoRunning && <Badge tone="info">⏳ Demo în lucru</Badge>}
       </div>
       <p className="text-[12px] text-slate-500 mt-1">{st.hint}</p>
       {!!r.findings?.length && (
@@ -406,21 +370,25 @@ function LeadCard({ r, country, templates, keys, onChange, onDone, onSent }: { r
       {/* 3. Demo stilizat pe afacerea lui */}
       {canDemo && (
         <Step n={3} title="Demo site pentru el (ca la Rebuild)">
-          {r.preview_url ? (
+          {demoRunning ? (
+            <div className="rounded-lg bg-teal-50 border border-teal-200 p-2.5 text-[13px] text-teal-900">
+              <div className="flex items-center gap-2 font-medium"><span className="w-3.5 h-3.5 border-2 border-current border-r-transparent rounded-full animate-spin" />Se generează demo-ul (1–4 minute)…</div>
+              <div className="mt-1 text-[12px]">Poți închide aplicația sau trece la alte firme — linkul apare aici singur când e gata.</div>
+            </div>
+          ) : r.preview_url ? (
             <div className="space-y-2">
               <div className="flex flex-wrap gap-2">
                 <Btn href={r.preview_url}>👀 Vezi demo-ul</Btn>
                 {mobile && !noWa && <Btn green href={waLink(msgs.demo)}>📱 Trimite demo-ul pe WhatsApp</Btn>}
                 <Btn onClick={() => copy('d', msgs.demo)}>{copied === 'd' ? 'Copiat ✓' : 'Copiază mesajul cu link'}</Btn>
               </div>
-              <button className="text-xs text-slate-500 underline" disabled={!!demo} onClick={makeDemo}>↻ Refă demo-ul (păstrează același link)</button>
+              <button className="text-xs text-slate-500 underline" disabled={busy === 'demo'} onClick={makeDemo}>↻ Refă demo-ul (păstrează același link)</button>
             </div>
-          ) : demo ? (
-            <p className="text-sm text-teal-800 flex items-center gap-2"><span className="w-3.5 h-3.5 border-2 border-current border-r-transparent rounded-full animate-spin" />{demo.step}</p>
           ) : (
             <>
-              <Button variant="primary" className="w-full h-10" onClick={makeDemo}>🎨 Fă demo site pentru {r.name}</Button>
-              <p className="text-[11px] text-slate-400 mt-1">Site concept în {country === 'HU' ? 'maghiară' : 'engleză'}, cu pozele și recenziile lui reale din Google{r.website_url && !['NO_WEBSITE', 'SOCIAL_ONLY', 'DIRECTORY_ONLY'].includes(r.website_status) ? ' și textele de pe site-ul actual' : ''}. Primești un link live.</p>
+              {r.demo_status === 'error' && <p className="mb-2 text-xs text-rose-700">Demo-ul n-a reușit: {r.demo_error || 'eroare necunoscută'}. Încearcă din nou.</p>}
+              <Button variant="primary" className="w-full h-10" loading={busy === 'demo'} onClick={makeDemo}>🎨 Fă demo site pentru {r.name}</Button>
+              <p className="text-[11px] text-slate-400 mt-1">Site concept în {country === 'HU' ? 'maghiară' : 'engleză'}, cu pozele și recenziile lui reale din Google{r.website_url && !['NO_WEBSITE', 'SOCIAL_ONLY', 'DIRECTORY_ONLY'].includes(r.website_status) ? ' și textele de pe site-ul actual' : ''}. Se face pe server — nu trebuie să stai pe pagină.</p>
             </>
           )}
         </Step>

@@ -320,4 +320,11 @@ CREATE INDEX IF NOT EXISTS businesses_country_stage_idx ON businesses (country, 
     id: '005_manual_problems',
     sql: `ALTER TABLE businesses ADD COLUMN IF NOT EXISTS manual_problems jsonb;`,
   },
+  {
+    // Demo generat complet pe server: starea lui, ca pagina să poată fi închisă între timp
+    id: '006_demo_status',
+    sql: `ALTER TABLE businesses ADD COLUMN IF NOT EXISTS demo_status text;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS demo_error text;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS demo_started_at timestamptz;`,
+  },
 ]
