@@ -30,9 +30,9 @@ export interface CrmSettings {
 
 export const DEFAULT_SETTINGS: CrmSettings = {
   business_profile: { company_name: '', business_email: '', website: '', sender_name: '', country: 'United Kingdom', currency: 'GBP', default_offer: 'Professional website from £299' },
-  target_market: { country: 'United Kingdom', region: 'West Midlands', cities: ['Birmingham', 'Wolverhampton'], categories: ['plumber', 'electrician'], daily_target: 50 },
-  // vânătoarea zilnică salvează doar firmele cu mobil; 400 de firme noi/zi ajung de obicei pentru 50 bune
-  limits: { daily_discovery_max: 400, max_per_run: 60, ai_requests_per_hour: 60 },
+  target_market: { country: 'United Kingdom', region: 'West Midlands', cities: ['Birmingham', 'Wolverhampton'], categories: ['plumber', 'electrician'], daily_target: 75 },
+  // vânătoarea zilnică salvează doar firmele cu mobil; 600 de firme noi/zi (UK + HU + RO) ajung de obicei pentru listele de 75
+  limits: { daily_discovery_max: 600, max_per_run: 60, ai_requests_per_hour: 60 },
   scoring: {
     no_website: 25, social_only: 20, directory_or_free: 18, broken_website: 20, outdated_website: 15, needs_redesign: 12,
     poor_mobile: 10, poor_pagespeed: 10, missing_contact_form: 5, missing_cta: 5, no_whatsapp_link: 3,

@@ -9,7 +9,7 @@ export const maxDuration = 60
 
 
 type Ctx = { params: { id: string } }
-const TYPES = ['contacted', 'reply', 'call', 'meeting', 'opt_out', 'bounced'] as const
+const TYPES = ['contacted', 'follow_up', 'reply', 'call', 'meeting', 'opt_out', 'bounced'] as const
 
 // Înregistrare manuală: am contactat / au răspuns / opt-out. La „contacted” se pot crea
 // automat sarcini de follow-up (D+3, D+7, D+14) — doar remindere, nimic nu se trimite.
@@ -37,6 +37,15 @@ export const POST = route(async (req: Request, { params }: Ctx) => {
       }
       await q(`UPDATE businesses SET next_follow_up_at = $2 WHERE id = $1`, [id, new Date(when.getTime() + outreach.follow_up_days[0] * 86400_000).toISOString()])
     }
+  }
+  // reamintire trimisă: contactat → follow-up 1 → follow-up 2; bifăm cea mai apropiată sarcină de follow-up
+  if (type === 'follow_up') {
+    await q('UPDATE businesses SET last_contacted_at = $2, updated_at = now() WHERE id = $1', [id, when.toISOString()])
+    const next = biz.stage === 'contacted' ? 'follow_up_1' : biz.stage === 'follow_up_1' ? 'follow_up_2' : null
+    if (next) await changeStage(id, next)
+    await q(`UPDATE follow_up_tasks SET status = 'done' WHERE id = (SELECT id FROM follow_up_tasks WHERE business_id = $1 AND status = 'open' ORDER BY due_at LIMIT 1)`, [id])
+    const nextTask = await one<{ due_at: string }>(`SELECT due_at FROM follow_up_tasks WHERE business_id = $1 AND status = 'open' ORDER BY due_at LIMIT 1`, [id])
+    await q('UPDATE businesses SET next_follow_up_at = $2 WHERE id = $1', [id, nextTask?.due_at ?? null])
   }
   if (type === 'reply') {
     await changeStage(id, replyStatus === 'positive' ? 'interested' : replyStatus === 'negative' ? 'lost' : 'replied')

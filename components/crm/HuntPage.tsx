@@ -20,11 +20,20 @@ interface Lead {
   google_rating: number | null; google_review_count: number | null; google_maps_url: string | null
   opportunity_score: number | null; stage: string; findings: { code: string; what: string }[] | null; audited_at: string | null
   manual_problems: string[] | null
+  next_follow_up_at: string | null; contacted_at: string | null
   demo_status: string | null; demo_error: string | null; demo_started_at: string | null
 }
 
 // eticheta în română a unei meserii, pentru țara dată
-const catRo = (country: Country, key: string) => country === 'HU' ? (categoriesFor('HU').find(c => c.key === key)?.ro || key) : (CATEGORY_RO[key] || key)
+const ago = (iso: string) => {
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
+  return m < 60 ? `acum ${Math.max(1, m)} min` : m < 1440 ? `acum ${Math.round(m / 60)} h` : Math.round(m / 1440) === 1 ? 'acum o zi' : `acum ${Math.round(m / 1440)} zile`
+}
+const catRo = (country: Country, key: string) => country === 'UK' ? (CATEGORY_RO[key] || key) : (categoriesFor(country).find(c => c.key === key)?.ro || key)
+type Show = 'pool' | 'waiting' | 'interested' | 'won' | 'followup' | 'todo' | 'all'
+interface Stats { contacted: number; replied: number; interested: number; won: number; followups_due: number; contacted_today: number }
+const COUNTRY_TITLE: Record<Country, string> = { UK: 'UK 🇬🇧', HU: 'Ungaria 🇭🇺', RO: 'România 🇷🇴' }
+const LANG_RO: Record<Country, string> = { UK: 'engleză', HU: 'maghiară', RO: 'română' }
 const TPL_KEY = (country: Country) => (country === 'UK' ? 'uk_templates' : `${country.toLowerCase()}_templates`)
 
 export default function HuntPage({ country }: { country: Country }) {
@@ -33,7 +42,8 @@ export default function HuntPage({ country }: { country: Country }) {
   const regionOf = (c: string) => cities.find(x => x.city === c)?.region || null
   const [city, setCity] = useState(cities[0].city)
   const [category, setCategory] = useState(cats[0].key)
-  const [show, setShow] = useState<'pool' | 'followup' | 'todo' | 'all'>('pool')
+  const [show, setShow] = useState<Show>('pool')
+  const [stats, setStats] = useState<Stats | null>(null)
   const [manualOpen, setManualOpen] = useState(false)
   const [sentNote, setSentNote] = useState('')
   const [rows, setRows] = useState<Lead[] | null>(null)
@@ -100,14 +110,19 @@ export default function HuntPage({ country }: { country: Country }) {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <h1 className="text-[22px] font-semibold text-slate-900">Găsește clienți în {country === 'HU' ? 'Ungaria 🇭🇺' : 'UK 🇬🇧'}</h1>
-      <ol className="mt-2 mb-4 text-[13px] text-slate-600 space-y-0.5 list-decimal pl-5">
-        <li>Aplicația caută <b>singură prin {country === 'HU' ? 'toată Ungaria' : 'tot UK-ul'}</b> până ai <b>50 de firme fără site / cu site de refăcut</b>, cu număr de mobil — întâi meseriile care plătesc cel mai probabil acum (iarna) și doar afaceri active (rating ≥ 4).</li>
-        <li>La fiecare: <b>verifici WhatsApp-ul</b> (✓/✗). Cele fără WhatsApp ies din listă și apeși din nou <b>Completează până la 50</b>.</li>
-        <li>Trimiți <b>mesajul în 2 părți</b>, faci <b>demo-ul</b> site-ului pentru el și îi trimiți linkul.</li>
+      <div className="flex gap-1.5 mb-3 overflow-x-auto">
+        {([['UK', '/crm/gaseste', '🇬🇧 UK'], ['HU', '/crm/ungaria', '🇭🇺 Ungaria'], ['RO', '/crm/romania', '🇷🇴 România']] as const).map(([c, href, label]) => (
+          <Link key={c} href={href} className={cx('px-3.5 h-9 inline-flex items-center rounded-full text-sm font-medium whitespace-nowrap border', c === country ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300')}>{label}</Link>
+        ))}
+      </div>
+      <h1 className="text-[22px] font-semibold text-slate-900">Găsește clienți în {COUNTRY_TITLE[country]}</h1>
+      <ol className="mt-2 mb-4 text-[13px] text-slate-600 space-y-0.5 list-decimal pl-5 hidden sm:block">
+        <li>Aplicația caută <b>singură prin {country === 'HU' ? 'toată Ungaria' : country === 'RO' ? 'toată România' : 'tot UK-ul'}</b> până lista zilei e plină cu <b>firme fără site / cu site de refăcut</b>, cu număr de mobil — întâi meseriile care plătesc cel mai probabil acum (iarna) și doar afaceri active (rating ≥ 4).</li>
+        <li>La fiecare: <b>verifici WhatsApp-ul</b> (✓/✗). Cele fără WhatsApp ies din listă (le poți trimite SMS) și apeși din nou <b>Completează</b>.</li>
+        <li>Trimiți <b>mesajul în 2 părți</b>. Peste 2–3 zile, la <b>De revenit</b>, trimiți reamintirea. Cine e interesat → <b>demo</b> → link.</li>
       </ol>
 
-      <HuntPanel country={country} googleKey={keys.google} onProgress={() => { if (show === 'pool') load() }} />
+      <HuntPanel country={country} googleKey={keys.google} onInfo={i => setStats(i.stats)} onProgress={() => { if (show === 'pool') load() }} />
 
       <button className="mt-3 text-sm text-slate-600 underline" onClick={() => setManualOpen(v => !v)}>{manualOpen ? 'Ascunde căutarea manuală' : 'Sau caută manual într-un oraș / o meserie anume'}</button>
       {manualOpen && <section className="mt-2 bg-white border border-slate-200 rounded-xl p-4 space-y-3">
@@ -127,23 +142,32 @@ export default function HuntPage({ country }: { country: Country }) {
 
       <TemplateEditor value={templates} defaults={TEMPLATES[country]} onChange={saveTemplates} />
 
-      <div className="flex items-center justify-between mt-5 mb-2">
-        <h2 className="text-sm font-semibold text-slate-700">{rows ? `${rows.length} firme` : 'Se încarcă…'}{show === 'pool' ? ' · lista zilei' : show === 'followup' ? ' · contactați / interesați' : ` · ${catRo(country, category)} în ${city}`}</h2>
-        <Select className="w-48 h-8 text-xs" value={show} onChange={e => setShow(e.target.value as 'pool' | 'followup' | 'todo' | 'all')}>
-          <option value="pool">Lista zilei (cu mobil)</option><option value="followup">Contactați / interesați</option><option value="todo">De contactat — orașul ales</option><option value="all">Toate — orașul ales</option>
-        </Select>
+      <div className="mt-5 mb-3 grid grid-cols-4 gap-1.5">
+        {([
+          ['pool', '📋', 'Lista zilei', null],
+          ['waiting', '⏰', 'De revenit', stats ? stats.contacted - stats.replied : null],
+          ['interested', '🙋', 'Interesați', stats?.interested ?? null],
+          ['won', '🏆', 'Clienți', stats?.won ?? null],
+        ] as [Show, string, string, number | null][]).map(([k, icon, label, n]) => (
+          <button key={k} onClick={() => setShow(k)} className={cx('rounded-xl border px-1 py-2 text-center', show === k ? 'bg-teal-700 border-teal-700 text-white' : 'bg-white border-slate-200 text-slate-700')}>
+            <div className="text-base leading-none">{icon}</div>
+            <div className="text-[11px] font-medium mt-1 leading-tight">{label}{n != null ? ` · ${n}` : ''}</div>
+          </button>
+        ))}
       </div>
+      {show === 'waiting' && stats && stats.followups_due > 0 && <p className="mb-2 text-[13px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">⏰ {stats.followups_due} firme așteaptă reamintirea azi — sunt primele în listă.</p>}
+      {(show === 'todo' || show === 'all') && <div className="mb-2 text-sm text-slate-600">Rezultatele căutării manuale · {catRo(country, category)} în {city} <button className="underline ml-1" onClick={() => setShow('pool')}>înapoi la lista zilei</button></div>}
 
       {sentNote && (
         <div className="mb-3 rounded-lg bg-teal-50 border border-teal-200 p-2.5 text-[13px] text-teal-900 flex items-center justify-between gap-2">
-          <span>✅ {sentNote} a trecut la „Contactați / interesați”. Când răspunde, îl găsești acolo (demo, „E interesat”).</span>
-          <button className="underline whitespace-nowrap" onClick={() => { setShow('followup'); setSentNote('') }}>Vezi lista</button>
+          <span>✅ {sentNote} a trecut la „⏰ De revenit”. Când răspunde, apeși acolo „🙋 Interesat” (sau „👎 A zis nu”).</span>
+          <button className="underline whitespace-nowrap" onClick={() => { setShow('waiting'); setSentNote('') }}>Vezi lista</button>
         </div>
       )}
 
       {rows && rows.length === 0 && (
         <p className="text-sm text-slate-500 bg-white border border-slate-200 rounded-xl p-4">
-          {show === 'followup' ? 'Nu ai încă firme contactate.' : show === 'pool' ? 'Lista zilei e goală. Apasă „Completează până la 50”.' : show === 'todo' ? 'Nicio firmă de contactat aici. Apasă „Caută firme” sau alege alt oraș / altă meserie.' : 'Nicio firmă salvată încă pentru acest oraș și această meserie.'}
+          {show === 'waiting' ? 'Nimeni de revenit acum. După ce trimiți mesaje, firmele apar aici până răspund.' : show === 'interested' ? 'Încă niciun interesat. Când cineva răspunde, apasă „🙋 Interesat” pe cardul lui.' : show === 'won' ? 'Încă niciun client — urmează 🙂' : show === 'followup' ? 'Nu ai încă firme contactate.' : show === 'pool' ? 'Lista zilei e goală. Apasă „Completează”.' : show === 'todo' ? 'Nicio firmă de contactat aici. Apasă „Caută firme” sau alege alt oraș / altă meserie.' : 'Nicio firmă salvată încă pentru acest oraș și această meserie.'}
         </p>
       )}
 
@@ -172,6 +196,7 @@ function LeadCard({ r, country, templates, keys, onChange, onDone, onSent }: { r
   const [siteUrl, setSiteUrl] = useState('')
   const [siteMsg, setSiteMsg] = useState('')
   const [infoMsg, setInfoMsg] = useState('')
+  const [open, setOpen] = useState(false)
   const contacted = !['new_lead', 'researching', 'qualified', 'reviewed', 'ready_to_contact'].includes(r.stage)
   const msgs = buildMessages(templates, { name: r.name, trades, website_status: r.website_status, findingCodes: problemCodes, previewUrl: r.preview_url, country })
   const [first, setFirst] = useState(msgs.first)
@@ -219,6 +244,27 @@ function LeadCard({ r, country, templates, keys, onChange, onDone, onSent }: { r
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
     setBusy('')
   }
+  const waiting = ['contacted', 'follow_up_1', 'follow_up_2'].includes(r.stage)
+  const followDue = waiting && !!r.next_follow_up_at && new Date(r.next_follow_up_at).getTime() <= Date.now()
+  const smsLink = (text: string) => `sms:${r.phone_e164}?body=${encodeURIComponent(text)}`
+  async function sentFollowUp() {
+    setBusy('fu')
+    try {
+      await api(`/api/crm/leads/${r.id}/events`, { json: { event_type: 'follow_up', channel: mobile && !noWa ? 'whatsapp' : 'sms', notes: msgs.followup } })
+      onChange({ stage: r.stage === 'contacted' ? 'follow_up_1' : r.stage === 'follow_up_1' ? 'follow_up_2' : r.stage, next_follow_up_at: null })
+      setInfoMsg('Reamintire notată. Dacă nu răspunde nici acum, îl poți lăsa.')
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+    setBusy('')
+  }
+  async function replied(kind: 'positive' | 'negative') {
+    setBusy(kind)
+    try {
+      await api(`/api/crm/leads/${r.id}/events`, { json: { event_type: 'reply', reply_status: kind, channel: mobile && !noWa ? 'whatsapp' : 'phone' } })
+      if (kind === 'negative') onDone()
+      else { onChange({ stage: 'interested' }); setOpen(true); setInfoMsg('Super! Fă-i demo-ul (pasul 3) și trimite-i linkul.') }
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+    setBusy('')
+  }
   async function notFit() {
     await api(`/api/crm/leads/${r.id}`, { method: 'PATCH', json: { stage: 'not_a_fit' } }).catch(() => {})
     onDone()
@@ -255,12 +301,12 @@ function LeadCard({ r, country, templates, keys, onChange, onDone, onSent }: { r
 
   return (
     <article className="bg-white border border-slate-200 rounded-xl p-4">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-3 cursor-pointer" onClick={() => setOpen(v => !v)}>
         <div className="min-w-0">
           <h3 className="font-semibold text-slate-900 leading-snug">{r.name}</h3>
           <div className="text-xs text-slate-500 mt-0.5">
             {r.google_rating != null && <>★ {Number(r.google_rating).toFixed(1)} ({r.google_review_count || 0} recenzii) · </>}{r.city}
-            {contacted && <> · <b className={r.stage === 'interested' ? 'text-teal-700' : r.stage === 'won' ? 'text-emerald-700' : ''}>{r.stage === 'interested' ? 'interesat' : r.stage === 'won' ? 'client' : r.stage === 'replied' ? 'a răspuns' : 'contactat'}</b></>}
+            {contacted && <> · <b className={r.stage === 'interested' ? 'text-teal-700' : r.stage === 'won' ? 'text-emerald-700' : ''}>{r.stage === 'interested' ? 'interesat' : r.stage === 'won' ? 'client' : r.stage === 'replied' ? 'a răspuns' : r.stage === 'follow_up_1' ? 'reamintit o dată' : r.stage === 'follow_up_2' ? 'reamintit de 2 ori' : 'contactat'}</b>{r.contacted_at ? <> · {ago(r.contacted_at)}</> : null}</>}
           </div>
         </div>
         {score != null && (
@@ -279,10 +325,40 @@ function LeadCard({ r, country, templates, keys, onChange, onDone, onSent }: { r
         {r.preview_url && !demoRunning && <Badge tone="accent">🎨 Demo gata</Badge>}
         {demoRunning && <Badge tone="info">⏳ Demo în lucru</Badge>}
       </div>
+      {!open && (
+        <>
+          {(() => { const t = problemCodes.map(c => findingRo(c, '')).filter(Boolean); return t.length > 0 && <p className="text-[12px] text-slate-600 mt-1.5">• {t[0]}{t.length > 1 ? ` (+${t.length - 1})` : ''}</p> })()}
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            {!contacted && mobile && !noWa && r.whatsapp_status !== 'FOUND' && <>
+              <Btn green href={waLink()}>💬 Verifică WhatsApp</Btn>
+              <button className="h-10 px-3 rounded-lg border border-slate-300 text-sm" onClick={() => setWa('FOUND')}>✓ Are</button>
+              <button className="h-10 px-3 rounded-lg border border-slate-300 text-sm" onClick={() => setWa('NOT_FOUND')}>✗ N-are</button>
+            </>}
+            {!contacted && (r.whatsapp_status === 'FOUND' || !mobile || noWa) && <Button variant="primary" className="h-10" onClick={() => setOpen(true)}>✍️ Scrie mesajul</Button>}
+            {!contacted && noWa && <Btn href={smsLink(`${first}\n\n${second}`)}>✉️ SMS</Btn>}
+            {waiting && <>
+              {mobile && !noWa ? <Btn green href={waLink(msgs.followup)}>📱 Reamintire</Btn> : r.phone_e164 ? <Btn href={smsLink(msgs.followup)}>✉️ Reamintire SMS</Btn> : null}
+              <button className="h-10 px-3 rounded-lg border border-slate-300 text-sm" disabled={busy === 'fu'} onClick={sentFollowUp}>Am trimis reamintirea</button>
+              <Button variant="primary" className="h-10" loading={busy === 'positive'} onClick={() => replied('positive')}>🙋 Interesat</Button>
+              <button className="h-10 px-3 rounded-lg text-sm text-slate-500" disabled={busy === 'negative'} onClick={() => replied('negative')}>👎 A zis nu</button>
+            </>}
+            {['replied', 'interested', 'call_meeting', 'proposal_sent', 'negotiation'].includes(r.stage) && <>
+              {r.preview_url && !demoRunning && mobile && !noWa && <Btn green href={waLink(msgs.demo)}>📱 Trimite demo-ul</Btn>}
+              <Button variant={r.preview_url ? 'secondary' : 'primary'} className="h-10" onClick={() => setOpen(true)}>{demoRunning ? '⏳ Demo în lucru' : r.preview_url ? 'Deschide' : '🎨 Fă demo-ul'}</Button>
+              <button className="h-10 px-3 rounded-lg border border-slate-300 text-sm" disabled={busy === 'won'} onClick={() => setStage('won', 'Felicitări! Marcat ca client.')}>🏆 A acceptat</button>
+            </>}
+            {r.stage === 'won' && <Button className="h-10" onClick={() => setOpen(true)}>Deschide</Button>}
+            {followDue && <span className="self-center text-[11px] text-amber-700">⏰ e momentul reamintirii</span>}
+          </div>
+          {infoMsg && <p className="text-xs text-teal-800 mt-2">{infoMsg}</p>}
+          {err && <p className="text-xs text-rose-700 mt-2">{err}</p>}
+        </>
+      )}
+      {open && <>
       <p className="text-[12px] text-slate-500 mt-1">{st.hint}</p>
       {!!r.findings?.length && (
         <ul className="mt-2 space-y-1">
-          {r.findings.slice(0, 4).map(f => <li key={f.code} className="text-[13px] text-slate-700 flex gap-1.5"><span className="text-rose-500">•</span>{findingRo(f.code, f.what)}</li>)}
+          {r.findings.filter(f => findingRo(f.code, f.what)).slice(0, 4).map(f => <li key={f.code} className="text-[13px] text-slate-700 flex gap-1.5"><span className="text-rose-500">•</span>{findingRo(f.code, f.what)}</li>)}
         </ul>
       )}
 
@@ -345,19 +421,31 @@ function LeadCard({ r, country, templates, keys, onChange, onDone, onSent }: { r
       </Step>
 
       {/* 2. Mesaj în 2 părți scurte */}
-      <Step n={2} title={`Mesaj (2 părți scurte, în ${country === 'HU' ? 'maghiară' : 'engleză'})`}>
+      <Step n={2} title={`Mesaj (2 părți scurte, în ${LANG_RO[country]})`}>
         <label className="block text-[11px] text-slate-500 mb-1">Partea 1 — se deschide direct în WhatsApp</label>
         <textarea value={first} onChange={e => setFirst(e.target.value)} rows={3} className="w-full rounded-lg border border-slate-300 p-2 text-sm leading-relaxed" />
         <div className="flex flex-wrap gap-2 mt-1.5">
           {mobile && !noWa && <Btn green href={waLink(first)}>📱 Trimite partea 1 pe WhatsApp</Btn>}
+          {mobile && noWa && <Btn href={smsLink(`${first}\n\n${second}`)}>✉️ Trimite prin SMS (ambele părți)</Btn>}
           <Btn onClick={() => copy('1', first)}>{copied === '1' ? 'Copiat ✓' : 'Copiază'}</Btn>
         </div>
         <label className="block text-[11px] text-slate-500 mt-3 mb-1">Partea 2 — o lipești imediat după (sau după ce răspunde)</label>
         <textarea value={second} onChange={e => setSecond(e.target.value)} rows={5} className="w-full rounded-lg border border-slate-300 p-2 text-sm leading-relaxed" />
         <div className="flex flex-wrap gap-2 mt-1.5">
           <Btn onClick={() => copy('2', second)}>{copied === '2' ? 'Copiat ✓' : '📋 Copiază partea 2'}</Btn>
-          {r.email && <Btn href={`mailto:${r.email}?subject=${encodeURIComponent(`A quick idea for ${r.name}`)}&body=${encodeURIComponent(`${first}\n\n${second}`)}`}>✉️ Email</Btn>}
+          {r.email && <Btn href={`mailto:${r.email}?subject=${encodeURIComponent(country === 'HU' ? `Ötlet a(z) ${r.name} számára` : country === 'RO' ? `O idee pentru ${r.name}` : `A quick idea for ${r.name}`)}&body=${encodeURIComponent(`${first}\n\n${second}`)}`}>✉️ Email</Btn>}
         </div>
+        {waiting && (
+          <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 p-2.5">
+            <div className="text-[12px] font-medium text-amber-900 mb-1">⏰ Reamintire (dacă n-a răspuns în 2–3 zile)</div>
+            <div className="text-[13px] text-slate-700 whitespace-pre-wrap">{msgs.followup}</div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {mobile && !noWa ? <Btn green href={waLink(msgs.followup)}>📱 Trimite pe WhatsApp</Btn> : r.phone_e164 ? <Btn href={smsLink(msgs.followup)}>✉️ Trimite SMS</Btn> : null}
+              <Btn onClick={() => copy('f', msgs.followup)}>{copied === 'f' ? 'Copiat ✓' : 'Copiază'}</Btn>
+              <Button size="sm" className="h-10" loading={busy === 'fu'} onClick={sentFollowUp}>Am trimis reamintirea</Button>
+            </div>
+          </div>
+        )}
         <button className="mt-2 text-xs text-teal-700 underline" onClick={() => setShowPrice(v => !v)}>{showPrice ? 'Ascunde' : 'Dacă răspunde că e interesat → mesajul despre preț'}</button>
         {showPrice && (
           <div className="mt-1.5 rounded-lg bg-slate-50 p-2 text-[13px] text-slate-700 whitespace-pre-wrap">
@@ -388,7 +476,7 @@ function LeadCard({ r, country, templates, keys, onChange, onDone, onSent }: { r
             <>
               {r.demo_status === 'error' && <p className="mb-2 text-xs text-rose-700">Demo-ul n-a reușit: {r.demo_error || 'eroare necunoscută'}. Încearcă din nou.</p>}
               <Button variant="primary" className="w-full h-10" loading={busy === 'demo'} onClick={makeDemo}>🎨 Fă demo site pentru {r.name}</Button>
-              <p className="text-[11px] text-slate-400 mt-1">Site concept în {country === 'HU' ? 'maghiară' : 'engleză'}, cu pozele și recenziile lui reale din Google{r.website_url && !['NO_WEBSITE', 'SOCIAL_ONLY', 'DIRECTORY_ONLY'].includes(r.website_status) ? ' și textele de pe site-ul actual' : ''}. Se face pe server — nu trebuie să stai pe pagină.</p>
+              <p className="text-[11px] text-slate-400 mt-1">Site concept în {LANG_RO[country]}, cu pozele și recenziile lui reale din Google{r.website_url && !['NO_WEBSITE', 'SOCIAL_ONLY', 'DIRECTORY_ONLY'].includes(r.website_status) ? ' și textele de pe site-ul actual' : ''}. Se face pe server — nu trebuie să stai pe pagină.</p>
             </>
           )}
         </Step>
@@ -398,14 +486,17 @@ function LeadCard({ r, country, templates, keys, onChange, onDone, onSent }: { r
         {!contacted
           ? <Button size="sm" variant="primary" loading={busy === 'sent'} onClick={() => sent(mobile && !noWa ? 'whatsapp' : r.email ? 'email' : 'phone')}>✅ Am trimis mesajul</Button>
           : r.stage !== 'interested'
-            ? <Button size="sm" variant="primary" loading={busy === 'interested'} onClick={() => setStage('interested', 'Marcat ca interesat — fă demo-ul mai sus și trimite-i linkul.')}>🙋 E interesat</Button>
+            ? <Button size="sm" variant="primary" loading={busy === 'positive'} onClick={() => replied('positive')}>🙋 E interesat</Button>
             : <Button size="sm" loading={busy === 'won'} onClick={() => setStage('won', 'Felicitări! Marcat ca client câștigat.')}>🏆 A acceptat (client)</Button>}
+        {waiting && <Button size="sm" variant="ghost" loading={busy === 'negative'} onClick={() => replied('negative')}>👎 A zis nu</Button>}
         {contacted && <Button size="sm" variant="ghost" loading={busy === 'new_lead'} onClick={() => setStage('new_lead', 'L-am pus înapoi în lista zilei.')}>↩ Înapoi în listă</Button>}
         <Button size="sm" variant="ghost" onClick={notFit}>Nu e potrivit</Button>
         <Link href={`/crm/leads/${r.id}`} className="h-8 px-2 inline-flex items-center text-[13px] text-slate-500">Detalii →</Link>
       </div>
       {infoMsg && <p className="text-xs text-teal-800 mt-2">{infoMsg}</p>}
       {err && <p className="text-xs text-rose-700 mt-2">{err}</p>}
+      <button className="mt-2 w-full text-center text-xs text-slate-400" onClick={() => setOpen(false)}>▲ Închide</button>
+      </>}
     </article>
   )
 }
@@ -452,16 +543,26 @@ function TemplateEditor({ value, defaults, onChange }: { value: UkTemplates; def
 interface HuntInfo {
   pool: number; target: number; newToday: number; dailyNewMax: number; googleCostToday: number; googleRequestsToday: number
   pendingAudits: number; placesMode: 'auto' | 'new' | 'legacy'; serverKey: boolean; maxSteps: number
+  googleCostMonth: number; stats: Stats
   state: { steps_today: number; last_auto_at?: string; log: string[] }
 }
 
-function HuntPanel({ country, googleKey, onProgress }: { country: Country; googleKey: string; onProgress: () => void }) {
+function HuntPanel({ country, googleKey, onProgress, onInfo }: { country: Country; googleKey: string; onProgress: () => void; onInfo: (i: HuntInfo) => void }) {
   const [info, setInfo] = useState<HuntInfo | null>(null)
   const [running, setRunning] = useState(false)
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
   const stop = useRef(false)
-  const refresh = useCallback(async () => { try { setInfo(await api<HuntInfo>(`/api/crm/hunt?country=${country}`)) } catch (e) { setErr(e instanceof Error ? e.message : String(e)) } }, [country])
+  const refresh = useCallback(async () => {
+    try { const i = await api<HuntInfo>(`/api/crm/hunt?country=${country}`); setInfo(i); onInfo(i) } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+  }, [country]) // eslint-disable-line react-hooks/exhaustive-deps
+  async function setTarget(n: number) {
+    try {
+      const d = await api<{ settings: { target_market: Record<string, unknown> } }>('/api/crm/settings')
+      await api('/api/crm/settings', { method: 'PUT', json: { key: 'target_market', value: { ...d.settings.target_market, daily_target: n } } })
+      setInfo(x => x && { ...x, target: n })
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+  }
   useEffect(() => { refresh() }, [refresh])
 
   async function run() {
@@ -487,26 +588,39 @@ function HuntPanel({ country, googleKey, onProgress }: { country: Country; googl
   const pct = info ? Math.min(100, Math.round((info.pool / info.target) * 100)) : 0
   return (
     <section className="bg-slate-900 text-white rounded-xl p-4">
-      <div className="flex items-end justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
         <div>
           <div className="text-[11px] uppercase tracking-wide text-slate-400">Lista zilei</div>
           <div className="text-3xl font-semibold tabular-nums">{info ? info.pool : '…'}<span className="text-slate-500 text-xl"> / {info?.target ?? 50}</span></div>
           <div className="text-[12px] text-slate-400">firme fără site / cu site de refăcut, cu mobil, necontactate</div>
+          {info && !running && (
+            <div className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-400">Țintă/zi:
+              {[25, 50, 75, 100].map(n => <button key={n} onClick={() => setTarget(n)} className={cx('px-1.5 py-0.5 rounded', info.target === n ? 'bg-teal-500 text-slate-950 font-semibold' : 'bg-slate-800 text-slate-300')}>{n}</button>)}
+            </div>
+          )}
         </div>
         {running
-          ? <Button className="h-11" onClick={() => { stop.current = true }}>⏸ Oprește</Button>
-          : <Button variant="primary" className="h-11 bg-teal-500 hover:bg-teal-400 text-slate-950" disabled={!info || info.pool >= info.target} onClick={run}>▶ Completează până la {info?.target ?? 50}</Button>}
+          ? <Button className="h-11 w-full sm:w-auto" onClick={() => { stop.current = true }}>⏸ Oprește</Button>
+          : <Button variant="primary" className="h-11 w-full sm:w-auto bg-teal-500 hover:bg-teal-400 text-slate-950" disabled={!info || info.pool >= info.target} onClick={run}>▶ Completează până la {info?.target ?? 50}</Button>}
       </div>
       <div className="mt-3 h-2 rounded-full bg-slate-700 overflow-hidden"><div className="h-full bg-teal-400 transition-all" style={{ width: `${pct}%` }} /></div>
       {(msg || running) && <p className="mt-2 text-sm text-teal-200 flex items-center gap-2">{running && <span className="w-3.5 h-3.5 border-2 border-current border-r-transparent rounded-full animate-spin" />}{msg || 'Caut…'}</p>}
       {err && <p className="mt-2 text-sm text-rose-300">{err}</p>}
+      {info?.stats && (
+        <div className="mt-3 grid grid-cols-4 gap-1.5 text-center">
+          {([['Trimise azi', info.stats.contacted_today], ['Contactați', info.stats.contacted], ['Au răspuns', info.stats.replied], ['Interesați', info.stats.interested + info.stats.won]] as [string, number][]).map(([l, n]) => (
+            <div key={l} className="rounded-lg bg-slate-800 py-1.5"><div className="text-lg font-semibold tabular-nums">{n}</div><div className="text-[10px] text-slate-400 leading-tight">{l}</div></div>
+          ))}
+        </div>
+      )}
       {info && (
         <div className="mt-3 text-[12px] text-slate-400 space-y-0.5">
-          <div>Azi: {info.state.steps_today} căutări · {info.newToday} firme noi salvate · cost Google estimat ${info.googleCostToday.toFixed(2)}</div>
+          <div>Azi: {info.state.steps_today} căutări · {info.newToday} firme noi salvate</div>
+          <div>💰 Google (estimat de aplicație, toate țările): azi <b className="text-slate-200">${info.googleCostToday.toFixed(2)}</b> · luna asta <b className="text-slate-200">${(info.googleCostMonth || 0).toFixed(2)}</b> · <a className="underline text-teal-300" href="https://console.cloud.google.com/billing" target="_blank" rel="noreferrer">costul real în Google Cloud</a> · <a className="underline text-teal-300" href="https://console.cloud.google.com/apis/dashboard" target="_blank" rel="noreferrer">nr. de apeluri</a></div>
           <div>{info.placesMode === 'legacy'
             ? <>API Google vechi (~$0.40 la 20 de firme). Activează „Places API (New)” în Google Cloud și costă de ~10 ori mai puțin — aplicația trece singură pe el.</>
             : info.placesMode === 'new' ? <>API Google nou (ieftin: un apel pentru 20 de firme).</> : <>Prima căutare verifică ce API Google e activ la cheia ta.</>}</div>
-          <div>Automat în fiecare dimineață ({country === 'HU' ? '~8:10 ora Ungariei' : '~7:40 ora UK'}): {info.serverKey ? <>activ{info.state.last_auto_at ? ` · ultima rulare ${new Date(info.state.last_auto_at).toLocaleString('ro-RO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''}</> : <>pune <b>GOOGLE_PLACES_API_KEY</b> în Vercel (Settings → Environment Variables) ca să meargă singur.</>}</div>
+          <div>Automat în fiecare dimineață ({country === 'HU' ? '~8:10 ora Ungariei' : country === 'RO' ? '~8:50 ora României' : '~7:40 ora UK'}): {info.serverKey ? <>activ{info.state.last_auto_at ? ` · ultima rulare ${new Date(info.state.last_auto_at).toLocaleString('ro-RO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''}</> : <>pune <b>GOOGLE_PLACES_API_KEY</b> în Vercel (Settings → Environment Variables) ca să meargă singur.</>}</div>
           {info.pendingAudits > 0 && <div>Site-uri de verificat: {info.pendingAudits} (se verifică la următorul pas)</div>}
           {!!info.state.log.length && (
             <details className="mt-1"><summary className="cursor-pointer text-slate-300">Ce am căutat azi ({info.state.log.length})</summary>
