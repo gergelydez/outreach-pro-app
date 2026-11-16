@@ -165,15 +165,15 @@ describe('Hungary + paying-first + rebuild message', () => {
   it('part 2 of the message offers a rebuild to businesses that already have a website', async () => {
     const { buildMessages, TEMPLATES } = await import('@/lib/crm/uk-templates')
     const site = buildMessages(TEMPLATES.UK, { name: 'Kings Heath Plumbing', trades: 'plumbers', website_status: 'OUTDATED_WEBSITE', findingCodes: ['not_mobile_friendly'] })
-    expect(site.second).toMatch(/modern version of your website/)
-    expect(site.second).not.toMatch(/your own website/)
+    expect(site.second).toMatch(/than your current one/)
+    expect(site.second).not.toMatch(/people who are currently going/)
     const none = buildMessages(TEMPLATES.UK, { name: 'X', trades: 'plumbers', website_status: 'NO_WEBSITE', findingCodes: [] })
-    expect(none.second).toMatch(/your own website/)
+    expect(none.second).toMatch(/people who are currently going to your competitors/)
     const hu = buildMessages(TEMPLATES.HU, { name: 'Kovács Fűtés', trades: '', website_status: 'OUTDATED_WEBSITE', findingCodes: ['not_mobile_friendly'], country: 'HU' })
     expect(hu.first).toMatch(/nincs mobilra optimalizálva/)
-    expect(hu.second).toMatch(/modern változatát/)
-    expect(hu.second).toMatch(/egyetemista vagyok/)
-    expect(hu.price).toMatch(/70 000–100 000 Ft/)
+    expect(hu.second).toMatch(/mint a mostani/)
+    expect(hu.second).toMatch(/70 000 Ft-tól/)
+    expect(hu.price).toMatch(/70 000 Ft-tól/)
   })
 
   it('only saves active businesses (rating ≥ 4, a few reviews)', async () => {

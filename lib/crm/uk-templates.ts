@@ -1,7 +1,7 @@
-// Mesajele de WhatsApp (UK în engleză, Ungaria în maghiară), scurte și pe bucăți, ca să fie citite:
-//  1) salut + ce am observat
-//  2) oferta: fără site → concept gratuit de site propriu; cu site → variantă modernă, optimizată, a site-ului lor
-//  3) doar dacă răspunde interesat: prețul   4) după demo: linkul
+// Mesajele de WhatsApp (UK în engleză, Ungaria în maghiară, România în română), scurte și pe bucăți:
+//  1) salut + ce am observat + „v-am pregătit gratuit un concept”
+//  2) de ce merită + preț de pornire spus transparent + „Vreți să vi-l trimit?”
+//  3) linkul demo-ului doar după ce răspunde „da”   4) reamintire după 2–3 zile
 // Se pot edita în pagină; se salvează pe telefon (localStorage), separat pentru fiecare țară.
 import type { Country } from './countries'
 
@@ -19,38 +19,38 @@ export interface UkTemplates {
 
 const UK: UkTemplates = {
   me: 'Geri',
-  intro_nosite: "Hi, I'm {me} 👋 I came across {name} on Google and noticed that, unlike other {trades} nearby, you don't have a website.",
-  intro_social: "Hi, I'm {me} 👋 I came across {name} on Google and noticed you only have a social media or directory page, not a website of your own.",
-  intro_site: "Hi, I'm {me} 👋 I came across {name} on Google and had a look at your website – I noticed {problem}.",
-  offer: "If you're interested, I can make a free concept of your own website so you can see how it would look. If you like it, I'll personalise it and put it live.\n\nI'm not an agency or a freelancer – I'm a university student and I need real businesses to build sites for as part of a project. If it's not for you, no worries, just let me know.",
-  offer_site: "If you're interested, I can make you a free concept of a modern version of your website – fast, mobile-friendly and optimised for Google – so you can see how it would look. If you like it, I'll personalise it and put it live.\n\nI'm not an agency or a freelancer – I'm a university student and I need real businesses to build sites for as part of a project. If it's not for you, no worries, just let me know.",
-  price: "Just to be upfront: the concept is free and there's no obligation. If you'd like it live afterwards, it would be around £200–300 – much less than an agency would charge.",
-  demo: "Here's the concept I made for {name}: {link}\nHave a look on your phone and let me know what you think 🙂",
-  followup: "Just following up on my message above 🙂 Happy to put together the free concept for {name} if you'd like to see how it would look. If now's not a good time, no worries at all.",
+  intro_nosite: "Hi, I'm {me} 👋 I came across {name} on Google and noticed that, unlike other businesses in your area, you don't have a website, so I've put together a free website concept for you.",
+  intro_social: "Hi, I'm {me} 👋 I came across {name} on Google and noticed you only have a Facebook/Instagram page, not your own website, so I've put together a free website concept for you.",
+  intro_site: "Hi, I'm {me} 👋 I came across {name} on Google and had a look at your website: I noticed {problem}. So I've put together a free concept for a new, modern version.",
+  offer: "A modern, well-built website can bring you a lot more customers, people who are currently going to your competitors. This month I'm building websites below market price to help local businesses grow.\n\nTo be transparent from the start: prices start from £200, but the concept I've already made is free. Shall I send it over?",
+  offer_site: "A modern website, fast, great on mobile and optimised for Google, can bring you a lot more customers than your current one. This month I'm building websites below market price to help local businesses grow.\n\nTo be transparent from the start: prices start from £200, but the concept I've already made is free. Shall I send it over?",
+  price: "To be transparent: prices start from £200, and the concept I've already made is free, with no obligation.",
+  demo: "Here's the concept I made for {name}: {link}\nHave a look on your phone and let me know what you think 🙂 If you like it, I can put it live from £200.",
+  followup: "Just following up 🙂 The free website concept for {name} is ready whenever you want it. Shall I send it over? Prices from £200 are valid until the end of the month.",
 }
 
 const HU: UkTemplates = {
   me: 'Geri',
-  intro_nosite: 'Jó napot kívánok! {me} vagyok 👋 A Google-ön találtam rá a(z) {name} vállalkozásra, és feltűnt, hogy a környékbeli konkurenciával ellentétben nincs saját weboldaluk.',
-  intro_social: 'Jó napot kívánok! {me} vagyok 👋 A Google-ön találtam rá a(z) {name} vállalkozásra, és láttam, hogy csak közösségi oldaluk van (pl. Facebook), saját weboldaluk nincs.',
-  intro_site: 'Jó napot kívánok! {me} vagyok 👋 A Google-ön találtam rá a(z) {name} vállalkozásra, és megnéztem a weboldalukat – azt vettem észre, hogy {problem}.',
-  offer: 'Ha érdekli, ingyen elkészítem a saját weboldaluk tervét, hogy lássa, hogyan nézne ki. Ha tetszik, személyre szabom és élesítem.\n\nNem ügynökség és nem szabadúszó vagyok – egyetemista vagyok, és egy projekthez valódi vállalkozásoknak készítek weboldalt. Ha nem érdekli, semmi gond, csak jelezze.',
-  offer_site: 'Ha érdekli, ingyen elkészítem a mostani weboldaluk modern változatát – gyors, mobilbarát és Google-keresésre optimalizált –, hogy lássa, hogyan nézne ki. Ha tetszik, személyre szabom és élesítem.\n\nNem ügynökség és nem szabadúszó vagyok – egyetemista vagyok, és egy projekthez valódi vállalkozásoknak készítek weboldalt. Ha nem érdekli, semmi gond, csak jelezze.',
-  price: 'Hogy őszinte legyek: a terv ingyenes és semmire sem kötelez. Ha utána szeretné élesíteni, az kb. 70 000–100 000 Ft lenne – jóval kevesebb, mint egy ügynökségnél.',
-  demo: 'Itt a weboldal-terv, amit a(z) {name} számára készítettem: {link}\nNézze meg telefonon, és írja meg, mit gondol 🙂',
-  followup: 'Csak röviden visszatérnék az előző üzenetemre 🙂 Szívesen elkészítem az ingyenes weboldal-tervet, ha kíváncsi rá, hogyan nézne ki. Ha most nem aktuális, semmi gond.',
+  intro_nosite: "Jó napot kívánok! {me} vagyok 👋 A Google-ön találtam rá a(z) {name} vállalkozásra, és láttam, hogy a környékbeli cégekkel ellentétben Önöknek nincs weboldaluk, ezért készítettem Önöknek ingyen egy weboldaltervet.",
+  intro_social: "Jó napot kívánok! {me} vagyok 👋 A Google-ön találtam rá a(z) {name} vállalkozásra, és láttam, hogy csak Facebook/Instagram oldaluk van, saját weboldaluk nincs, ezért készítettem Önöknek ingyen egy weboldaltervet.",
+  intro_site: "Jó napot kívánok! {me} vagyok 👋 A Google-ön találtam rá a(z) {name} vállalkozásra, és megnéztem a weboldalukat: azt vettem észre, hogy {problem}. Ezért készítettem Önöknek ingyen egy tervet egy új, modern weboldalra.",
+  offer: "Egy modern, jól elkészített weboldal sokkal több ügyfelet hozhat, olyanokat, akik most a konkurenciához mennek. Ebben a hónapban piaci ár alatt készítem a weboldalakat, hogy segítsek a helyi vállalkozásoknak növekedni.\n\nHogy már az elején átlátható legyek: az árak 70 000 Ft-tól indulnak, de a már elkészült terv ingyenes. Elküldjem?",
+  offer_site: "Egy modern weboldal, gyors, mobilon is szép és Google-re optimalizált, sokkal több ügyfelet hozhat, mint a mostani. Ebben a hónapban piaci ár alatt készítem a weboldalakat, hogy segítsek a helyi vállalkozásoknak növekedni.\n\nHogy már az elején átlátható legyek: az árak 70 000 Ft-tól indulnak, de a már elkészült terv ingyenes. Elküldjem?",
+  price: "Hogy átlátható legyek: az árak 70 000 Ft-tól indulnak, a már elkészült terv pedig ingyenes és semmire sem kötelez.",
+  demo: "Itt is van a terv, amit a(z) {name} számára készítettem: {link}\nNézze meg telefonon, és írja meg, mit gondol 🙂 Ha tetszik, 70 000 Ft-tól élesítem.",
+  followup: "Csak röviden visszatérnék 🙂 A(z) {name} számára készített ingyenes weboldalterv továbbra is várja Önöket. Elküldjem? A 70 000 Ft-tól induló árak a hónap végéig érvényesek.",
 }
 
 const RO: UkTemplates = {
   me: 'Geri',
-  intro_nosite: 'Bună ziua! Sunt {me} 👋 Am dat de {name} pe Google și am observat că, spre deosebire de alte firme din zonă, nu aveți un site.',
-  intro_social: 'Bună ziua! Sunt {me} 👋 Am dat de {name} pe Google și am observat că aveți doar pagină de Facebook/Instagram, nu un site propriu.',
-  intro_site: 'Bună ziua! Sunt {me} 👋 Am dat de {name} pe Google și m-am uitat pe site-ul dumneavoastră – am observat că {problem}.',
-  offer: 'Dacă vă interesează, vă pot face gratuit un concept de site propriu, ca să vedeți cum ar arăta. Dacă vă place, îl personalizez și îl pun online.\n\nNu sunt agenție și nici freelancer – sunt student și am nevoie de afaceri reale pentru un proiect la facultate. Dacă nu vă interesează, nicio problemă, îmi spuneți și nu vă mai deranjez.',
-  offer_site: 'Dacă vă interesează, vă pot face gratuit un concept al unei variante moderne a site-ului – rapid, arătos pe telefon și optimizat pentru Google – ca să vedeți cum ar arăta. Dacă vă place, îl personalizez și îl pun online.\n\nNu sunt agenție și nici freelancer – sunt student și am nevoie de afaceri reale pentru un proiect la facultate. Dacă nu vă interesează, nicio problemă, îmi spuneți și nu vă mai deranjez.',
-  price: 'Ca să fiu sincer de la început: conceptul e gratuit și nu vă obligă la nimic. Dacă vreți apoi să-l puneți online, ar costa în jur de 700–1.400 lei – mult mai puțin decât la o agenție.',
-  demo: 'Iată conceptul pe care l-am făcut pentru {name}: {link}\nUitați-vă pe telefon și spuneți-mi ce părere aveți 🙂',
-  followup: 'Revin pe scurt la mesajul de mai sus 🙂 Vă pot face oricând conceptul gratuit pentru {name}, dacă vreți să vedeți cum ar arăta. Dacă nu e momentul potrivit, nicio problemă.',
+  intro_nosite: "Bună ziua! Sunt {me} 👋 Am dat de {name} pe Google și am observat că, spre deosebire de alte firme din zonă, nu aveți un site, așa că v-am pregătit gratuit un concept de site.",
+  intro_social: "Bună ziua! Sunt {me} 👋 Am dat de {name} pe Google și am observat că aveți doar pagină de Facebook/Instagram, nu un site propriu, așa că v-am pregătit gratuit un concept de site.",
+  intro_site: "Bună ziua! Sunt {me} 👋 Am dat de {name} pe Google și m-am uitat pe site-ul dumneavoastră: am observat că {problem}. Așa că v-am pregătit gratuit un concept pentru un site nou, modern.",
+  offer: "Un site modern, făcut cum trebuie, vă poate aduce mult mai mulți clienți, oameni care acum ajung la concurență. Luna aceasta fac site-urile sub prețul pieței, ca să ajut firmele locale să crească.\n\nCa să fiu transparent de la început: prețurile pornesc de la 700 de lei, dar conceptul realizat deja e gratuit. Vreți să vi-l trimit?",
+  offer_site: "Un site modern, rapid, arătos pe telefon și optimizat pentru Google, vă poate aduce mult mai mulți clienți decât cel de acum. Luna aceasta fac site-urile sub prețul pieței, ca să ajut firmele locale să crească.\n\nCa să fiu transparent de la început: prețurile pornesc de la 700 de lei, dar conceptul realizat deja e gratuit. Vreți să vi-l trimit?",
+  price: "Ca să fiu transparent: prețurile pornesc de la 700 de lei, iar conceptul realizat deja e gratuit și nu vă obligă la nimic.",
+  demo: "Iată conceptul făcut pentru {name}: {link}\nUitați-vă pe telefon și spuneți-mi ce părere aveți 🙂 Dacă vă place, îl pun online de la 700 lei.",
+  followup: "Revin pe scurt 🙂 Conceptul de site pregătit pentru {name} vă așteaptă, e gratuit. Vreți să vi-l trimit? Prețurile de la 700 lei sunt valabile până la sfârșitul lunii.",
 }
 
 export const DEFAULT_TEMPLATES: UkTemplates = UK
