@@ -18,6 +18,8 @@ export const GET = route(async (req: Request) => {
   const where: string[] = []
   const P: unknown[] = []
   if (show === 'pool') where.push(poolWhere(country))
+  // contactați / interesați: toată țara, ultimii contactați primii
+  else if (show === 'followup') where.push(`b.country = '${country}' AND b.stage IN ('contacted','follow_up_1','follow_up_2','replied','interested','call_meeting','proposal_sent','negotiation','won')`)
   else {
     where.push(`b.country = '${country}'`)
     if (city) { P.push(city); where.push(`b.city = $${P.length}`) }
@@ -34,7 +36,7 @@ export const GET = route(async (req: Request) => {
       LEFT JOIN LATERAL (SELECT findings, created_at FROM website_audits w WHERE w.business_id = b.id ORDER BY created_at DESC LIMIT 1) a ON true
       LEFT JOIN LATERAL (SELECT output FROM ai_analyses x WHERE x.business_id = b.id AND x.kind = 'quick' ORDER BY created_at DESC LIMIT 1) m ON true
      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-     ORDER BY ${show === 'pool' ? `(b.whatsapp_source = 'manual' AND b.whatsapp_status = 'FOUND') DESC NULLS LAST, ` : ''}b.opportunity_score DESC NULLS LAST, b.google_review_count DESC NULLS LAST
+     ORDER BY ${show === 'followup' ? `(b.stage = 'interested') DESC, b.last_contacted_at DESC NULLS LAST, ` : ''}${show === 'pool' ? `(b.whatsapp_source = 'manual' AND b.whatsapp_status = 'FOUND') DESC NULLS LAST, ` : ''}b.opportunity_score DESC NULLS LAST, b.google_review_count DESC NULLS LAST
      LIMIT 150`, P)
   const pending = await one<{ n: string }>(`SELECT count(*)::text AS n FROM audit_jobs WHERE status IN ('pending','running') AND run_after <= now()`)
   return json({ rows, pendingAudits: Number(pending?.n || 0) })

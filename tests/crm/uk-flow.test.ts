@@ -85,3 +85,23 @@ describe('"has a website" button + ticked problems', () => {
     expect((await sitePost(req('/x', { method: 'POST', json: { url: '' } }), { params: { id: b!.id } })).status).toBe(400)
   })
 })
+
+describe('contacted / interested list', () => {
+  beforeEach(async () => { await freshDb() })
+
+  it('a contacted business leaves the daily list, appears under "contacted", and can be marked interested', async () => {
+    const { POST: eventsPost } = await import('@/app/api/crm/leads/[id]/events/route')
+    const b = await one<{ id: string }>(`INSERT INTO businesses (name, category, city, lead_source, website_status, phone_e164, country) VALUES ('Kovács Fűtés', 'heating', 'Debrecen', 'google_places', 'NO_WEBSITE', '+36301234567', 'HU') RETURNING id`)
+    const ctx = { params: { id: b!.id } }
+    const pool = async () => (await (await simpleGet(req('/api/crm/simple?country=HU&show=pool'))).json()).rows.length
+    const follow = async () => (await (await simpleGet(req('/api/crm/simple?country=HU&show=followup'))).json()).rows
+    expect(await pool()).toBe(1)
+    await eventsPost(req('/x', { method: 'POST', json: { event_type: 'contacted', channel: 'whatsapp', schedule_follow_ups: true } }), ctx)
+    expect(await pool()).toBe(0)
+    expect((await follow()).map((r: { stage: string }) => r.stage)).toEqual(['contacted'])
+    await eventsPost(req('/x', { method: 'POST', json: { event_type: 'reply', reply_status: 'positive', channel: 'whatsapp' } }), ctx)
+    expect((await follow())[0].stage).toBe('interested')
+    // UK nu vede firmele din Ungaria
+    expect((await (await simpleGet(req('/api/crm/simple?country=UK&show=followup'))).json()).rows).toHaveLength(0)
+  })
+})
