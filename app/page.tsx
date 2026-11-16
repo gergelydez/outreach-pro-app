@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { Logo } from '@/components/Logo'
 import { getLeads, getTodayStats, getAllStats } from '@/lib/storage'
 
 export default function Home() {
@@ -22,12 +23,7 @@ export default function Home() {
       {/* Header */}
       <header className="border-b border-slate-800/50 px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg" style={{ background: 'linear-gradient(135deg, #25D366, #128C7E)' }}>
-              🎯
-            </div>
-            <span className="font-bold text-lg text-white">Outreach Pro</span>
-          </div>
+          <Logo size={38} />
           <nav className="flex flex-wrap gap-2">
             <Link href="/crm/gaseste" className="px-4 py-2 rounded-lg text-white bg-teal-700 hover:bg-teal-600 transition-all text-sm font-semibold">
               🇬🇧 UK CRM
