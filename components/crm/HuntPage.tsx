@@ -32,8 +32,9 @@ export default function HuntPage({ country }: { country: Country }) {
   const regionOf = (c: string) => cities.find(x => x.city === c)?.region || null
   const [city, setCity] = useState(cities[0].city)
   const [category, setCategory] = useState(cats[0].key)
-  const [show, setShow] = useState<'pool' | 'todo' | 'all'>('pool')
+  const [show, setShow] = useState<'pool' | 'followup' | 'todo' | 'all'>('pool')
   const [manualOpen, setManualOpen] = useState(false)
+  const [sentNote, setSentNote] = useState('')
   const [rows, setRows] = useState<Lead[] | null>(null)
   const [pending, setPending] = useState(0)
   const [busy, setBusy] = useState('')
@@ -126,26 +127,33 @@ export default function HuntPage({ country }: { country: Country }) {
       <TemplateEditor value={templates} defaults={TEMPLATES[country]} onChange={saveTemplates} />
 
       <div className="flex items-center justify-between mt-5 mb-2">
-        <h2 className="text-sm font-semibold text-slate-700">{rows ? `${rows.length} firme` : 'Se încarcă…'}{show === 'pool' ? ' · lista zilei' : ` · ${catRo(country, category)} în ${city}`}</h2>
-        <Select className="w-48 h-8 text-xs" value={show} onChange={e => setShow(e.target.value as 'pool' | 'todo' | 'all')}>
-          <option value="pool">Lista zilei (cu mobil)</option><option value="todo">De contactat — orașul ales</option><option value="all">Toate — orașul ales</option>
+        <h2 className="text-sm font-semibold text-slate-700">{rows ? `${rows.length} firme` : 'Se încarcă…'}{show === 'pool' ? ' · lista zilei' : show === 'followup' ? ' · contactați / interesați' : ` · ${catRo(country, category)} în ${city}`}</h2>
+        <Select className="w-48 h-8 text-xs" value={show} onChange={e => setShow(e.target.value as 'pool' | 'followup' | 'todo' | 'all')}>
+          <option value="pool">Lista zilei (cu mobil)</option><option value="followup">Contactați / interesați</option><option value="todo">De contactat — orașul ales</option><option value="all">Toate — orașul ales</option>
         </Select>
       </div>
 
+      {sentNote && (
+        <div className="mb-3 rounded-lg bg-teal-50 border border-teal-200 p-2.5 text-[13px] text-teal-900 flex items-center justify-between gap-2">
+          <span>✅ {sentNote} a trecut la „Contactați / interesați”. Când răspunde, îl găsești acolo (demo, „E interesat”).</span>
+          <button className="underline whitespace-nowrap" onClick={() => { setShow('followup'); setSentNote('') }}>Vezi lista</button>
+        </div>
+      )}
+
       {rows && rows.length === 0 && (
         <p className="text-sm text-slate-500 bg-white border border-slate-200 rounded-xl p-4">
-          {show === 'pool' ? 'Lista zilei e goală. Apasă „Completează până la 50”.' : show === 'todo' ? 'Nicio firmă de contactat aici. Apasă „Caută firme” sau alege alt oraș / altă meserie.' : 'Nicio firmă salvată încă pentru acest oraș și această meserie.'}
+          {show === 'followup' ? 'Nu ai încă firme contactate.' : show === 'pool' ? 'Lista zilei e goală. Apasă „Completează până la 50”.' : show === 'todo' ? 'Nicio firmă de contactat aici. Apasă „Caută firme” sau alege alt oraș / altă meserie.' : 'Nicio firmă salvată încă pentru acest oraș și această meserie.'}
         </p>
       )}
 
       <div className="space-y-3">
-        {rows?.map(r => <LeadCard key={r.id} r={r} country={country} templates={templates} keys={keys} onChange={p => patchRow(r.id, p)} onDone={load} />)}
+        {rows?.map(r => <LeadCard key={r.id} r={r} country={country} templates={templates} keys={keys} onChange={p => patchRow(r.id, p)} onDone={load} onSent={n => setSentNote(n)} />)}
       </div>
     </div>
   )
 }
 
-function LeadCard({ r, country, templates, keys, onChange, onDone }: { r: Lead; country: Country; templates: UkTemplates; keys: Keys; onChange: (p: Partial<Lead>) => void; onDone: () => void }) {
+function LeadCard({ r, country, templates, keys, onChange, onDone, onSent }: { r: Lead; country: Country; templates: UkTemplates; keys: Keys; onChange: (p: Partial<Lead>) => void; onDone: () => void; onSent?: (name: string) => void }) {
   const [busy, setBusy] = useState('')
   const [err, setErr] = useState('')
   const [copied, setCopied] = useState('')
@@ -163,6 +171,8 @@ function LeadCard({ r, country, templates, keys, onChange, onDone }: { r: Lead; 
   const [siteOpen, setSiteOpen] = useState(false)
   const [siteUrl, setSiteUrl] = useState('')
   const [siteMsg, setSiteMsg] = useState('')
+  const [infoMsg, setInfoMsg] = useState('')
+  const contacted = !['new_lead', 'researching', 'qualified', 'reviewed', 'ready_to_contact'].includes(r.stage)
   const msgs = buildMessages(templates, { name: r.name, trades, website_status: r.website_status, findingCodes: problemCodes, previewUrl: r.preview_url, country })
   const [first, setFirst] = useState(msgs.first)
   const [second, setSecond] = useState(msgs.second)
@@ -178,7 +188,7 @@ function LeadCard({ r, country, templates, keys, onChange, onDone }: { r: Lead; 
   }
   async function sent(channel: string) {
     setBusy('sent')
-    try { await api(`/api/crm/leads/${r.id}/events`, { json: { event_type: 'contacted', channel, notes: `${first}\n\n${second}`.slice(0, 1000), schedule_follow_ups: true } }); onDone() }
+    try { await api(`/api/crm/leads/${r.id}/events`, { json: { event_type: 'contacted', channel, notes: `${first}\n\n${second}`.slice(0, 1000), schedule_follow_ups: true } }); onSent?.(r.name); onDone() }
     catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
     setBusy('')
   }
@@ -199,6 +209,16 @@ function LeadCard({ r, country, templates, keys, onChange, onDone }: { r: Lead; 
     const status = next.length && ['GOOD_WEBSITE', 'UNVERIFIED'].includes(r.website_status) ? 'NEEDS_REDESIGN' : r.website_status
     onChange({ manual_problems: next, website_status: status })
     await api(`/api/crm/leads/${r.id}`, { method: 'PATCH', json: { manual_problems: next } }).catch(() => {})
+  }
+  async function setStage(stage: string, note: string) {
+    setBusy(stage)
+    try {
+      if (stage === 'interested') await api(`/api/crm/leads/${r.id}/events`, { json: { event_type: 'reply', reply_status: 'positive', channel: mobile ? 'whatsapp' : 'phone' } })
+      else await api(`/api/crm/leads/${r.id}`, { method: 'PATCH', json: { stage } })
+      onChange({ stage })
+      setInfoMsg(note)
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+    setBusy('')
   }
   async function notFit() {
     await api(`/api/crm/leads/${r.id}`, { method: 'PATCH', json: { stage: 'not_a_fit' } }).catch(() => {})
@@ -277,7 +297,7 @@ function LeadCard({ r, country, templates, keys, onChange, onDone }: { r: Lead; 
           <h3 className="font-semibold text-slate-900 leading-snug">{r.name}</h3>
           <div className="text-xs text-slate-500 mt-0.5">
             {r.google_rating != null && <>★ {Number(r.google_rating).toFixed(1)} ({r.google_review_count || 0} recenzii) · </>}{r.city}
-            {r.stage === 'contacted' && <> · <b>contactat</b></>}
+            {contacted && <> · <b className={r.stage === 'interested' ? 'text-teal-700' : r.stage === 'won' ? 'text-emerald-700' : ''}>{r.stage === 'interested' ? 'interesat' : r.stage === 'won' ? 'client' : r.stage === 'replied' ? 'a răspuns' : 'contactat'}</b></>}
           </div>
         </div>
         {score != null && (
@@ -407,10 +427,16 @@ function LeadCard({ r, country, templates, keys, onChange, onDone }: { r: Lead; 
       )}
 
       <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
-        <Button size="sm" variant="primary" loading={busy === 'sent'} onClick={() => sent(mobile && !noWa ? 'whatsapp' : r.email ? 'email' : 'phone')}>✅ Am trimis mesajul</Button>
+        {!contacted
+          ? <Button size="sm" variant="primary" loading={busy === 'sent'} onClick={() => sent(mobile && !noWa ? 'whatsapp' : r.email ? 'email' : 'phone')}>✅ Am trimis mesajul</Button>
+          : r.stage !== 'interested'
+            ? <Button size="sm" variant="primary" loading={busy === 'interested'} onClick={() => setStage('interested', 'Marcat ca interesat — fă demo-ul mai sus și trimite-i linkul.')}>🙋 E interesat</Button>
+            : <Button size="sm" loading={busy === 'won'} onClick={() => setStage('won', 'Felicitări! Marcat ca client câștigat.')}>🏆 A acceptat (client)</Button>}
+        {contacted && <Button size="sm" variant="ghost" loading={busy === 'new_lead'} onClick={() => setStage('new_lead', 'L-am pus înapoi în lista zilei.')}>↩ Înapoi în listă</Button>}
         <Button size="sm" variant="ghost" onClick={notFit}>Nu e potrivit</Button>
         <Link href={`/crm/leads/${r.id}`} className="h-8 px-2 inline-flex items-center text-[13px] text-slate-500">Detalii →</Link>
       </div>
+      {infoMsg && <p className="text-xs text-teal-800 mt-2">{infoMsg}</p>}
       {err && <p className="text-xs text-rose-700 mt-2">{err}</p>}
     </article>
   )
