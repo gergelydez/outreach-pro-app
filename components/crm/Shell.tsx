@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useState, type ReactNode } from 'react'
 import { Search, LayoutDashboard, Radar, Users, SquareKanban, Send, Globe, Sparkles, CalendarClock, BarChart3, Settings, LogOut, Menu, X } from 'lucide-react'
 import { cx } from './ui'
+import { Logo, LogoMark } from '@/components/Logo'
 import { api } from '@/lib/crm/client'
 
 const NAV = [
@@ -34,11 +35,7 @@ export default function Shell({ children, passwordProtected = false }: { childre
   const nav = (
     <nav className="flex flex-col h-full">
       <div className="px-4 h-14 flex items-center gap-2.5 border-b border-white/5">
-        <div className="w-7 h-7 rounded-md bg-teal-500/90 flex items-center justify-center text-[13px] font-bold text-slate-950">UK</div>
-        <div className="leading-tight">
-          <div className="text-[13px] font-semibold text-white">Business Hunter</div>
-          <div className="text-[10px] text-slate-400">Sales CRM</div>
-        </div>
+        <Link href="/" aria-label="Outreach Pro — acasă"><Logo size={30} sub="Business Hunter · CRM" /></Link>
       </div>
       <div className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
         {NAV.map(({ href, label, icon: Icon }) => (
@@ -74,7 +71,7 @@ export default function Shell({ children, passwordProtected = false }: { childre
         <header className="lg:hidden sticky top-0 z-20 h-12 bg-[#0b1220] flex items-center justify-between px-3">
           <button onClick={() => setOpen(true)} className="text-slate-300 p-1.5" aria-label="Open menu"><Menu className="w-5 h-5" /></button>
           <span className="text-sm font-semibold text-white">{NAV.find(n => isActive(n.href))?.label || 'CRM'}</span>
-          <span className="w-8">{open && <X className="w-5 h-5 text-slate-300" />}</span>
+          <Link href="/" className="w-8 flex justify-end" aria-label="Outreach Pro — acasă">{open ? <X className="w-5 h-5 text-slate-300" /> : <LogoMark size={26} />}</Link>
         </header>
         <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6">{children}</main>
       </div>
