@@ -1,0 +1,94 @@
+// Demo (site concept) pentru o firmă din CRM, generat complet pe server: utilizatorul apasă
+// „Fă demo” și poate închide pagina. La final linkul /p/<slug> e salvat pe firmă.
+import { randomBytes } from 'crypto'
+import Anthropic from '@anthropic-ai/sdk'
+import { q, one, withDbSession } from './db'
+import { outsideSession } from './blob-db'
+import { logActivity } from './activity'
+import { categoriesFor, asCountry } from './countries'
+import { buildRedesignPrompt, generateHtml } from '@/lib/redesign'
+import { slugify, withConceptBanner } from '@/lib/preview'
+import { friendlyAnthropicError } from '@/lib/anthropic-error'
+import type { RebuildLead } from '@/lib/rebuild'
+
+export const DEMO_STALE_MIN = 10 // după 10 minute un demo „în lucru” e considerat blocat (se poate reporni)
+
+interface DemoLeadRow {
+  id: string; name: string; category: string; city: string; address: string | null; phone: string | null; phone_e164: string | null
+  email: string | null; website_url: string | null; website_status: string; google_place_id: string | null; google_rating: string | null
+  google_review_count: number | null; preview_url: string | null; country: string; demo_status: string | null; demo_started_at: string | null
+}
+
+export interface DemoDeps {
+  generate?: (prompt: string) => Promise<string>              // pentru teste
+  publish?: (slug: string, html: string) => Promise<void>       // pentru teste
+  siteContent?: (url: string) => Promise<Record<string, unknown> | null>
+  schedule?: (p: Promise<unknown>) => void                      // waitUntil în producție
+}
+
+export async function startDemo(id: string, opts: { origin: string; anthropicKey?: string; googleKey?: string; designer?: string }, deps: DemoDeps = {}) {
+  const b = await one<DemoLeadRow>(`SELECT id, name, category, city, address, phone, phone_e164, email, website_url, website_status, google_place_id,
+      google_rating, google_review_count, preview_url, country, demo_status, demo_started_at FROM businesses WHERE id = $1`, [id])
+  if (!b) throw new Error('Lead not found')
+  const running = b.demo_status === 'running' && b.demo_started_at && Date.now() - new Date(b.demo_started_at).getTime() < DEMO_STALE_MIN * 60_000
+  if (running) return { status: 'running' as const, already: true }
+  const apiKey = process.env.ANTHROPIC_API_KEY || opts.anthropicKey
+  if (!apiKey && !deps.generate) throw new Error('Lipsă cheia Claude: pune ANTHROPIC_API_KEY în Vercel sau cheia în Setări.')
+  await q(`UPDATE businesses SET demo_status = 'running', demo_error = NULL, demo_started_at = now(), updated_at = now() WHERE id = $1`, [id])
+
+  // munca grea rulează în fundal, în afara sesiunii acestei cereri
+  const job = outsideSession(() => runDemo(b, { ...opts, apiKey: apiKey || '' }, deps))
+  ;(deps.schedule || (p => { void p }))(job)
+  return { status: 'running' as const, already: false, job }
+}
+
+async function runDemo(b: DemoLeadRow, opts: { origin: string; apiKey: string; googleKey?: string; designer?: string }, deps: DemoDeps) {
+  const country = asCountry(b.country)
+  try {
+    const ownSite = !!b.website_url && !['NO_WEBSITE', 'SOCIAL_ONLY', 'DIRECTORY_ONLY'].includes(b.website_status)
+    let audit: Record<string, unknown> = {
+      url: b.website_url || '', final_url: b.website_url || '', phones: b.phone ? [b.phone] : [], emails: b.email ? [b.email] : [],
+      title: '', description: '', headings: [], text_excerpt: '', logo_url: '', images: [], socials: b.website_url && !ownSite ? [b.website_url] : [], issues: [],
+    }
+    if (ownSite && b.website_url) {
+      const content = deps.siteContent ? await deps.siteContent(b.website_url) : await fetchSiteContent(opts.origin, b.website_url)
+      if (content) audit = content
+    }
+    const lead = {
+      place_id: b.google_place_id || '', name: b.name, address: b.address || b.city, city: b.city, category: b.category,
+      category_label: categoriesFor(country).find(c => c.key === b.category)?.query || b.category,
+      phone: b.phone || '', phone_intl: b.phone_e164 || '', website: ownSite ? b.website_url : '', no_site: !ownSite,
+      rating: Number(b.google_rating || 0), reviews_count: b.google_review_count || 0, audit,
+    } as unknown as RebuildLead
+    const prompt = await buildRedesignPrompt(lead, { googleApiKey: opts.googleKey, origin: opts.origin, language: country === 'HU' ? 'hu' : 'en' })
+    const html = deps.generate ? await deps.generate(prompt) : await generateHtml(new Anthropic({ apiKey: opts.apiKey }), prompt)
+
+    // același link la regenerare (poate l-ai trimis deja)
+    const prevSlug = b.preview_url?.match(/\/p\/([a-z0-9-]+)$/)?.[1]
+    const slug = prevSlug || `${slugify(b.name)}-${randomBytes(3).toString('hex')}`
+    const finalHtml = withConceptBanner(html, b.name, opts.designer || '', country === 'HU' ? 'hu' : 'en')
+    if (deps.publish) await deps.publish(slug, finalHtml)
+    else {
+      const { put } = await import('@vercel/blob')
+      await put(`previews/${slug}.html`, finalHtml, { access: 'public', contentType: 'text/html; charset=utf-8', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 })
+    }
+    const url = `${opts.origin}/p/${slug}`
+    await withDbSession(async () => {
+      await q(`UPDATE businesses SET preview_url = $2, demo_at = now(), demo_status = 'done', demo_error = NULL, updated_at = now() WHERE id = $1`, [b.id, url])
+      await logActivity(b.id, 'demo_published', `Demo website published: ${url}`)
+    })
+    return url
+  } catch (e) {
+    const msg = e instanceof Anthropic.APIError ? friendlyAnthropicError(e, process.env.ANTHROPIC_API_KEY ? 'env' : 'settings') : e instanceof Error ? e.message : String(e)
+    await withDbSession(() => q(`UPDATE businesses SET demo_status = 'error', demo_error = $2, updated_at = now() WHERE id = $1`, [b.id, msg.slice(0, 500)])).catch(() => {})
+    return null
+  }
+}
+
+async function fetchSiteContent(origin: string, url: string): Promise<Record<string, unknown> | null> {
+  try {
+    const res = await fetch(`${origin}/api/audit-site`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }), signal: AbortSignal.timeout(45_000) })
+    const d = await res.json()
+    return res.ok && d.audit ? d.audit : null
+  } catch { return null }
+}

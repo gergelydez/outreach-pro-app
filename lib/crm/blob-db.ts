@@ -218,3 +218,9 @@ export class SnapshotDatabase implements Database {
     }
   }
 }
+
+// Pentru lucrări pornite în fundal (waitUntil) dintr-o cerere: le scoatem din sesiunea cererii,
+// ca scrierile lor ulterioare să-și deschidă propria sesiune (sincronizare + salvare în Blob).
+export function outsideSession<T>(fn: () => T): T {
+  return sessionContext.exit(fn)
+}
