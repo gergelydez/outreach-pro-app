@@ -34,6 +34,8 @@ type Show = 'pool' | 'waiting' | 'interested' | 'won' | 'followup' | 'todo' | 'a
 interface Stats { contacted: number; replied: number; interested: number; won: number; followups_due: number; contacted_today: number }
 const COUNTRY_TITLE: Record<Country, string> = { UK: 'UK 🇬🇧', HU: 'Ungaria 🇭🇺', RO: 'România 🇷🇴' }
 const LANG_RO: Record<Country, string> = { UK: 'engleză', HU: 'maghiară', RO: 'română' }
+// varianta veche a mesajelor (cu „student / proiect la facultate”), salvată pe telefon înainte de schimbare
+const OLD_TEXTS = /university student|egyetemista|proiect la facultate/
 const TPL_KEY = (country: Country) => (country === 'UK' ? 'uk_templates' : `${country.toLowerCase()}_templates`)
 
 export default function HuntPage({ country }: { country: Country }) {
@@ -59,6 +61,7 @@ export default function HuntPage({ country }: { country: Country }) {
     setKeys({ google: s.googlePlacesApiKey || '', anthropic: s.anthropicApiKey || '' })
     try {
       const saved = JSON.parse(localStorage.getItem(TPL_KEY(country)) || 'null')
+      if (saved && OLD_TEXTS.test(`${saved.offer || ''} ${saved.offer_site || ''}`)) { const me = saved.me; for (const k of Object.keys(saved)) delete saved[k]; if (me) saved.me = me; localStorage.setItem(TPL_KEY(country), JSON.stringify(saved)) }
       setTemplates({ ...TEMPLATES[country], ...(s.senderName ? { me: s.senderName.split(' ')[0] } : {}), ...(saved || {}) })
     } catch { /* ignore */ }
   }, [country])
