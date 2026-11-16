@@ -11,8 +11,9 @@ export const metadata: Metadata = {
     title: 'Outreach Pro',
   },
   icons: {
-    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }, { url: '/icon-192.png', sizes: '192x192', type: 'image/png' }],
-    apple: '/apple-icon.png',
+    // nume noi la fișiere (v2), ca telefoanele să nu mai folosească iconița veche din cache
+    icon: [{ url: '/icon.svg?v=2', type: 'image/svg+xml' }, { url: '/icons/outreach-pro-v2-192.png', sizes: '192x192', type: 'image/png' }],
+    apple: '/icons/outreach-pro-v2-180.png',
   },
 }
 
