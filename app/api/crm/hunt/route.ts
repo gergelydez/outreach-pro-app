@@ -17,10 +17,21 @@ export const GET = route(async (req: Request) => {
   const cost = await one<{ c: string; n: string }>(`SELECT coalesce(sum(cost_usd),0)::text AS c, count(*)::text AS n FROM api_usage WHERE provider = 'google_places' AND created_at >= date_trunc('day', now())`)
   const pending = await one<{ n: string }>(`SELECT count(*)::text AS n FROM audit_jobs WHERE status IN ('pending','running') AND run_after <= now()`)
   const newToday = await q<{ n: string }>(`SELECT count(*)::text AS n FROM businesses WHERE created_at >= date_trunc('day', now())`)
+  const month = await one<{ c: string; n: string }>(`SELECT coalesce(sum(cost_usd),0)::text AS c, count(*)::text AS n FROM api_usage WHERE provider = 'google_places' AND created_at >= date_trunc('month', now())`)
+  // cum merge outreach-ul în această țară
+  const st = await one<Record<string, string>>(`SELECT
+      count(*) FILTER (WHERE stage IN ('contacted','follow_up_1','follow_up_2','replied','interested','call_meeting','proposal_sent','negotiation','won','lost'))::text AS contacted,
+      count(*) FILTER (WHERE stage IN ('replied','interested','call_meeting','proposal_sent','negotiation','won','lost'))::text AS replied,
+      count(*) FILTER (WHERE stage IN ('interested','call_meeting','proposal_sent','negotiation'))::text AS interested,
+      count(*) FILTER (WHERE stage = 'won')::text AS won,
+      count(*) FILTER (WHERE stage IN ('contacted','follow_up_1','follow_up_2') AND next_follow_up_at IS NOT NULL AND next_follow_up_at <= now())::text AS followups_due,
+      count(*) FILTER (WHERE last_contacted_at >= date_trunc('day', now()))::text AS contacted_today
+    FROM businesses WHERE country = $1`, [country])
+  const stats = Object.fromEntries(Object.entries(st || {}).map(([k, v]) => [k, Number(v || 0)]))
   return json({
     country, pool: await poolCount(country), target: settings.target_market.daily_target || 50,
     state, maxSteps: MAX_STEPS_PER_DAY, dailyNewMax: settings.limits.daily_discovery_max, newToday: Number(newToday[0]?.n || 0),
-    googleCostToday: Number(cost?.c || 0), googleRequestsToday: Number(cost?.n || 0),
+    googleCostToday: Number(cost?.c || 0), googleRequestsToday: Number(cost?.n || 0), googleCostMonth: Number(month?.c || 0), stats,
     pendingAudits: Number(pending?.n || 0), placesMode: await placesMode(), serverKey: !!placesKey(),
   })
 })

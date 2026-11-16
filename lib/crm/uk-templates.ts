@@ -14,6 +14,7 @@ export interface UkTemplates {
   offer_site: string   // partea 2 pentru firmele care au site, dar slab: refacerea lui
   price: string
   demo: string
+  followup: string    // reamintire scurtă, pentru cei care n-au răspuns în 2–3 zile
 }
 
 const UK: UkTemplates = {
@@ -25,6 +26,7 @@ const UK: UkTemplates = {
   offer_site: "If you're interested, I can make you a free concept of a modern version of your website – fast, mobile-friendly and optimised for Google – so you can see how it would look. If you like it, I'll personalise it and put it live.\n\nI'm not an agency or a freelancer – I'm a university student and I need real businesses to build sites for as part of a project. If it's not for you, no worries, just let me know.",
   price: "Just to be upfront: the concept is free and there's no obligation. If you'd like it live afterwards, it would be around £200–300 – much less than an agency would charge.",
   demo: "Here's the concept I made for {name}: {link}\nHave a look on your phone and let me know what you think 🙂",
+  followup: "Just following up on my message above 🙂 Happy to put together the free concept for {name} if you'd like to see how it would look. If now's not a good time, no worries at all.",
 }
 
 const HU: UkTemplates = {
@@ -36,10 +38,23 @@ const HU: UkTemplates = {
   offer_site: 'Ha érdekli, ingyen elkészítem a mostani weboldaluk modern változatát – gyors, mobilbarát és Google-keresésre optimalizált –, hogy lássa, hogyan nézne ki. Ha tetszik, személyre szabom és élesítem.\n\nNem ügynökség és nem szabadúszó vagyok – egyetemista vagyok, és egy projekthez valódi vállalkozásoknak készítek weboldalt. Ha nem érdekli, semmi gond, csak jelezze.',
   price: 'Hogy őszinte legyek: a terv ingyenes és semmire sem kötelez. Ha utána szeretné élesíteni, az kb. 70 000–100 000 Ft lenne – jóval kevesebb, mint egy ügynökségnél.',
   demo: 'Itt a weboldal-terv, amit a(z) {name} számára készítettem: {link}\nNézze meg telefonon, és írja meg, mit gondol 🙂',
+  followup: 'Csak röviden visszatérnék az előző üzenetemre 🙂 Szívesen elkészítem az ingyenes weboldal-tervet, ha kíváncsi rá, hogyan nézne ki. Ha most nem aktuális, semmi gond.',
+}
+
+const RO: UkTemplates = {
+  me: 'Geri',
+  intro_nosite: 'Bună ziua! Sunt {me} 👋 Am dat de {name} pe Google și am observat că, spre deosebire de alte firme din zonă, nu aveți un site.',
+  intro_social: 'Bună ziua! Sunt {me} 👋 Am dat de {name} pe Google și am observat că aveți doar pagină de Facebook/Instagram, nu un site propriu.',
+  intro_site: 'Bună ziua! Sunt {me} 👋 Am dat de {name} pe Google și m-am uitat pe site-ul dumneavoastră – am observat că {problem}.',
+  offer: 'Dacă vă interesează, vă pot face gratuit un concept de site propriu, ca să vedeți cum ar arăta. Dacă vă place, îl personalizez și îl pun online.\n\nNu sunt agenție și nici freelancer – sunt student și am nevoie de afaceri reale pentru un proiect la facultate. Dacă nu vă interesează, nicio problemă, îmi spuneți și nu vă mai deranjez.',
+  offer_site: 'Dacă vă interesează, vă pot face gratuit un concept al unei variante moderne a site-ului – rapid, arătos pe telefon și optimizat pentru Google – ca să vedeți cum ar arăta. Dacă vă place, îl personalizez și îl pun online.\n\nNu sunt agenție și nici freelancer – sunt student și am nevoie de afaceri reale pentru un proiect la facultate. Dacă nu vă interesează, nicio problemă, îmi spuneți și nu vă mai deranjez.',
+  price: 'Ca să fiu sincer de la început: conceptul e gratuit și nu vă obligă la nimic. Dacă vreți apoi să-l puneți online, ar costa în jur de 700–1.400 lei – mult mai puțin decât la o agenție.',
+  demo: 'Iată conceptul pe care l-am făcut pentru {name}: {link}\nUitați-vă pe telefon și spuneți-mi ce părere aveți 🙂',
+  followup: 'Revin pe scurt la mesajul de mai sus 🙂 Vă pot face oricând conceptul gratuit pentru {name}, dacă vreți să vedeți cum ar arăta. Dacă nu e momentul potrivit, nicio problemă.',
 }
 
 export const DEFAULT_TEMPLATES: UkTemplates = UK
-export const TEMPLATES: Record<Country, UkTemplates> = { UK, HU }
+export const TEMPLATES: Record<Country, UkTemplates> = { UK, HU, RO }
 
 // Problema principală, formulată scurt pentru mesaj (din codul constatării de la audit)
 const PROBLEM: Record<Country, Record<string, string>> = {
@@ -75,8 +90,24 @@ const PROBLEM: Record<Country, Record<string, string>> = {
     weak_title: 'az oldal címe nem mondja meg, mivel és hol foglalkoznak',
     no_service_pages: 'a szolgáltatások nincsenek külön oldalakon',
   },
+  RO: {
+    broken: 'momentan nu se deschide',
+    no_https: 'Chrome afișează „Nesigur” lângă adresă',
+    not_mobile_friendly: 'nu e adaptat pentru telefon, așa că textul e foarte mic pe mobil',
+    mobile_overflow: 'pe telefon nu încape bine pe ecran',
+    slow_mobile: 'se încarcă destul de greu pe telefon',
+    outdated_signal: 'arată cam vechi',
+    free_subdomain: 'e pe o adresă gratuită de tip platformă',
+    no_contact_form: 'nu are un formular simplu de cerere ofertă',
+    no_cta: 'nu are un buton clar de tip „Cere ofertă” sau „Sună acum”',
+    no_click_to_call: 'numărul de telefon nu se poate apăsa pe mobil',
+    no_local_signals: 'nu scrie în ce zonă lucrați',
+    no_meta_description: 'nu apare o descriere bună în Google',
+    weak_title: 'titlul paginii nu spune ce faceți și unde',
+    no_service_pages: 'serviciile nu sunt prezentate pe pagini separate',
+  },
 }
-const FALLBACK: Record<Country, string> = { UK: 'it could do with a refresh', HU: 'ráférne egy frissítés' }
+const FALLBACK: Record<Country, string> = { UK: 'it could do with a refresh', HU: 'ráférne egy frissítés', RO: 'i-ar prinde bine o reîmprospătare' }
 // ordinea contează: întâi ce vede imediat un client
 const PRIORITY = ['broken', 'not_mobile_friendly', 'no_https', 'outdated_signal', 'mobile_overflow', 'slow_mobile', 'free_subdomain', 'no_contact_form', 'no_cta', 'no_click_to_call', 'no_local_signals', 'weak_title', 'no_meta_description', 'no_service_pages']
 
@@ -84,7 +115,7 @@ const PRIORITY = ['broken', 'not_mobile_friendly', 'no_https', 'outdated_signal'
 export function mainProblem(codes: string[], country: Country = 'UK', max = 2): string {
   const picked = PRIORITY.filter(p => codes.includes(p)).slice(0, max).map(c => PROBLEM[country][c])
   if (!picked.length) return FALLBACK[country]
-  return picked.join(country === 'HU' ? ', és ' : ' and ')
+  return picked.join(country === 'HU' ? ', és ' : country === 'RO' ? ' și ' : ' and ')
 }
 
 export function fill(t: string, v: Record<string, string>): string {
@@ -101,7 +132,7 @@ export function buildMessages(t: UkTemplates, lead: { name: string; trades: stri
     : t.intro_site
   // partea 2: cine n-are site primește oferta de site propriu; cine are site slab, refacerea lui
   const offer = NO_OWN_SITE.includes(lead.website_status) ? t.offer : (t.offer_site || t.offer)
-  return { first: fill(intro, vars), second: fill(offer, vars), price: fill(t.price, vars), demo: fill(t.demo, vars) }
+  return { first: fill(intro, vars), second: fill(offer, vars), price: fill(t.price, vars), demo: fill(t.demo, vars), followup: fill(t.followup || '', vars) }
 }
 
 // Ce fel de lead merită un demo: orice în afară de un site deja bun

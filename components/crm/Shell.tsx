@@ -11,6 +11,7 @@ import { api } from '@/lib/crm/client'
 const NAV = [
   { href: '/crm/gaseste', label: 'Găsește clienți UK 🇬🇧', icon: Search },
   { href: '/crm/ungaria', label: 'Găsește clienți Ungaria 🇭🇺', icon: Search },
+  { href: '/crm/romania', label: 'Găsește clienți România 🇷🇴', icon: Search },
   { href: '/crm', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/crm/hunter', label: 'Business Hunter AI', icon: Radar },
   { href: '/crm/leads', label: 'All Leads', icon: Users },

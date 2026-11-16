@@ -32,6 +32,7 @@ export const HUNT_CITIES = citiesFor('UK')
 const MOBILE_SQL: Record<Country, string> = {
   UK: `b.phone_e164 ~ '^\\+447[0-9]{9}$'`,
   HU: `b.phone_e164 ~ '^\\+36(20|30|31|50|70)[0-9]{7}$'`,
+  RO: `b.phone_e164 ~ '^\\+407[0-9]{8}$'`,
 }
 
 // „Lista zilei”: firmele bune de contactat acum, într-o țară

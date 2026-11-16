@@ -52,8 +52,8 @@ describe('daily hunt: 50 qualified UK businesses with a mobile number', () => {
     let r
     do { r = await huntStep({ fetchImpl: g.fn, siteFetch: noSites, allowPrivate: true, budgetMs: 60_000 }); steps++ } while (!r.done && steps < 20)
     expect(r.done).toBe(true)
-    expect(r.pool).toBeGreaterThanOrEqual(50)
-    expect(steps).toBe(5) // 10 firme cu mobil la fiecare căutare
+    expect(r.pool).toBeGreaterThanOrEqual(75)
+    expect(steps).toBe(8) // 10 firme cu mobil la fiecare căutare, ținta e 75
     const landlines = await one<{ n: string }>(`SELECT count(*)::text AS n FROM businesses WHERE phone_e164 NOT LIKE '+447%'`)
     expect(Number(landlines!.n)).toBe(0) // vânătoarea salvează doar mobile
     const statuses = await q<{ website_status: string }>(`SELECT DISTINCT website_status FROM businesses`)
@@ -64,8 +64,8 @@ describe('daily hunt: 50 qualified UK businesses with a mobile number', () => {
     expect(again.stoppedReason).toBe('target_reached')
     expect(g.calls.n).toBe(before)
     const st = await getHuntState()
-    expect(st.steps_today).toBe(5)
-    expect(st.cursor).toBe(5)
+    expect(st.steps_today).toBe(8)
+    expect(st.cursor).toBe(8)
     expect(st.log[0]).toMatch(/· Birmingham: 20 găsite, 10 noi cu mobil/)
   })
 

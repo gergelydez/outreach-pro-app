@@ -20,6 +20,10 @@ export const GET = route(async (req: Request) => {
   if (show === 'pool') where.push(poolWhere(country))
   // contactați / interesați: toată țara, ultimii contactați primii
   else if (show === 'followup') where.push(`b.country = '${country}' AND b.stage IN ('contacted','follow_up_1','follow_up_2','replied','interested','call_meeting','proposal_sent','negotiation','won')`)
+  // de revenit: contactați care n-au răspuns încă
+  else if (show === 'waiting') where.push(`b.country = '${country}' AND b.stage IN ('contacted','follow_up_1','follow_up_2')`)
+  else if (show === 'interested') where.push(`b.country = '${country}' AND b.stage IN ('replied','interested','call_meeting','proposal_sent','negotiation')`)
+  else if (show === 'won') where.push(`b.country = '${country}' AND b.stage = 'won'`)
   else {
     where.push(`b.country = '${country}'`)
     if (city) { P.push(city); where.push(`b.city = $${P.length}`) }
@@ -29,14 +33,14 @@ export const GET = route(async (req: Request) => {
   const rows = await q(`
     SELECT b.id, b.name, b.category, b.city, b.address, b.phone, b.phone_e164, b.email, b.website_url, b.website_status,
            b.whatsapp_status, b.whatsapp_source, b.google_rating, b.google_review_count, b.google_maps_url,
-           b.opportunity_score, b.stage, b.last_contacted_at, b.created_at, b.preview_url, b.google_place_id, b.address AS full_address, b.country, b.manual_problems, b.demo_status, b.demo_error, b.demo_started_at,
+           b.opportunity_score, b.stage, b.last_contacted_at, b.created_at, b.preview_url, b.google_place_id, b.address AS full_address, b.country, b.manual_problems, b.demo_status, b.demo_error, b.demo_started_at, b.next_follow_up_at, b.last_contacted_at AS contacted_at,
            a.findings, a.created_at AS audited_at,
            m.output AS message
       FROM businesses b
       LEFT JOIN LATERAL (SELECT findings, created_at FROM website_audits w WHERE w.business_id = b.id ORDER BY created_at DESC LIMIT 1) a ON true
       LEFT JOIN LATERAL (SELECT output FROM ai_analyses x WHERE x.business_id = b.id AND x.kind = 'quick' ORDER BY created_at DESC LIMIT 1) m ON true
      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-     ORDER BY ${show === 'followup' ? `(b.stage = 'interested') DESC, b.last_contacted_at DESC NULLS LAST, ` : ''}${show === 'pool' ? `(b.whatsapp_source = 'manual' AND b.whatsapp_status = 'FOUND') DESC NULLS LAST, ` : ''}b.opportunity_score DESC NULLS LAST, b.google_review_count DESC NULLS LAST
+     ORDER BY ${show === 'waiting' ? `(b.next_follow_up_at IS NOT NULL AND b.next_follow_up_at <= now()) DESC, b.last_contacted_at ASC NULLS LAST, ` : ''}${show === 'followup' ? `(b.stage = 'interested') DESC, b.last_contacted_at DESC NULLS LAST, ` : ''}${show === 'pool' ? `(b.whatsapp_source = 'manual' AND b.whatsapp_status = 'FOUND') DESC NULLS LAST, ` : ''}b.opportunity_score DESC NULLS LAST, b.google_review_count DESC NULLS LAST
      LIMIT 150`, P)
   const pending = await one<{ n: string }>(`SELECT count(*)::text AS n FROM audit_jobs WHERE status IN ('pending','running') AND run_after <= now()`)
   return json({ rows, pendingAudits: Number(pending?.n || 0) })

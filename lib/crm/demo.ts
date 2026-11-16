@@ -60,13 +60,13 @@ async function runDemo(b: DemoLeadRow, opts: { origin: string; apiKey: string; g
       phone: b.phone || '', phone_intl: b.phone_e164 || '', website: ownSite ? b.website_url : '', no_site: !ownSite,
       rating: Number(b.google_rating || 0), reviews_count: b.google_review_count || 0, audit,
     } as unknown as RebuildLead
-    const prompt = await buildRedesignPrompt(lead, { googleApiKey: opts.googleKey, origin: opts.origin, language: country === 'HU' ? 'hu' : 'en' })
+    const prompt = await buildRedesignPrompt(lead, { googleApiKey: opts.googleKey, origin: opts.origin, language: country === 'HU' ? 'hu' : country === 'UK' ? 'en' : undefined })
     const html = deps.generate ? await deps.generate(prompt) : await generateHtml(new Anthropic({ apiKey: opts.apiKey }), prompt)
 
     // același link la regenerare (poate l-ai trimis deja)
     const prevSlug = b.preview_url?.match(/\/p\/([a-z0-9-]+)$/)?.[1]
     const slug = prevSlug || `${slugify(b.name)}-${randomBytes(3).toString('hex')}`
-    const finalHtml = withConceptBanner(html, b.name, opts.designer || '', country === 'HU' ? 'hu' : 'en')
+    const finalHtml = withConceptBanner(html, b.name, opts.designer || '', country === 'HU' ? 'hu' : country === 'UK' ? 'en' : 'ro')
     if (deps.publish) await deps.publish(slug, finalHtml)
     else {
       const { put } = await import('@vercel/blob')
