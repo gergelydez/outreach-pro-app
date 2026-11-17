@@ -25,7 +25,10 @@ describe('România', () => {
   })
   it('writes the messages in Romanian, with a reminder', () => {
     const m = buildMessages(TEMPLATES.RO, { name: 'Pensiunea Bradul', trades: 'pensiune', website_status: 'NO_WEBSITE', findingCodes: [], country: 'RO' })
-    expect(m.first).toMatch(/Geri/)
+    expect(m.first).toMatch(/Sunt Grig 👋/)
+    expect(m.first).toMatch(/v-am pregătit gratuit un concept/)
+    expect(m.second).toMatch(/factură pe firmă, dacă doriți\. Vreți să vedeți cum arată conceptul creat pentru dumneavoastră\?$/)
+    expect(m.second).toMatch(/ajut afacerile să crească/)
     expect(m.first + m.second).not.toMatch(/\bHi\b|website/i)
     expect(m.followup.length).toBeGreaterThan(10)
     expect(m.price).toMatch(/lei/)

@@ -35,7 +35,18 @@ interface Stats { contacted: number; replied: number; interested: number; won: n
 const COUNTRY_TITLE: Record<Country, string> = { UK: 'UK 🇬🇧', HU: 'Ungaria 🇭🇺', RO: 'România 🇷🇴' }
 const LANG_RO: Record<Country, string> = { UK: 'engleză', HU: 'maghiară', RO: 'română' }
 // varianta veche a mesajelor (cu „student / proiect la facultate”), salvată pe telefon înainte de schimbare
-const OLD_TEXTS = /university student|egyetemista|proiect la facultate/
+const OLD_TEXTS = /university student|egyetemista|proiect la facultate|firmele locale să crească/
+// Ce WhatsApp deschid butoanele verzi (Android): Business / normal / ce alege telefonul.
+// Secure Folder nu poate fi deschis din afara lui: acolo aplicația trebuie deschisă din browserul din Secure Folder.
+type WaApp = 'business' | 'personal' | 'auto'
+const WA_DEFAULT: Record<Country, WaApp> = { HU: 'business', RO: 'personal', UK: 'auto' }
+const WA_PKG: Record<Exclude<WaApp, 'auto'>, string> = { business: 'com.whatsapp.w4b', personal: 'com.whatsapp' }
+export function waHref(digits: string, text: string | undefined, app: WaApp, android: boolean) {
+  const web = `https://wa.me/${digits}${text ? `?text=${encodeURIComponent(text)}` : ''}`
+  if (app === 'auto' || !android) return web
+  const q = `phone=${digits}${text ? `&text=${encodeURIComponent(text)}` : ''}`
+  return `intent://send/?${q}#Intent;scheme=whatsapp;package=${WA_PKG[app]};S.browser_fallback_url=${encodeURIComponent(web)};end`
+}
 const TPL_KEY = (country: Country) => (country === 'UK' ? 'uk_templates' : `${country.toLowerCase()}_templates`)
 
 export default function HuntPage({ country }: { country: Country }) {
@@ -55,6 +66,9 @@ export default function HuntPage({ country }: { country: Country }) {
   const [err, setErr] = useState('')
   const [keys, setKeys] = useState<Keys>({ google: '', anthropic: '' })
   const [templates, setTemplates] = useState<UkTemplates>(TEMPLATES[country])
+  const [waApp, setWaAppState] = useState<WaApp>(WA_DEFAULT[country])
+  useEffect(() => { try { const v = localStorage.getItem(`wa_app_${country}`); if (v === 'business' || v === 'personal' || v === 'auto') setWaAppState(v) } catch { /* ignore */ } }, [country])
+  const setWaApp = (v: WaApp) => { setWaAppState(v); try { localStorage.setItem(`wa_app_${country}`, v) } catch { /* ignore */ } }
 
   useEffect(() => {
     const s = getAppSettings()
@@ -62,7 +76,9 @@ export default function HuntPage({ country }: { country: Country }) {
     try {
       const saved = JSON.parse(localStorage.getItem(TPL_KEY(country)) || 'null')
       if (saved && OLD_TEXTS.test(`${saved.offer || ''} ${saved.offer_site || ''}`)) { const me = saved.me; for (const k of Object.keys(saved)) delete saved[k]; if (me) saved.me = me; localStorage.setItem(TPL_KEY(country), JSON.stringify(saved)) }
-      setTemplates({ ...TEMPLATES[country], ...(s.senderName ? { me: s.senderName.split(' ')[0] } : {}), ...(saved || {}) })
+      // în România numele e „Grig” (nu numele din Setări / vechiul „Geri”)
+      if (country === 'RO' && saved && (!saved.me || saved.me === 'Geri')) { saved.me = 'Grig'; localStorage.setItem(TPL_KEY(country), JSON.stringify(saved)) }
+      setTemplates({ ...TEMPLATES[country], ...(s.senderName && country !== 'RO' ? { me: s.senderName.split(' ')[0] } : {}), ...(saved || {}) })
     } catch { /* ignore */ }
   }, [country])
   const saveTemplates = (t: UkTemplates) => { setTemplates(t); try { localStorage.setItem(TPL_KEY(country), JSON.stringify(t)) } catch { /* ignore */ } }
@@ -158,6 +174,13 @@ export default function HuntPage({ country }: { country: Country }) {
           </button>
         ))}
       </div>
+      <div className="mb-3 flex flex-wrap items-center gap-1.5 text-[12px] text-slate-600">
+        <span>Butoanele deschid:</span>
+        {([['business', 'WhatsApp Business'], ['personal', 'WhatsApp normal'], ['auto', 'Ce alege telefonul']] as [WaApp, string][]).map(([k, l]) => (
+          <button key={k} onClick={() => setWaApp(k)} className={cx('px-2 py-1 rounded-full border', waApp === k ? 'bg-[#25D366] border-[#25D366] text-white font-medium' : 'bg-white border-slate-300')}>{l}</button>
+        ))}
+        {waApp === 'auto' && <span className="w-full text-[11px] text-slate-500">Pentru WhatsApp-ul din Secure Folder: deschide aplicația din browserul din Secure Folder — atunci butoanele deschid WhatsApp-ul de acolo.</span>}
+      </div>
       {show === 'waiting' && stats && stats.followups_due > 0 && <p className="mb-2 text-[13px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">⏰ {stats.followups_due} firme așteaptă reamintirea azi — sunt primele în listă.</p>}
       {(show === 'todo' || show === 'all') && <div className="mb-2 text-sm text-slate-600">Rezultatele căutării manuale · {catRo(country, category)} în {city} <button className="underline ml-1" onClick={() => setShow('pool')}>înapoi la lista zilei</button></div>}
 
@@ -175,13 +198,13 @@ export default function HuntPage({ country }: { country: Country }) {
       )}
 
       <div className="space-y-3">
-        {rows?.map(r => <LeadCard key={r.id} r={r} country={country} templates={templates} keys={keys} onChange={p => patchRow(r.id, p)} onDone={load} onSent={n => setSentNote(n)} />)}
+        {rows?.map(r => <LeadCard key={r.id} r={r} country={country} templates={templates} keys={keys} waApp={waApp} onChange={p => patchRow(r.id, p)} onDone={load} onSent={n => setSentNote(n)} />)}
       </div>
     </div>
   )
 }
 
-function LeadCard({ r, country, templates, keys, onChange, onDone, onSent }: { r: Lead; country: Country; templates: UkTemplates; keys: Keys; onChange: (p: Partial<Lead>) => void; onDone: () => void; onSent?: (name: string) => void }) {
+function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent }: { r: Lead; country: Country; templates: UkTemplates; keys: Keys; waApp: WaApp; onChange: (p: Partial<Lead>) => void; onDone: () => void; onSent?: (name: string) => void }) {
   const [busy, setBusy] = useState('')
   const [err, setErr] = useState('')
   const [copied, setCopied] = useState('')
@@ -205,7 +228,8 @@ function LeadCard({ r, country, templates, keys, onChange, onDone, onSent }: { r
   const [first, setFirst] = useState(msgs.first)
   const [second, setSecond] = useState(msgs.second)
   useEffect(() => { setFirst(msgs.first); setSecond(msgs.second) }, [msgs.first, msgs.second])
-  const waLink = (text?: string) => `https://wa.me/${wa}${text ? `?text=${encodeURIComponent(text)}` : ''}`
+  const android = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
+  const waLink = (text?: string) => waHref(wa || '', text, waApp, android)
   const canDemo = DEMO_STATUSES.includes(r.website_status)
 
   const copy = (key: string, text: string) => { navigator.clipboard?.writeText(text); setCopied(key); setTimeout(() => setCopied(''), 1500) }
@@ -299,7 +323,8 @@ function LeadCard({ r, country, templates, keys, onChange, onDone, onSent }: { r
 
   const Btn = ({ href, onClick, children, green, disabled }: { href?: string; onClick?: () => void; children: React.ReactNode; green?: boolean; disabled?: boolean }) => {
     const cls = cx('h-10 px-3 inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-medium whitespace-nowrap', green ? 'bg-[#25D366] text-white' : 'border border-slate-300 text-slate-700 bg-white', disabled && 'opacity-40 pointer-events-none')
-    return href ? <a href={href} target="_blank" rel="noreferrer" className={cls}>{children}</a> : <button onClick={onClick} className={cls}>{children}</button>
+    const external = href && !href.startsWith('intent:') && !href.startsWith('sms:')
+    return href ? <a href={href} target={external ? '_blank' : undefined} rel="noreferrer" className={cls}>{children}</a> : <button onClick={onClick} className={cls}>{children}</button>
   }
 
   return (
@@ -339,6 +364,7 @@ function LeadCard({ r, country, templates, keys, onChange, onDone, onSent }: { r
             </>}
             {!contacted && (r.whatsapp_status === 'FOUND' || !mobile || noWa) && <Button variant="primary" className="h-10" onClick={() => setOpen(true)}>✍️ Scrie mesajul</Button>}
             {!contacted && noWa && <Btn href={smsLink(`${first}\n\n${second}`)}>✉️ SMS</Btn>}
+            {!contacted && <button className={cx('h-10 px-3 rounded-lg text-sm', noWa ? 'border border-rose-300 text-rose-700 bg-rose-50' : 'text-slate-500')} onClick={notFit}>🚫 Nu e potrivit</button>}
             {waiting && <>
               {mobile && !noWa ? <Btn green href={waLink(msgs.followup)}>📱 Reamintire</Btn> : r.phone_e164 ? <Btn href={smsLink(msgs.followup)}>✉️ Reamintire SMS</Btn> : null}
               <button className="h-10 px-3 rounded-lg border border-slate-300 text-sm" disabled={busy === 'fu'} onClick={sentFollowUp}>Am trimis reamintirea</button>

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { buildMessages, mainProblem, DEFAULT_TEMPLATES, DEMO_STATUSES } from '@/lib/crm/uk-templates'
+import { waHref } from '@/components/crm/HuntPage'
 import { localityFromAddress } from '@/lib/place-context'
 import { withConceptBanner } from '@/lib/preview'
 import { freshDb, req } from './helpers'
@@ -105,5 +106,14 @@ describe('contacted / interested list', () => {
     expect((await follow())[0].stage).toBe('interested')
     // UK nu vede firmele din Ungaria
     expect((await (await simpleGet(req('/api/crm/simple?country=UK&show=followup'))).json()).rows).toHaveLength(0)
+  })
+})
+
+describe('WhatsApp app per country', () => {
+  it('opens WhatsApp Business / normal on Android, wa.me otherwise', () => {
+    expect(waHref('36301234567', 'Szia', 'business', true)).toMatch(/^intent:\/\/send\/\?phone=36301234567&text=Szia#Intent;scheme=whatsapp;package=com\.whatsapp\.w4b;S\.browser_fallback_url=https%3A%2F%2Fwa\.me%2F36301234567/)
+    expect(waHref('40722123456', undefined, 'personal', true)).toMatch(/package=com\.whatsapp;/)
+    expect(waHref('447700900123', 'Hi there', 'auto', true)).toBe('https://wa.me/447700900123?text=Hi%20there')
+    expect(waHref('40722123456', 'Bună', 'personal', false)).toBe('https://wa.me/40722123456?text=Bun%C4%83')
   })
 })
