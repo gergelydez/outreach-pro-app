@@ -300,7 +300,19 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
   // ── Demo: rulează complet pe server (ca la Rebuild RO, cu pozele și recenziile lui din Google).
   //    Poți închide pagina: linkul apare singur pe firmă când e gata.
   const demoRunning = r.demo_status === 'running'
+  const [editText, setEditText] = useState('')
+  const [editing, setEditing] = useState(false)
+  async function applyEdits() {
+    setErr(''); setBusy('edit')
+    try {
+      await api(`/api/crm/leads/${r.id}/demo/edit`, { json: { instructions: editText, anthropic_key: keys.anthropic || undefined, designer: templates.me } })
+      setEditing(true); setEditText('')
+      onChange({ demo_status: 'running', demo_error: null, demo_started_at: new Date().toISOString() })
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+    setBusy('')
+  }
   async function makeDemo() {
+    setEditing(false)
     setErr(''); setBusy('demo')
     try {
       await api(`/api/crm/leads/${r.id}/demo`, { json: { anthropic_key: keys.anthropic || undefined, google_key: keys.google || undefined, designer: templates.me } })
@@ -489,7 +501,7 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
         <Step n={3} title="Demo site pentru el (ca la Rebuild)">
           {demoRunning ? (
             <div className="rounded-lg bg-teal-50 border border-teal-200 p-2.5 text-[13px] text-teal-900">
-              <div className="flex items-center gap-2 font-medium"><span className="w-3.5 h-3.5 border-2 border-current border-r-transparent rounded-full animate-spin" />Se generează demo-ul (1–4 minute)…</div>
+              <div className="flex items-center gap-2 font-medium"><span className="w-3.5 h-3.5 border-2 border-current border-r-transparent rounded-full animate-spin" />{editing ? 'Se aplică modificările (1–4 minute)…' : 'Se generează demo-ul (1–4 minute)…'}</div>
               <div className="mt-1 text-[12px]">Poți închide aplicația sau trece la alte firme — linkul apare aici singur când e gata.</div>
             </div>
           ) : r.preview_url ? (
@@ -499,7 +511,30 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
                 {mobile && !noWa && <Btn green href={waLink(msgs.demo)}>📱 Trimite demo-ul pe WhatsApp</Btn>}
                 <Btn onClick={() => copy('d', msgs.demo)}>{copied === 'd' ? 'Copiat ✓' : 'Copiază mesajul cu link'}</Btn>
               </div>
-              <button className="text-xs text-slate-500 underline" disabled={busy === 'demo'} onClick={makeDemo}>↻ Refă demo-ul (păstrează același link)</button>
+              {r.demo_status === 'error' && r.demo_error && <p className="text-xs text-rose-700">Ultima modificare n-a reușit: {r.demo_error}</p>}
+              <div className="rounded-lg border border-slate-200 p-2.5 space-y-2">
+                <div className="text-[12px] font-medium text-slate-700">✏️ Modificări cerute de client</div>
+                <textarea className="w-full min-h-[70px] rounded-md border border-slate-300 p-2 text-[13px]" placeholder="Ex.: schimbă telefonul în 0722 000 000, adaugă programul L–V 8–18, scoate secțiunea cu prețuri, culoarea principală verde…" value={editText} onChange={e => setEditText(e.target.value)} />
+                <Button size="sm" variant="primary" className="h-9" loading={busy === 'edit'} disabled={editText.trim().length < 3} onClick={applyEdits}>Aplică modificările (același link)</Button>
+                <p className="text-[11px] text-slate-400">Claude modifică site-ul pe server; poți închide pagina. Clientul vede schimbările pe același link.</p>
+              </div>
+              {['won', 'interested', 'call_meeting', 'proposal_sent', 'negotiation', 'replied'].includes(r.stage) && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 space-y-2">
+                  <div className="text-[12px] font-medium text-emerald-900">🚀 Site-ul final</div>
+                  <a href={`/api/crm/leads/${r.id}/export`} download className="h-10 px-3 inline-flex items-center gap-1.5 rounded-lg text-sm font-medium bg-white border border-emerald-300 text-emerald-800">⬇️ Descarcă site-ul final (.zip, fără banner)</a>
+                  <details className="text-[12px] text-slate-700">
+                    <summary className="cursor-pointer text-emerald-900">Cum îl pun live (Cloudflare Pages, gratuit)</summary>
+                    <ol className="list-decimal pl-5 mt-1 space-y-0.5">
+                      <li>dash.cloudflare.com → <b>Workers & Pages</b> → Create → <b>Pages</b> → <b>Upload assets</b>.</li>
+                      <li>Numele proiectului = numele firmei → urci fișierul .zip descărcat → Deploy. Site-ul apare la <i>nume.pages.dev</i>.</li>
+                      <li><b>Custom domains</b> → adaugi domeniul clientului și urmezi pașii (domeniul trebuie să fie pe numele clientului).</li>
+                      <li>Dacă are deja domeniu cu email (office@…), copiază înainte înregistrările <b>MX</b>, ca să nu-i oprești emailul.</li>
+                      <li>După modificări: le aplici aici, descarci din nou .zip-ul și îl urci ca „new deployment” în același proiect.</li>
+                    </ol>
+                  </details>
+                </div>
+              )}
+              <button className="text-xs text-slate-500 underline" disabled={busy === 'demo'} onClick={makeDemo}>↻ Refă demo-ul de la zero (păstrează același link)</button>
             </div>
           ) : (
             <>

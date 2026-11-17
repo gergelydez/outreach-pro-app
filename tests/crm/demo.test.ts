@@ -78,3 +78,49 @@ describe('demo generated fully on the server (page can be closed)', () => {
     setDatabase(null)
   }, 60_000)
 })
+
+describe('client edits + final site download', () => {
+  beforeEach(() => { process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_store_secret' })
+
+  it('Claude edits the existing site on the same link (without the banner in the prompt), banner is put back', async () => {
+    const { startEdit } = await import('@/lib/crm/demo')
+    const { withConceptBanner } = await import('@/lib/preview')
+    await freshDb()
+    const b = await one<{ id: string }>(`INSERT INTO businesses (name, category, city, lead_source, website_status, country, preview_url) VALUES ('Pensiunea Bradul', 'pension', 'Brașov', 'google_places', 'NO_WEBSITE', 'RO', 'https://app.test/p/pensiunea-bradul-abc123') RETURNING id`)
+    const stored: Record<string, string> = { 'pensiunea-bradul-abc123': withConceptBanner('<!DOCTYPE html><html><head></head><body><h1>Tel 0722 111 111</h1></body></html>', 'Pensiunea Bradul', 'Grig', 'ro') }
+    let seen = ''
+    const r = await startEdit(b!.id, { instructions: 'schimbă telefonul în 0722 000 000', designer: 'Grig' }, {
+      load: async slug => stored[slug],
+      generate: async prompt => { seen = prompt; return '<!DOCTYPE html><html><head></head><body><h1>Tel 0722 000 000</h1></body></html>' },
+      publish: async (slug, html) => { stored[slug] = html },
+    })
+    expect(await r.job).toBe(true)
+    expect(seen).toContain('schimbă telefonul în 0722 000 000')
+    expect(seen).toContain('Tel 0722 111 111')
+    expect(seen).not.toContain('concept-banner')
+    expect(stored['pensiunea-bradul-abc123']).toContain('0722 000 000')
+    expect(stored['pensiunea-bradul-abc123']).toContain('concept-banner')
+    expect(await one('SELECT demo_status, preview_url FROM businesses WHERE id = $1', [b!.id])).toEqual({ demo_status: 'done', preview_url: 'https://app.test/p/pensiunea-bradul-abc123' })
+  })
+
+  it('refuses edits when there is no demo yet', async () => {
+    const { startEdit } = await import('@/lib/crm/demo')
+    await freshDb()
+    const b = await one<{ id: string }>(`INSERT INTO businesses (name, category, city, lead_source, website_status) VALUES ('X', 'plumber', 'Leeds', 'google_places', 'NO_WEBSITE') RETURNING id`)
+    await expect(startEdit(b!.id, { instructions: 'x y z' }, { generate: async () => '' })).rejects.toThrow(/fă mai întâi demo-ul/)
+  })
+
+  it('final version has no banner / noindex; zip is valid', async () => {
+    const { withConceptBanner, stripConceptBanner } = await import('@/lib/preview')
+    const { zipSingleFile, crc32 } = await import('@/lib/crm/zip')
+    const orig = '<!DOCTYPE html><html><head><title>A</title></head><body><p>Hello</p></body></html>'
+    const clean = stripConceptBanner(withConceptBanner(orig, 'A', 'Grig', 'ro'))
+    expect(clean).not.toMatch(/concept-banner|noindex/)
+    expect(clean).toContain('<p>Hello</p>')
+    expect(crc32(Buffer.from('123456789'))).toBe(0xcbf43926)
+    const zip = zipSingleFile('index.html', Buffer.from(clean))
+    expect(zip.readUInt32LE(0)).toBe(0x04034b50)
+    expect(zip.readUInt32LE(zip.length - 22)).toBe(0x06054b50)
+    expect(zip.includes(Buffer.from(clean))).toBe(true)
+  })
+})
