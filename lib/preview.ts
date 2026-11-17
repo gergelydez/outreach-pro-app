@@ -25,3 +25,10 @@ export function withConceptBanner(html: string, businessName: string, designer: 
   out = /<\/body>/i.test(out) ? out.replace(/<\/body>(?![\s\S]*<\/body>)/i, `${banner}\n</body>`) : out + banner
   return out
 }
+
+// Varianta finală pentru client: fără bannerul „concept” și fără noindex (site-ul live trebuie să apară pe Google)
+export function stripConceptBanner(html: string): string {
+  return html
+    .replace(/<div id="concept-banner"[\s\S]*?<\/button><\/div>\n?/g, '')
+    .replace(/<meta name="robots" content="noindex,nofollow">\n?/gi, '')
+}

@@ -7,7 +7,7 @@ import { outsideSession } from './blob-db'
 import { logActivity } from './activity'
 import { categoriesFor, asCountry } from './countries'
 import { buildRedesignPrompt, generateHtml } from '@/lib/redesign'
-import { slugify, withConceptBanner } from '@/lib/preview'
+import { slugify, withConceptBanner, stripConceptBanner } from '@/lib/preview'
 import { friendlyAnthropicError } from '@/lib/anthropic-error'
 import type { RebuildLead } from '@/lib/rebuild'
 
@@ -91,4 +91,78 @@ async function fetchSiteContent(origin: string, url: string): Promise<Record<str
     const d = await res.json()
     return res.ok && d.audit ? d.audit : null
   } catch { return null }
+}
+
+// ── Modificări cerute de client: Claude editează site-ul existent, păstrând același link ──
+export interface EditDeps {
+  load?: (slug: string) => Promise<string>
+  generate?: (prompt: string) => Promise<string>
+  publish?: (slug: string, html: string) => Promise<void>
+  schedule?: (p: Promise<unknown>) => void
+}
+
+export const slugOf = (previewUrl: string | null) => previewUrl?.match(/\/p\/([a-z0-9-]+)$/)?.[1] || null
+
+export async function loadSiteHtml(slug: string): Promise<string> {
+  const { head } = await import('@vercel/blob')
+  const meta = await head(`previews/${slug}.html`)
+  const res = await fetch(meta.url, { cache: 'no-store' })
+  if (!res.ok) throw new Error(`Nu am găsit site-ul (${res.status})`)
+  return res.text()
+}
+
+export function buildEditPrompt(html: string, instructions: string, lang: string) {
+  return `Mai jos e codul HTML complet al site-ului unei firme mici. Clientul a cerut aceste modificări:
+
+<modificari>
+${instructions}
+</modificari>
+
+Aplică exact modificările cerute și păstrează tot restul site-ului neschimbat (design, structură, texte, imagini, linkuri). Textele noi le scrii în limba site-ului (${lang}). Dacă o modificare cere ceva ce nu ai (de exemplu o poză nouă), pune un loc clar marcat pentru ea în loc să inventezi.
+Răspunde DOAR cu codul HTML complet, actualizat, începând cu <!DOCTYPE html>.
+
+<site>
+${html}
+</site>`
+}
+
+export async function startEdit(id: string, opts: { instructions: string; anthropicKey?: string; designer?: string }, deps: EditDeps = {}) {
+  const b = await one<DemoLeadRow>(`SELECT id, name, category, city, address, phone, phone_e164, email, website_url, website_status, google_place_id,
+      google_rating, google_review_count, preview_url, country, demo_status, demo_started_at FROM businesses WHERE id = $1`, [id])
+  if (!b) throw new Error('Lead not found')
+  const slug = slugOf(b.preview_url)
+  if (!slug) throw new Error('Firma nu are încă un demo — fă mai întâi demo-ul.')
+  const running = b.demo_status === 'running' && b.demo_started_at && Date.now() - new Date(b.demo_started_at).getTime() < DEMO_STALE_MIN * 60_000
+  if (running) return { status: 'running' as const, already: true }
+  const apiKey = process.env.ANTHROPIC_API_KEY || opts.anthropicKey
+  if (!apiKey && !deps.generate) throw new Error('Lipsă cheia Claude: pune ANTHROPIC_API_KEY în Vercel sau cheia în Setări.')
+  await q(`UPDATE businesses SET demo_status = 'running', demo_error = NULL, demo_started_at = now(), updated_at = now() WHERE id = $1`, [id])
+  const job = outsideSession(() => runEdit(b, slug, { ...opts, apiKey: apiKey || '' }, deps))
+  ;(deps.schedule || (p => { void p }))(job)
+  return { status: 'running' as const, already: false, job }
+}
+
+async function runEdit(b: DemoLeadRow, slug: string, opts: { instructions: string; apiKey: string; designer?: string }, deps: EditDeps) {
+  const country = asCountry(b.country)
+  const lang = country === 'HU' ? 'hu' : country === 'UK' ? 'en' : 'ro'
+  try {
+    const current = stripConceptBanner(deps.load ? await deps.load(slug) : await loadSiteHtml(slug))
+    const prompt = buildEditPrompt(current, opts.instructions, lang === 'hu' ? 'maghiară' : lang === 'en' ? 'engleză' : 'română')
+    const html = deps.generate ? await deps.generate(prompt) : await generateHtml(new Anthropic({ apiKey: opts.apiKey }), prompt)
+    const finalHtml = withConceptBanner(html, b.name, opts.designer || '', lang)
+    if (deps.publish) await deps.publish(slug, finalHtml)
+    else {
+      const { put } = await import('@vercel/blob')
+      await put(`previews/${slug}.html`, finalHtml, { access: 'public', contentType: 'text/html; charset=utf-8', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 })
+    }
+    await withDbSession(async () => {
+      await q(`UPDATE businesses SET demo_at = now(), demo_status = 'done', demo_error = NULL, updated_at = now() WHERE id = $1`, [b.id])
+      await logActivity(b.id, 'demo_published', `Site edited: ${opts.instructions.slice(0, 300)}`)
+    })
+    return true
+  } catch (e) {
+    const msg = e instanceof Anthropic.APIError ? friendlyAnthropicError(e, process.env.ANTHROPIC_API_KEY ? 'env' : 'settings') : e instanceof Error ? e.message : String(e)
+    await withDbSession(() => q(`UPDATE businesses SET demo_status = 'error', demo_error = $2, updated_at = now() WHERE id = $1`, [b.id, msg.slice(0, 500)])).catch(() => {})
+    return false
+  }
 }
