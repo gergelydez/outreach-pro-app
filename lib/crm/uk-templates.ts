@@ -42,15 +42,15 @@ const HU: UkTemplates = {
 }
 
 const RO: UkTemplates = {
-  me: 'Geri',
+  me: "Grig",
   intro_nosite: "Bună ziua! Sunt {me} 👋 Am dat de {name} pe Google și am observat că, spre deosebire de alte firme din zonă, nu aveți un site, așa că v-am pregătit gratuit un concept de site.",
   intro_social: "Bună ziua! Sunt {me} 👋 Am dat de {name} pe Google și am observat că aveți doar pagină de Facebook/Instagram, nu un site propriu, așa că v-am pregătit gratuit un concept de site.",
   intro_site: "Bună ziua! Sunt {me} 👋 Am dat de {name} pe Google și m-am uitat pe site-ul dumneavoastră: am observat că {problem}. Așa că v-am pregătit gratuit un concept pentru un site nou, modern.",
-  offer: "Un site modern, făcut cum trebuie, vă poate aduce mult mai mulți clienți, oameni care acum ajung la concurență. Luna aceasta fac site-urile sub prețul pieței, ca să ajut firmele locale să crească.\n\nCa să fiu transparent de la început: prețurile pornesc de la 700 de lei, dar conceptul realizat deja e gratuit. Vreți să vi-l trimit?",
-  offer_site: "Un site modern, rapid, arătos pe telefon și optimizat pentru Google, vă poate aduce mult mai mulți clienți decât cel de acum. Luna aceasta fac site-urile sub prețul pieței, ca să ajut firmele locale să crească.\n\nCa să fiu transparent de la început: prețurile pornesc de la 700 de lei, dar conceptul realizat deja e gratuit. Vreți să vi-l trimit?",
-  price: "Ca să fiu transparent: prețurile pornesc de la 700 de lei, iar conceptul realizat deja e gratuit și nu vă obligă la nimic.",
+  offer: "Un site modern, făcut cum trebuie, vă poate aduce mult mai mulți clienți, oameni care acum ajung la concurență. Luna aceasta fac site-urile sub prețul pieței, ca să ajut afacerile să crească.\n\nCa să fiu transparent de la început: prețurile pornesc de la 700 de lei, dar conceptul realizat deja e gratuit. Vă pot oferi și factură pe firmă, dacă doriți. Vreți să vedeți cum arată conceptul creat pentru dumneavoastră?",
+  offer_site: "Un site modern, rapid, arătos pe telefon și optimizat pentru Google, vă poate aduce mult mai mulți clienți decât cel de acum. Luna aceasta fac site-urile sub prețul pieței, ca să ajut afacerile să crească.\n\nCa să fiu transparent de la început: prețurile pornesc de la 700 de lei, dar conceptul realizat deja e gratuit. Vă pot oferi și factură pe firmă, dacă doriți. Vreți să vedeți cum arată conceptul creat pentru dumneavoastră?",
+  price: "Ca să fiu transparent: prețurile pornesc de la 700 de lei, iar conceptul realizat deja e gratuit și nu vă obligă la nimic. Vă pot oferi și factură pe firmă, dacă doriți.",
   demo: "Iată conceptul făcut pentru {name}: {link}\nUitați-vă pe telefon și spuneți-mi ce părere aveți 🙂 Dacă vă place, îl pun online de la 700 lei.",
-  followup: "Revin pe scurt 🙂 Conceptul de site pregătit pentru {name} vă așteaptă, e gratuit. Vreți să vi-l trimit? Prețurile de la 700 lei sunt valabile până la sfârșitul lunii.",
+  followup: "Revin pe scurt 🙂 Conceptul de site pregătit pentru {name} vă așteaptă, e gratuit. Vreți să vedeți cum arată? Prețurile de la 700 lei sunt valabile până la sfârșitul lunii.",
 }
 
 export const DEFAULT_TEMPLATES: UkTemplates = UK
