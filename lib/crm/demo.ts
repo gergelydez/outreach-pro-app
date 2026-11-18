@@ -176,3 +176,84 @@ async function runEdit(b: DemoLeadRow, slug: string, opts: { instructions: strin
 async function takeShot(slug: string, html: string, custom?: (slug: string, html: string) => Promise<void>) {
   try { await (custom || ((s: string, h: string) => publishScreenshot(s, h)))(slug, html) } catch (e) { console.warn('screenshot failed', e) }
 }
+
+// ── Pozele trimise de client: Claude le alege pe cele mai bune și le pune în site (același link) ──
+export const PHOTO_PREFIX = (id: string) => `client-photos/${id}/`
+export const MAX_PHOTOS = 100
+
+export async function listClientPhotos(id: string): Promise<string[]> {
+  const { list } = await import('@vercel/blob')
+  const out: string[] = []
+  let cursor: string | undefined
+  do {
+    const r = await list({ prefix: PHOTO_PREFIX(id), cursor, limit: 1000 })
+    out.push(...r.blobs.map(b => b.url))
+    cursor = r.hasMore ? r.cursor : undefined
+  } while (cursor)
+  return out
+}
+
+export function buildPhotosPrompt(html: string, photoUrls: string[], name: string, lang: string, note?: string): Anthropic.Beta.BetaContentBlockParam[] {
+  const blocks: Anthropic.Beta.BetaContentBlockParam[] = [
+    { type: 'text', text: `Clientul firmei „${name}” ne-a trimis ${photoUrls.length} poze. Înaintea fiecărei poze e eticheta cu URL-ul ei.` },
+  ]
+  photoUrls.forEach((url, i) => {
+    blocks.push({ type: 'text', text: `Poza ${i + 1}: ${url}` })
+    blocks.push({ type: 'image', source: { type: 'url', url } })
+  })
+  blocks.push({ type: 'text', text: `Alege cele mai bune poze pentru site, de obicei 6–12: clare, luminoase, reprezentative pentru afacere, fără dubluri, fără poze mișcate sau întunecate, fără documente, capturi de ecran sau date personale.
+Înlocuiește pozele din site (inclusiv cele luate de pe Google și orice imagine generică) cu pozele alese, folosind EXACT URL-urile lor în src. Pune cea mai bună poză în prima secțiune; pe celelalte, în galerie și în secțiunile potrivite (servicii, despre noi). Adaugă texte alt descriptive în ${lang}.${note ? `\nIndicațiile clientului: ${note}` : ''}
+Păstrează restul site-ului neschimbat (design, texte, structură, linkuri). Răspunde DOAR cu codul HTML complet, actualizat, începând cu <!DOCTYPE html>.
+
+<site>
+${html}
+</site>` })
+  return blocks
+}
+
+export interface PhotoDeps extends Omit<EditDeps, 'generate'> {
+  photos?: (id: string) => Promise<string[]>
+  generate?: (content: Anthropic.Beta.BetaContentBlockParam[]) => Promise<string>
+}
+
+export async function startPhotos(id: string, opts: { note?: string; anthropicKey?: string; designer?: string }, deps: PhotoDeps = {}) {
+  const b = await one<DemoLeadRow>(`SELECT id, name, category, city, address, phone, phone_e164, email, website_url, website_status, google_place_id,
+      google_rating, google_review_count, preview_url, country, demo_status, demo_started_at FROM businesses WHERE id = $1`, [id])
+  if (!b) throw new Error('Lead not found')
+  const slug = slugOf(b.preview_url)
+  if (!slug) throw new Error('Firma nu are încă un demo — fă mai întâi demo-ul.')
+  const photos = (await (deps.photos || listClientPhotos)(id)).slice(0, MAX_PHOTOS)
+  if (!photos.length) throw new Error('Încarcă întâi pozele clientului.')
+  const running = b.demo_status === 'running' && b.demo_started_at && Date.now() - new Date(b.demo_started_at).getTime() < DEMO_STALE_MIN * 60_000
+  if (running) return { status: 'running' as const, already: true }
+  const apiKey = process.env.ANTHROPIC_API_KEY || opts.anthropicKey
+  if (!apiKey && !deps.generate) throw new Error('Lipsă cheia Claude: pune ANTHROPIC_API_KEY în Vercel sau cheia în Setări.')
+  await q(`UPDATE businesses SET demo_status = 'running', demo_error = NULL, demo_started_at = now(), updated_at = now() WHERE id = $1`, [id])
+  const job = outsideSession(async () => {
+    const country = asCountry(b.country)
+    const lang = country === 'HU' ? 'hu' : country === 'UK' ? 'en' : 'ro'
+    try {
+      const current = stripConceptBanner(deps.load ? await deps.load(slug) : await loadSiteHtml(slug))
+      const content = buildPhotosPrompt(current, photos, b.name, lang === 'hu' ? 'maghiară' : lang === 'en' ? 'engleză' : 'română', opts.note)
+      const html = deps.generate ? await deps.generate(content) : await generateHtml(new Anthropic({ apiKey: apiKey || '' }), content)
+      const finalHtml = withConceptBanner(html, b.name, opts.designer || '', lang)
+      if (deps.publish) await deps.publish(slug, finalHtml)
+      else {
+        const { put } = await import('@vercel/blob')
+        await put(`previews/${slug}.html`, finalHtml, { access: 'public', contentType: 'text/html; charset=utf-8', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 })
+      }
+      await takeShot(slug, finalHtml, deps.screenshot)
+      await withDbSession(async () => {
+        await q(`UPDATE businesses SET demo_at = now(), demo_status = 'done', demo_error = NULL, updated_at = now() WHERE id = $1`, [b.id])
+        await logActivity(b.id, 'demo_published', `Client photos added to the site (${photos.length} uploaded)`)
+      })
+      return true
+    } catch (e) {
+      const msg = e instanceof Anthropic.APIError ? friendlyAnthropicError(e, process.env.ANTHROPIC_API_KEY ? 'env' : 'settings') : e instanceof Error ? e.message : String(e)
+      await withDbSession(() => q(`UPDATE businesses SET demo_status = 'error', demo_error = $2, updated_at = now() WHERE id = $1`, [b.id, msg.slice(0, 500)])).catch(() => {})
+      return false
+    }
+  })
+  ;(deps.schedule || (p => { void p }))(job)
+  return { status: 'running' as const, already: false, job, count: photos.length }
+}

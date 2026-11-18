@@ -57,6 +57,7 @@ export default function HuntPage({ country }: { country: Country }) {
   const [city, setCity] = useState(cities[0].city)
   const [category, setCategory] = useState(cats[0].key)
   const [show, setShow] = useState<Show>('pool')
+  const [quick, setQuick] = useState(false)
   const [stats, setStats] = useState<Stats | null>(null)
   const [manualOpen, setManualOpen] = useState(false)
   const [sentNote, setSentNote] = useState('')
@@ -162,7 +163,9 @@ export default function HuntPage({ country }: { country: Country }) {
 
       <TemplateEditor value={templates} defaults={TEMPLATES[country]} onChange={saveTemplates} />
 
-      <div className="mt-5 mb-3 grid grid-cols-4 gap-1.5">
+      {quick && <QuickMode country={country} templates={templates} waApp={waApp} onExit={() => { setQuick(false); load() }} />}
+      <button onClick={() => setQuick(true)} className="mt-5 w-full h-12 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-semibold">⚡ Mod rapid — verifică seara, trimite dimineața</button>
+      <div className="mt-3 mb-3 grid grid-cols-4 gap-1.5">
         {([
           ['pool', '📋', 'Lista zilei', null],
           ['waiting', '⏰', 'De revenit', stats ? stats.contacted - stats.replied : null],
@@ -200,6 +203,148 @@ export default function HuntPage({ country }: { country: Country }) {
 
       <div className="space-y-3">
         {rows?.map(r => <LeadCard key={r.id} r={r} country={country} templates={templates} keys={keys} waApp={waApp} onChange={p => patchRow(r.id, p)} onDone={load} onSent={n => setSentNote(n)} />)}
+      </div>
+    </div>
+  )
+}
+
+async function shrinkImage(file: File): Promise<Blob> {
+  const bmp = await createImageBitmap(file)
+  const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height))
+  const c = document.createElement('canvas')
+  c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale)
+  c.getContext('2d')!.drawImage(bmp, 0, 0, c.width, c.height)
+  bmp.close?.()
+  return new Promise((res, rej) => c.toBlob(b => (b ? res(b) : rej(new Error('poză invalidă'))), 'image/jpeg', 0.82))
+}
+
+function leadMessages(r: Lead, templates: UkTemplates, country: Country) {
+  const trades = (categoriesFor(country).find(c => c.key === r.category)?.label || (country === 'HU' ? 'vállalkozások' : 'businesses')).toLowerCase()
+  const autoCodes = (r.findings || []).map(f => f.code)
+  const problemCodes = r.manual_problems && r.manual_problems.length ? r.manual_problems : autoCodes
+  return buildMessages(templates, { name: r.name, trades, website_status: r.website_status, findingCodes: problemCodes, previewUrl: r.preview_url, country, rating: r.google_rating, reviews: r.google_review_count })
+}
+
+// ── Mod rapid: câte o firmă pe ecran. Seara verifici WhatsApp-ul (fără ciornă), dimineața trimiți. ──
+const TZ: Record<Country, string> = { UK: 'Europe/London', HU: 'Europe/Budapest', RO: 'Europe/Bucharest' }
+function localHour(country: Country) {
+  return Number(new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone: TZ[country] }).format(new Date()))
+}
+
+function QuickMode({ country, templates, waApp, onExit }: { country: Country; templates: UkTemplates; waApp: WaApp; onExit: () => void }) {
+  const [phase, setPhase] = useState<'verify' | 'send'>(() => { const h = localHour(country); return h >= 9 && h < 19 ? 'send' : 'verify' })
+  const [queue, setQueue] = useState<Lead[] | null>(null)
+  const [i, setI] = useState(0)
+  const [opened, setOpened] = useState(false)
+  const [part, setPart] = useState(1)
+  const [done, setDone] = useState({ ok: 0, no: 0, skip: 0 })
+  const [err, setErr] = useState('')
+  const android = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
+
+  const load = useCallback(async () => {
+    setQueue(null); setI(0); setOpened(false); setPart(1); setErr('')
+    try {
+      const pool = (await api<{ rows: Lead[] }>(`/api/crm/simple?country=${country}&show=pool`)).rows.filter(r => waDigits(r.phone_e164))
+      if (phase === 'verify') setQueue(pool.filter(r => r.whatsapp_source !== 'manual'))
+      else {
+        const due = (await api<{ rows: Lead[] }>(`/api/crm/simple?country=${country}&show=waiting`)).rows
+          .filter(r => waDigits(r.phone_e164) && r.next_follow_up_at && new Date(r.next_follow_up_at).getTime() <= Date.now() && !(r.whatsapp_status === 'NOT_FOUND' && r.whatsapp_source === 'manual'))
+        setQueue([...pool.filter(r => r.whatsapp_status === 'FOUND' && r.whatsapp_source === 'manual'), ...due])
+      }
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+  }, [country, phase])
+  useEffect(() => { load() }, [load])
+
+  const r = queue?.[i]
+  const next = (k: 'ok' | 'no' | 'skip') => { setDone(d => ({ ...d, [k]: d[k] + 1 })); setI(x => x + 1); setOpened(false); setPart(1) }
+  const isFollow = !!r && ['contacted', 'follow_up_1', 'follow_up_2'].includes(r.stage)
+  const msgs = r ? leadMessages(r, templates, country) : null
+  const parts = !msgs ? [] : isFollow ? [msgs.followup] : [msgs.first, msgs.second].filter(t => t.trim())
+  const wa = r ? waDigits(r.phone_e164) || '' : ''
+  const hour = localHour(country)
+  const badTime = phase === 'send' && (hour < 9 || hour >= 19)
+
+  async function mark(status: 'FOUND' | 'NOT_FOUND') {
+    if (!r) return
+    api(`/api/crm/leads/${r.id}`, { method: 'PATCH', json: { whatsapp_status: status } }).catch(() => {})
+    next(status === 'FOUND' ? 'ok' : 'no')
+  }
+  async function sentIt() {
+    if (!r) return
+    try {
+      if (isFollow) await api(`/api/crm/leads/${r.id}/events`, { json: { event_type: 'follow_up', channel: 'whatsapp', notes: parts[0] } })
+      else await api(`/api/crm/leads/${r.id}/events`, { json: { event_type: 'contacted', channel: 'whatsapp', notes: parts.join('\n\n').slice(0, 1000), schedule_follow_ups: true } })
+      next('ok')
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+  }
+  async function notFit() {
+    if (!r) return
+    api(`/api/crm/leads/${r.id}`, { method: 'PATCH', json: { stage: 'not_a_fit' } }).catch(() => {})
+    next('no')
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-50 overflow-y-auto">
+      <div className="max-w-md mx-auto px-4 py-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="font-semibold text-slate-900">⚡ Mod rapid · {COUNTRY_TITLE[country]}</div>
+          <button className="h-9 px-3 rounded-lg border border-slate-300 text-sm bg-white" onClick={onExit}>✕ Închide</button>
+        </div>
+        <div className="grid grid-cols-2 gap-1.5 mb-3">
+          {([['verify', '🌙 Verificare WhatsApp'], ['send', '☀️ Trimitere']] as const).map(([k, l]) => (
+            <button key={k} onClick={() => setPhase(k)} className={cx('h-10 rounded-xl border text-sm font-medium', phase === k ? 'bg-teal-700 border-teal-700 text-white' : 'bg-white border-slate-200 text-slate-700')}>{l}</button>
+          ))}
+        </div>
+        <p className="text-[12px] text-slate-500 mb-3">{phase === 'verify'
+          ? 'Se deschide chatul FĂRĂ text (nu rămâne ciornă, nu se trimite nimic). Te întorci și apeși ✓ sau ✗.'
+          : 'Doar firmele cu WhatsApp verificat + reamintirile de azi. Se deschide chatul cu mesajul scris: apeși săgeata, te întorci, apeși „Am trimis”.'}</p>
+        {badTime && <p className="mb-3 text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">⏰ Acum e {hour}:00 în {COUNTRY_TITLE[country]}. Mesajele se trimit mai bine între 9:00 și 19:00, ora lor.</p>}
+        {err && <p className="mb-3 text-sm text-rose-700">{err}</p>}
+        {!queue ? <p className="text-sm text-slate-500">Se încarcă…</p>
+          : !r ? (
+            <div className="bg-white border border-slate-200 rounded-xl p-5 text-center">
+              <div className="text-3xl mb-2">🎉</div>
+              <div className="font-semibold text-slate-900">Gata!</div>
+              <p className="text-sm text-slate-600 mt-1">{phase === 'verify' ? `${done.ok} cu WhatsApp, ${done.no} fără. ` : `${done.ok} trimise. `}{done.skip ? `${done.skip} sărite.` : ''}</p>
+              {phase === 'verify' && <p className="text-[12px] text-slate-500 mt-2">Dimineața, de la 9:00 (ora lor), intri pe ☀️ Trimitere.</p>}
+              <div className="flex gap-2 justify-center mt-4">
+                <Button onClick={load}>↻ Reîncarcă</Button>
+                <Button variant="primary" onClick={onExit}>Înapoi la listă</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white border border-slate-200 rounded-xl p-4">
+              <div className="text-[11px] text-slate-400 mb-1">{i + 1} din {queue.length}{isFollow ? ' · ⏰ reamintire' : ''}</div>
+              <h3 className="text-lg font-semibold text-slate-900 leading-snug">{r.name}</h3>
+              <p className="text-[13px] text-slate-500">{r.google_rating != null && <>★ {Number(r.google_rating).toFixed(1)} ({r.google_review_count || 0}) · </>}{catRo(country, r.category)} · {r.city}</p>
+              <p className="text-[13px] text-slate-700 mt-1">📱 {r.phone || r.phone_e164}</p>
+              {phase === 'verify' ? (
+                <div className="mt-4 space-y-2">
+                  <a href={waHref(wa, undefined, waApp, android)} target={waApp === 'auto' || !android ? '_blank' : undefined} rel="noreferrer" onClick={() => setOpened(true)} className="h-12 w-full inline-flex items-center justify-center rounded-xl bg-[#25D366] text-white font-semibold">💬 Deschide chatul (fără text)</a>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button className={cx('h-12 rounded-xl border-2 font-semibold', opened ? 'border-emerald-500 text-emerald-700' : 'border-slate-200 text-slate-600')} onClick={() => mark('FOUND')}>✓ Are WhatsApp</button>
+                    <button className={cx('h-12 rounded-xl border-2 font-semibold', opened ? 'border-rose-400 text-rose-700' : 'border-slate-200 text-slate-600')} onClick={() => mark('NOT_FOUND')}>✗ Nu are</button>
+                  </div>
+                  <button className="w-full text-sm text-slate-500 py-1" onClick={() => next('skip')}>Sari peste</button>
+                </div>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {parts.map((t, k) => (
+                    <div key={k} className={cx('rounded-lg border p-2.5 text-[13px] whitespace-pre-wrap', part === k + 1 ? 'border-teal-300 bg-teal-50 text-slate-800' : 'border-slate-200 text-slate-500')}>{parts.length > 1 && <div className="text-[11px] font-medium mb-0.5">Partea {k + 1}</div>}{t}</div>
+                  ))}
+                  {part <= parts.length
+                    ? <a href={waHref(wa, parts[part - 1], waApp, android)} target={waApp === 'auto' || !android ? '_blank' : undefined} rel="noreferrer" onClick={() => setTimeout(() => setPart(x => x + 1), 400)} className="h-12 w-full inline-flex items-center justify-center rounded-xl bg-[#25D366] text-white font-semibold">📱 {isFollow ? 'Trimite reamintirea' : parts.length > 1 ? `Trimite partea ${part}` : 'Trimite'}</a>
+                    : <p className="text-[12px] text-slate-500 text-center">Ai deschis {parts.length > 1 ? 'ambele părți' : 'mesajul'}. L-ai trimis?</p>}
+                  <Button variant="primary" className="w-full h-12" onClick={sentIt}>✅ Am trimis</Button>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button className="h-10 rounded-lg border border-slate-300 text-[13px]" onClick={() => mark('NOT_FOUND')}>✗ N-are WA</button>
+                    <button className="h-10 rounded-lg border border-slate-300 text-[13px]" onClick={notFit}>🚫 Nu e potrivit</button>
+                    <button className="h-10 rounded-lg border border-slate-300 text-[13px]" onClick={() => next('skip')}>Sari</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
       </div>
     </div>
   )
@@ -340,6 +485,44 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
     } else {
       const a = document.createElement('a'); a.href = shot.url; a.download = shot.file.name; a.click()
     }
+  }
+  const [photoCount, setPhotoCount] = useState<number | null>(null)
+  const [uploadMsg, setUploadMsg] = useState('')
+  const [photoNote, setPhotoNote] = useState('')
+  useEffect(() => {
+    if (!open || !r.preview_url) return
+    api<{ photos: string[] }>(`/api/crm/leads/${r.id}/photos`).then(d => setPhotoCount(d.photos.length)).catch(() => {})
+  }, [open, r.preview_url, r.id])
+  async function uploadPhotos(files: FileList | null) {
+    if (!files?.length) return
+    setErr('')
+    const list = Array.from(files).slice(0, 100)
+    const { upload } = await import('@vercel/blob/client')
+    let ok = 0
+    for (let k = 0; k < list.length; k++) {
+      setUploadMsg(`Încarc pozele… ${k + 1} din ${list.length}`)
+      try {
+        const small = await shrinkImage(list[k])
+        await upload(`client-photos/${r.id}/${k + 1}.jpg`, small, { access: 'public', handleUploadUrl: `/api/crm/leads/${r.id}/photos`, contentType: 'image/jpeg' })
+        ok++
+      } catch { /* o poză stricată nu oprește restul */ }
+    }
+    setUploadMsg(ok === list.length ? `Gata: ${ok} poze încărcate.` : `${ok} din ${list.length} poze încărcate (unele n-au mers).`)
+    setPhotoCount(c => (c || 0) + ok)
+  }
+  async function applyPhotos() {
+    setErr(''); setBusy('photos')
+    try {
+      await api(`/api/crm/leads/${r.id}/photos/apply`, { json: { note: photoNote || undefined, anthropic_key: keys.anthropic || undefined, designer: templates.me } })
+      setEditing(true)
+      onChange({ demo_status: 'running', demo_error: null, demo_started_at: new Date().toISOString() })
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+    setBusy('')
+  }
+  async function deletePhotos() {
+    if (!confirm('Ștergi toate pozele încărcate pentru această firmă?')) return
+    await api(`/api/crm/leads/${r.id}/photos`, { method: 'DELETE' }).catch(() => {})
+    setPhotoCount(0); setUploadMsg('')
   }
   const [replyText, setReplyText] = useState('')
   const [help, setHelp] = useState<ReplyHelp | null>(null)
@@ -598,6 +781,20 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
                   : shotState === 'error' ? <p className="text-[12px] text-slate-500">Poza n-a mers acum — deschide demo-ul și fă o captură de ecran.</p> : null}
               </div>
               {r.demo_status === 'error' && r.demo_error && <p className="text-xs text-rose-700">Ultima modificare n-a reușit: {r.demo_error}</p>}
+              <div className="rounded-lg border border-violet-200 bg-violet-50 p-2.5 space-y-2">
+                <div className="text-[12px] font-medium text-violet-900">🖼️ Pozele clientului{photoCount ? ` · ${photoCount} încărcate` : ''}</div>
+                <label className="h-10 px-3 inline-flex items-center gap-1.5 rounded-lg text-sm font-medium bg-white border border-violet-300 text-violet-800 cursor-pointer">
+                  ➕ Alege pozele din galerie
+                  <input type="file" accept="image/*" multiple className="hidden" onChange={e => { uploadPhotos(e.target.files); e.target.value = '' }} />
+                </label>
+                {uploadMsg && <p className="text-[12px] text-violet-900">{uploadMsg}</p>}
+                {!!photoCount && <>
+                  <input className="w-full h-9 rounded-md border border-slate-300 px-2 text-[13px] bg-white" placeholder="Opțional: ce să evidențieze (ex.: pozele cu salonul, nu cu oameni)" value={photoNote} onChange={e => setPhotoNote(e.target.value)} />
+                  <Button size="sm" variant="primary" className="h-9" loading={busy === 'photos'} onClick={applyPhotos}>✨ Alege cele mai bune și pune-le în site</Button>
+                  <button className="block text-[11px] text-slate-500 underline" onClick={deletePhotos}>Șterge pozele încărcate</button>
+                </>}
+                <p className="text-[11px] text-slate-500">Poți încărca până la 100 de poze (se micșorează automat). Claude le alege pe cele mai bune și le pune în site, pe același link. Costă un apel Claude mai mare (aprox. 1 $ la 100 de poze).</p>
+              </div>
               <div className="rounded-lg border border-slate-200 p-2.5 space-y-2">
                 <div className="text-[12px] font-medium text-slate-700">✏️ Modificări cerute de client</div>
                 <textarea className="w-full min-h-[70px] rounded-md border border-slate-300 p-2 text-[13px]" placeholder="Ex.: schimbă telefonul în 0722 000 000, adaugă programul L–V 8–18, scoate secțiunea cu prețuri, culoarea principală verde…" value={editText} onChange={e => setEditText(e.target.value)} />
