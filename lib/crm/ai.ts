@@ -32,7 +32,7 @@ export function aiConfig() {
   }
 }
 
-const PROMPT_VERSIONS = { analysis: 'analysis-v1', outreach: 'outreach-v1', proposal: 'proposal-v1', reply: 'reply-v1', next_action: 'next-action-v1', quick: 'quick-v1' } as const
+const PROMPT_VERSIONS = { analysis: 'analysis-v1', outreach: 'outreach-v1', proposal: 'proposal-v1', reply: 'reply-v2', next_action: 'next-action-v1', quick: 'quick-v1' } as const
 export type AiKind = keyof typeof PROMPT_VERSIONS
 
 const S = (props: Record<string, unknown>) => ({ type: 'object', additionalProperties: false, required: Object.keys(props), properties: props })
@@ -64,7 +64,7 @@ const SYSTEM = `You are a careful sales assistant for a small web design busines
 Rules you must follow:
 - Use ONLY the facts provided in the CONTEXT. Never invent names, prices paid, numbers, reviews, awards, years in business or website problems.
 - If something is listed as unknown, treat it as unknown and say so where relevant.
-- Write natural, plain British English (en-GB spelling). No hype, no exclamation marks in every sentence, no "I hope this email finds you well", no "revolutionise", no fake urgency.
+- Write natural, plain British English (en-GB spelling), unless the task asks for another language. No hype, no exclamation marks in every sentence, no "I hope this email finds you well", no "revolutionise", no fake urgency.
 - Reference at most one or two specific, verified findings. Explain the practical benefit for the business's customers.
 - Low-pressure: offer to share ideas or a short example; never promise results (rankings, number of leads, revenue).
 - Romanian fields must be in natural Romanian with diacritics.`
@@ -73,7 +73,11 @@ const INSTRUCTIONS: Record<AiKind, string> = {
   analysis: 'Analyse this business as a sales opportunity for website/local SEO services. Put each verified problem with its evidence. Include potential objections and the single best next action. Fill "unknowns" with important facts we do not have. Add summary_ro: a short Romanian summary for the user.',
   outreach: `Write first-contact messages for this business. email_body: 80-130 words, greeting, who I am in half a sentence, one specific verified finding and why it matters to their customers, a low-pressure question as the next step, the sign-off, and this exact opt-out line at the end: "${OPT_OUT_LINE}". whatsapp_message: max 4 short lines. contact_form_message: 60-90 words. follow_up_message: a short, polite follow-up for 3-7 days later that adds one new useful point. linkedin_message: max 280 characters. finding_used: which finding you used. explanation_ro: explain in Romanian what each message says and why, so the user understands it before sending.`,
   proposal: 'Draft proposal text for this business: title, intro (personal, 2 short paragraphs, based on verified findings), scope (bullet-style lines describing deliverables), timeline_note (no fixed promises; say it will be agreed). recommended_service_keys must only contain keys from the SERVICES list. Do not mention prices; they are added separately.',
-  reply: 'The user received a reply from this business (REPLY). Translate it into Romanian, classify the intent and any objection, and suggest a short, honest reply in British English plus its Romanian translation. If they ask to stop, the suggested reply only confirms they will not be contacted again.',
+  reply: `The user received a reply from this business (REPLY). In extra: SENDER is the user's first name, LANGUAGE is the language to answer in, OFFER lists exactly what the user offers and on what terms, SENT is what the user already sent them (may be empty).
+translation_ro: translate REPLY into natural Romanian. Classify the intent and any objection; intent_explained_ro: in Romanian, what they want, in one or two sentences.
+suggested_reply_en: despite the field name, write it in LANGUAGE. A short, warm, honest WhatsApp reply from SENDER (a real person, not an agency) that answers every question in REPLY using ONLY facts from OFFER. If they ask something OFFER does not cover (an exact final price, a deadline, technical details), say you will confirm it instead of inventing. Never suggest or accept a phone or video call: politely keep it on WhatsApp/email (for example, busy with other projects during the day). If they want to see the work and OFFER has a demo link, include the link. Max 6 short lines, at most one emoji.
+suggested_reply_ro: exact Romanian translation of suggested_reply_en. next_step: in Romanian, the next practical step for the user.
+If they ask to stop, the suggested reply only confirms politely that they will not be contacted again.`,
   quick: `Write a short, personal first message from a web designer to this UK business, in the style of a real person (not an agency).
 whatsapp_en: max 5 short lines. Structure: "Hi" + their name or business name → who I am in half a sentence (use SENDER from extra if given) → I came across {business} on Google and noticed ONE or TWO verified things (from website_audit findings, or that they have no website / only a Facebook page) → why it matters for their customers in one plain sentence → offer to send a quick idea or a free mock-up of a better site, no obligation → last line: if not interested, just say and I will not message again.
 email_subject_en: short, specific, no clickbait. email_en: the same idea in max 110 words with a sign-off.

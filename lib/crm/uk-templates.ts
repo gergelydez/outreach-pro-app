@@ -18,15 +18,15 @@ export interface UkTemplates {
 }
 
 const UK: UkTemplates = {
-  me: 'Geri',
-  intro_nosite: "Hi, I'm {me} 👋 I came across {name} on Google and noticed that, unlike other businesses in your area, you don't have a website, so I've put together a free website concept for you.",
-  intro_social: "Hi, I'm {me} 👋 I came across {name} on Google and noticed you only have a Facebook/Instagram page, not your own website, so I've put together a free website concept for you.",
-  intro_site: "Hi, I'm {me} 👋 I came across {name} on Google and had a look at your website: I noticed {problem}. So I've put together a free concept for a new, modern version.",
-  offer: "A modern, well-built website can bring you a lot more customers, people who are currently going to your competitors. This month I'm building websites below market price to help local businesses grow.\n\nTo be transparent from the start: prices start from £200, but the concept I've already made is free. Shall I send it over?",
-  offer_site: "A modern website, fast, great on mobile and optimised for Google, can bring you a lot more customers than your current one. This month I'm building websites below market price to help local businesses grow.\n\nTo be transparent from the start: prices start from £200, but the concept I've already made is free. Shall I send it over?",
-  price: "To be transparent: prices start from £200, and the concept I've already made is free, with no obligation.",
-  demo: "Here's the concept I made for {name}: {link}\nHave a look on your phone and let me know what you think 🙂 If you like it, I can put it live from £200.",
-  followup: "Just following up 🙂 The free website concept for {name} is ready whenever you want it. Shall I send it over? Prices from £200 are valid until the end of the month.",
+  me: "Geri",
+  intro_nosite: "Hi, is this {name}? I'm {me}. [[I was looking at your Google reviews: {rating}★ from {reviews} people, that's a brilliant reputation! But there's||I noticed there's]] no website for people to land on, so I've put together a free website concept for you. Can I send you a screenshot?",
+  intro_social: "Hi, is this {name}? I'm {me}. [[I was looking at your Google reviews: {rating}★ from {reviews} people, that's a brilliant reputation! But you||I noticed you]] only have a Facebook/Instagram page, not your own website, so I've put together a free website concept for you. Can I send you a screenshot?",
+  intro_site: "Hi, is this {name}? I'm {me}. [[I was looking at your Google reviews: {rating}★ from {reviews} people, that's a brilliant reputation! I also had a look at your website and noticed||I had a look at your website and noticed]] {problem}, so I've put together a free concept for a new, modern version. Can I send you a screenshot?",
+  offer: "",
+  offer_site: "",
+  price: "Prices start from £200, and you only pay if you love it and it's live.",
+  demo: "Here it is: {link}\nHave a look on your phone. If you like it, I can put it live from £200, and you only pay if you love it. 🙂",
+  followup: "Just following up 🙂 The free website concept for {name} is ready. Shall I send you a screenshot?",
 }
 
 const HU: UkTemplates = {
@@ -118,15 +118,23 @@ export function mainProblem(codes: string[], country: Country = 'UK', max = 2): 
   return picked.join(country === 'HU' ? ', és ' : country === 'RO' ? ' și ' : ' and ')
 }
 
+// [[cu recenzii||fără recenzii]]: prima variantă doar dacă știm ratingul și numărul de recenzii
 export function fill(t: string, v: Record<string, string>): string {
-  return t.replace(/\{(\w+)\}/g, (m, k) => (k in v ? v[k] : m))
+  const withReviews = !!v.rating && !!v.reviews
+  return t
+    .replace(/\[\[([\s\S]*?)\|\|([\s\S]*?)\]\]/g, (_m, yes, no) => (withReviews ? yes : no))
+    .replace(/\{(\w+)\}/g, (m, k) => (k in v ? v[k] : m))
 }
 
 const NO_OWN_SITE = ['NO_WEBSITE', 'SOCIAL_ONLY', 'DIRECTORY_ONLY']
 
-export function buildMessages(t: UkTemplates, lead: { name: string; trades: string; website_status: string; findingCodes: string[]; previewUrl?: string | null; country?: Country }) {
+export function buildMessages(t: UkTemplates, lead: { name: string; trades: string; website_status: string; findingCodes: string[]; previewUrl?: string | null; country?: Country; rating?: number | string | null; reviews?: number | null }) {
   const country = lead.country || 'UK'
-  const vars = { me: t.me || 'Geri', name: lead.name, trades: lead.trades, problem: mainProblem(lead.findingCodes, country), link: lead.previewUrl || '[link]' }
+  const rating = Number(lead.rating || 0)
+  const vars = {
+    me: t.me || 'Geri', name: lead.name, trades: lead.trades, problem: mainProblem(lead.findingCodes, country), link: lead.previewUrl || '[link]',
+    rating: rating > 0 ? rating.toFixed(1) : '', reviews: lead.reviews && lead.reviews > 0 ? String(lead.reviews) : '',
+  }
   const intro = lead.website_status === 'NO_WEBSITE' ? t.intro_nosite
     : ['SOCIAL_ONLY', 'DIRECTORY_ONLY'].includes(lead.website_status) ? t.intro_social
     : t.intro_site

@@ -14,16 +14,16 @@ describe('UK flow: messages, demo link, addresses', () => {
   it('builds the short two-part WhatsApp message from the template', () => {
     const t = { ...DEFAULT_TEMPLATES, me: 'Geri' }
     const none = buildMessages(t, { name: 'Moseley Plumbing', trades: 'plumbers', website_status: 'NO_WEBSITE', findingCodes: [] })
-    expect(none.first).toBe("Hi, I'm Geri 👋 I came across Moseley Plumbing on Google and noticed that, unlike other businesses in your area, you don't have a website, so I've put together a free website concept for you.")
-    expect(none.second).toMatch(/concept I've already made is free\. Shall I send it over\?$/)
-    expect(none.second).toMatch(/from £200/)
-    expect(none.first).toMatch(/put together a free website concept/)
-    expect(none.second).not.toMatch(/student|https?:/)
-    expect(none.first.length).toBeLessThan(220) // prima parte rămâne scurtă
+    expect(none.first).toBe("Hi, is this Moseley Plumbing? I'm Geri. I noticed there's no website for people to land on, so I've put together a free website concept for you. Can I send you a screenshot?")
+    const rated = buildMessages(t, { name: 'Moseley Plumbing', trades: 'plumbers', website_status: 'NO_WEBSITE', findingCodes: [], rating: '4.9', reviews: 87 })
+    expect(rated.first).toBe("Hi, is this Moseley Plumbing? I'm Geri. I was looking at your Google reviews: 4.9★ from 87 people, that's a brilliant reputation! But there's no website for people to land on, so I've put together a free website concept for you. Can I send you a screenshot?")
+    expect(rated.demo).toMatch(/from £200, and you only pay if you love it/)
+    expect(none.second).toBe('') // UK: un singur mesaj; demo + preț după „yes”
+    expect(rated.first.length).toBeLessThan(260) // un singur mesaj scurt
     const old = buildMessages(t, { name: 'Kings Heath Plumbing', trades: 'plumbers', website_status: 'OUTDATED_WEBSITE', findingCodes: ['no_https', 'not_mobile_friendly'] })
-    expect(old.first).toMatch(/I noticed it isn't set up for phones/)
+    expect(old.first).toMatch(/had a look at your website and noticed it isn't set up for phones/)
     const social = buildMessages(t, { name: 'Selly Oak Drain', trades: 'plumbers', website_status: 'SOCIAL_ONLY', findingCodes: [] })
-    expect(social.first).toMatch(/only have a Facebook\/Instagram page/)
+    expect(social.first).toMatch(/I noticed you only have a Facebook\/Instagram page/)
     const demo = buildMessages(t, { name: 'X', trades: 'plumbers', website_status: 'NO_WEBSITE', findingCodes: [], previewUrl: 'https://app.test/p/x-123' })
     expect(demo.demo).toContain('https://app.test/p/x-123')
     expect(mainProblem([])).toBe('it could do with a refresh')
@@ -74,8 +74,8 @@ describe('"has a website" button + ticked problems', () => {
     const row = (await one<{ website_status: string; manual_problems: string[]; website_url: string }>('SELECT website_status, manual_problems, website_url FROM businesses WHERE id = $1', [b!.id]))!
     expect(row).toEqual({ website_status: 'NEEDS_REDESIGN', manual_problems: ['outdated_signal', 'not_mobile_friendly'], website_url: 'https://moseleyplumbing.co.uk/' })
     const m = buildMessages(TEMPLATES.UK, { name: 'Moseley Plumbing', trades: 'plumbers', website_status: row.website_status, findingCodes: row.manual_problems })
-    expect(m.first).toBe("Hi, I'm Geri 👋 I came across Moseley Plumbing on Google and had a look at your website: I noticed it isn't set up for phones, so the text is tiny on mobile and it looks a bit dated. So I've put together a free concept for a new, modern version.")
-    expect(m.second).toMatch(/than your current one/)
+    expect(m.first).toBe("Hi, is this Moseley Plumbing? I'm Geri. I had a look at your website and noticed it isn't set up for phones, so the text is tiny on mobile and it looks a bit dated, so I've put together a free concept for a new, modern version. Can I send you a screenshot?")
+    expect(m.second).toBe('')
     // în lista zilei (are mobil, site de refăcut)
     const pool = await (await simpleGet(req('/api/crm/simple?show=pool'))).json()
     expect(pool.rows.map((x: { id: string }) => x.id)).toContain(b!.id)

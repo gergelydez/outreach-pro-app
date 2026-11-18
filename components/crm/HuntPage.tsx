@@ -30,12 +30,13 @@ const ago = (iso: string) => {
   return m < 60 ? `acum ${Math.max(1, m)} min` : m < 1440 ? `acum ${Math.round(m / 60)} h` : Math.round(m / 1440) === 1 ? 'acum o zi' : `acum ${Math.round(m / 1440)} zile`
 }
 const catRo = (country: Country, key: string) => country === 'UK' ? (CATEGORY_RO[key] || key) : (categoriesFor(country).find(c => c.key === key)?.ro || key)
+interface ReplyHelp { translation_ro: string; intent: string; intent_explained_ro: string; objection_type: string; suggested_reply_en: string; suggested_reply_ro: string; next_step: string }
 type Show = 'pool' | 'waiting' | 'interested' | 'won' | 'followup' | 'todo' | 'all'
 interface Stats { contacted: number; replied: number; interested: number; won: number; followups_due: number; contacted_today: number }
 const COUNTRY_TITLE: Record<Country, string> = { UK: 'UK 🇬🇧', HU: 'Ungaria 🇭🇺', RO: 'România 🇷🇴' }
 const LANG_RO: Record<Country, string> = { UK: 'engleză', HU: 'maghiară', RO: 'română' }
 // varianta veche a mesajelor (cu „student / proiect la facultate”), salvată pe telefon înainte de schimbare
-const OLD_TEXTS = /university student|egyetemista|proiect la facultate|firmele locale să crească/
+const OLD_TEXTS = /university student|egyetemista|proiect la facultate|firmele locale să crească|below market price to help local businesses/
 // Ce WhatsApp deschid butoanele verzi (Android): Business / normal / ce alege telefonul.
 // Secure Folder nu poate fi deschis din afara lui: acolo aplicația trebuie deschisă din browserul din Secure Folder.
 type WaApp = 'business' | 'personal' | 'auto'
@@ -75,7 +76,7 @@ export default function HuntPage({ country }: { country: Country }) {
     setKeys({ google: s.googlePlacesApiKey || '', anthropic: s.anthropicApiKey || '' })
     try {
       const saved = JSON.parse(localStorage.getItem(TPL_KEY(country)) || 'null')
-      if (saved && OLD_TEXTS.test(`${saved.offer || ''} ${saved.offer_site || ''}`)) { const me = saved.me; for (const k of Object.keys(saved)) delete saved[k]; if (me) saved.me = me; localStorage.setItem(TPL_KEY(country), JSON.stringify(saved)) }
+      if (saved && OLD_TEXTS.test(`${saved.offer || ''} ${saved.offer_site || ''} ${saved.intro_nosite || ''}`)) { const me = saved.me; for (const k of Object.keys(saved)) delete saved[k]; if (me) saved.me = me; localStorage.setItem(TPL_KEY(country), JSON.stringify(saved)) }
       // în România numele e „Grig” (nu numele din Setări / vechiul „Geri”)
       if (country === 'RO' && saved && (!saved.me || saved.me === 'Geri')) { saved.me = 'Grig'; localStorage.setItem(TPL_KEY(country), JSON.stringify(saved)) }
       setTemplates({ ...TEMPLATES[country], ...(s.senderName && country !== 'RO' ? { me: s.senderName.split(' ')[0] } : {}), ...(saved || {}) })
@@ -224,7 +225,7 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
   const [infoMsg, setInfoMsg] = useState('')
   const [open, setOpen] = useState(false)
   const contacted = !['new_lead', 'researching', 'qualified', 'reviewed', 'ready_to_contact'].includes(r.stage)
-  const msgs = buildMessages(templates, { name: r.name, trades, website_status: r.website_status, findingCodes: problemCodes, previewUrl: r.preview_url, country })
+  const msgs = buildMessages(templates, { name: r.name, trades, website_status: r.website_status, findingCodes: problemCodes, previewUrl: r.preview_url, country, rating: r.google_rating, reviews: r.google_review_count })
   const [first, setFirst] = useState(msgs.first)
   const [second, setSecond] = useState(msgs.second)
   useEffect(() => { setFirst(msgs.first); setSecond(msgs.second) }, [msgs.first, msgs.second])
@@ -308,6 +309,52 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
       await api(`/api/crm/leads/${r.id}/demo/edit`, { json: { instructions: editText, anthropic_key: keys.anthropic || undefined, designer: templates.me } })
       setEditing(true); setEditText('')
       onChange({ demo_status: 'running', demo_error: null, demo_started_at: new Date().toISOString() })
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+    setBusy('')
+  }
+  // poza demo-ului pentru WhatsApp: o pregătim când deschizi cardul, ca butonul să trimită instant
+  const [shot, setShot] = useState<{ url: string; file: File } | null>(null)
+  const [shotState, setShotState] = useState<'' | 'loading' | 'error'>('')
+  useEffect(() => {
+    if (!open || !r.preview_url || demoRunning) return
+    let gone = false
+    const get = async () => { const res = await fetch(`/api/crm/leads/${r.id}/screenshot`, { cache: 'no-store' }); return res.ok ? res.blob() : null }
+    ;(async () => {
+      setShotState('loading')
+      try {
+        let blob = await get()
+        if (!blob) { await api(`/api/crm/leads/${r.id}/screenshot`, { method: 'POST', json: {} }); blob = await get() }
+        if (!blob || gone) { if (!gone) setShotState('error'); return }
+        const file = new File([blob], `${r.name.replace(/[^\w-]+/g, '-').slice(0, 40) || 'site'}.png`, { type: 'image/png' })
+        setShot({ url: URL.createObjectURL(blob), file }); setShotState('')
+      } catch { if (!gone) setShotState('error') }
+    })()
+    return () => { gone = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, r.preview_url, demoRunning, r.id])
+  async function shareShot() {
+    if (!shot) return
+    const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean }
+    if (nav.share && nav.canShare?.({ files: [shot.file] })) {
+      try { await nav.share({ files: [shot.file] }) } catch { /* anulat */ }
+    } else {
+      const a = document.createElement('a'); a.href = shot.url; a.download = shot.file.name; a.click()
+    }
+  }
+  const [replyText, setReplyText] = useState('')
+  const [help, setHelp] = useState<ReplyHelp | null>(null)
+  const [helpReply, setHelpReply] = useState('')
+  async function askHelp() {
+    setErr(''); setBusy('help')
+    try {
+      const offer = [msgs.price, country === 'UK' ? 'The website concept is already made and free, no obligation.' : country === 'HU' ? 'A weboldalterv már elkészült, ingyenes, semmire nem kötelez.' : 'Conceptul de site e deja făcut, gratuit, fără nicio obligație.',
+        r.preview_url ? `Demo link: ${r.preview_url}` : 'The demo is not made yet (can be made in a few minutes).'].join('\n')
+      const res = await api<{ output: ReplyHelp }>('/api/crm/ai', { json: {
+        kind: 'reply', business_id: r.id, reply_text: replyText, sender: templates.me, offer,
+        language: country === 'UK' ? 'British English' : country === 'HU' ? 'Hungarian (use informal "te" if they wrote informally, otherwise polite)' : 'Romanian (polite "dumneavoastră")',
+        sent: second.trim() ? `${first}\n\n${second}` : first,
+      } })
+      setHelp(res.output); setHelpReply(res.output.suggested_reply_en)
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
     setBusy('')
   }
@@ -462,18 +509,20 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
       </Step>
 
       {/* 2. Mesaj în 2 părți scurte */}
-      <Step n={2} title={`Mesaj (2 părți scurte, în ${LANG_RO[country]})`}>
+      <Step n={2} title={second.trim() ? `Mesaj (2 părți scurte, în ${LANG_RO[country]})` : `Mesaj scurt (în ${LANG_RO[country]}) — demo-ul și prețul doar după ce răspunde „yes”`}>
         <label className="block text-[11px] text-slate-500 mb-1">Partea 1 — se deschide direct în WhatsApp</label>
         <textarea value={first} onChange={e => setFirst(e.target.value)} rows={3} className="w-full rounded-lg border border-slate-300 p-2 text-sm leading-relaxed" />
         <div className="flex flex-wrap gap-2 mt-1.5">
           {mobile && !noWa && <Btn green href={waLink(first)}>📱 Trimite partea 1 pe WhatsApp</Btn>}
-          {mobile && noWa && <Btn href={smsLink(`${first}\n\n${second}`)}>✉️ Trimite prin SMS (ambele părți)</Btn>}
+          {mobile && noWa && <Btn href={smsLink(second.trim() ? `${first}\n\n${second}` : first)}>✉️ Trimite prin SMS</Btn>}
           <Btn onClick={() => copy('1', first)}>{copied === '1' ? 'Copiat ✓' : 'Copiază'}</Btn>
         </div>
+        {!!msgs.second.trim() && <>
         <label className="block text-[11px] text-slate-500 mt-3 mb-1">Partea 2 — o lipești imediat după (sau după ce răspunde)</label>
         <textarea value={second} onChange={e => setSecond(e.target.value)} rows={5} className="w-full rounded-lg border border-slate-300 p-2 text-sm leading-relaxed" />
+        </>}
         <div className="flex flex-wrap gap-2 mt-1.5">
-          <Btn onClick={() => copy('2', second)}>{copied === '2' ? 'Copiat ✓' : '📋 Copiază partea 2'}</Btn>
+          {!!msgs.second.trim() && <Btn onClick={() => copy('2', second)}>{copied === '2' ? 'Copiat ✓' : '📋 Copiază partea 2'}</Btn>}
           {r.email && <Btn href={`mailto:${r.email}?subject=${encodeURIComponent(country === 'HU' ? `Ötlet a(z) ${r.name} számára` : country === 'RO' ? `O idee pentru ${r.name}` : `A quick idea for ${r.name}`)}&body=${encodeURIComponent(`${first}\n\n${second}`)}`}>✉️ Email</Btn>}
         </div>
         {waiting && (
@@ -496,6 +545,29 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
         )}
       </Step>
 
+      {contacted && (
+        <div className="mt-4 rounded-lg border border-sky-200 bg-sky-50 p-2.5 space-y-2">
+          <div className="text-[12px] font-medium text-sky-900">💬 Ți-a răspuns? Lipește mesajul lui aici</div>
+          <textarea className="w-full min-h-[70px] rounded-md border border-slate-300 p-2 text-[13px] bg-white" placeholder="Lipește aici ce ți-a scris…" value={replyText} onChange={e => setReplyText(e.target.value)} />
+          <Button size="sm" variant="primary" className="h-9" loading={busy === 'help'} disabled={replyText.trim().length < 2} onClick={askHelp}>Ce a zis și ce să-i răspund</Button>
+          {help && (
+            <div className="space-y-2 text-[13px]">
+              <div><span className="text-[11px] text-slate-500">Ce a zis (în română):</span><div className="text-slate-800">{help.translation_ro}</div></div>
+              <div className="text-[12px] text-slate-600">{help.intent_explained_ro}</div>
+              <div><span className="text-[11px] text-slate-500">Răspunsul tău ({LANG_RO[country]}) — îl poți modifica:</span>
+                <textarea className="w-full min-h-[90px] rounded-md border border-slate-300 p-2 text-[13px] bg-white" value={helpReply} onChange={e => setHelpReply(e.target.value)} /></div>
+              {country !== 'RO' && <div><span className="text-[11px] text-slate-500">Ce înseamnă răspunsul:</span><div className="text-slate-600">{help.suggested_reply_ro}</div></div>}
+              <div className="flex flex-wrap gap-2">
+                {mobile && !noWa && <Btn green href={waLink(helpReply)}>📱 Trimite pe WhatsApp</Btn>}
+                <Btn onClick={() => copy('h', helpReply)}>{copied === 'h' ? 'Copiat ✓' : 'Copiază'}</Btn>
+              </div>
+              {help.next_step && <p className="text-[12px] text-sky-900">👉 {help.next_step}</p>}
+              {help.intent === 'interested' && r.stage !== 'interested' && r.stage !== 'won' && <Button size="sm" className="h-9" loading={busy === 'positive'} onClick={() => replied('positive')}>🙋 Marchează ca interesat</Button>}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 3. Demo stilizat pe afacerea lui */}
       {canDemo && (
         <Step n={3} title="Demo site pentru el (ca la Rebuild)">
@@ -510,6 +582,20 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
                 <Btn href={r.preview_url}>👀 Vezi demo-ul</Btn>
                 {mobile && !noWa && <Btn green href={waLink(msgs.demo)}>📱 Trimite demo-ul pe WhatsApp</Btn>}
                 <Btn onClick={() => copy('d', msgs.demo)}>{copied === 'd' ? 'Copiat ✓' : 'Copiază mesajul cu link'}</Btn>
+              </div>
+              <div className="rounded-lg border border-slate-200 p-2.5">
+                <div className="text-[12px] font-medium text-slate-700 mb-1.5">📷 Poza site-ului (o trimiți înaintea linkului)</div>
+                {shot ? (
+                  <div className="flex items-start gap-3">
+                    <img src={shot.url} alt="" className="w-24 rounded-md border border-slate-200 shadow-sm" />
+                    <div className="flex flex-col gap-2">
+                      <Btn green onClick={shareShot}>📷 Trimite poza</Btn>
+                      <a href={shot.url} download={shot.file.name} className="text-xs text-slate-500 underline">Descarcă poza</a>
+                      <span className="text-[11px] text-slate-400">Alegi WhatsApp din listă, apoi chatul firmei.</span>
+                    </div>
+                  </div>
+                ) : shotState === 'loading' ? <p className="text-[12px] text-slate-500 flex items-center gap-2"><span className="w-3 h-3 border-2 border-current border-r-transparent rounded-full animate-spin" />Pregătesc poza…</p>
+                  : shotState === 'error' ? <p className="text-[12px] text-slate-500">Poza n-a mers acum — deschide demo-ul și fă o captură de ecran.</p> : null}
               </div>
               {r.demo_status === 'error' && r.demo_error && <p className="text-xs text-rose-700">Ultima modificare n-a reușit: {r.demo_error}</p>}
               <div className="rounded-lg border border-slate-200 p-2.5 space-y-2">

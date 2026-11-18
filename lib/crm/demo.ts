@@ -8,6 +8,7 @@ import { logActivity } from './activity'
 import { categoriesFor, asCountry } from './countries'
 import { buildRedesignPrompt, generateHtml } from '@/lib/redesign'
 import { slugify, withConceptBanner, stripConceptBanner } from '@/lib/preview'
+import { publishScreenshot } from './screenshot'
 import { friendlyAnthropicError } from '@/lib/anthropic-error'
 import type { RebuildLead } from '@/lib/rebuild'
 
@@ -24,6 +25,7 @@ export interface DemoDeps {
   publish?: (slug: string, html: string) => Promise<void>       // pentru teste
   siteContent?: (url: string) => Promise<Record<string, unknown> | null>
   schedule?: (p: Promise<unknown>) => void                      // waitUntil în producție
+  screenshot?: (slug: string, html: string) => Promise<void>
 }
 
 export async function startDemo(id: string, opts: { origin: string; anthropicKey?: string; googleKey?: string; designer?: string }, deps: DemoDeps = {}) {
@@ -72,6 +74,7 @@ async function runDemo(b: DemoLeadRow, opts: { origin: string; apiKey: string; g
       const { put } = await import('@vercel/blob')
       await put(`previews/${slug}.html`, finalHtml, { access: 'public', contentType: 'text/html; charset=utf-8', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 })
     }
+    await takeShot(slug, finalHtml, deps.screenshot)
     const url = `${opts.origin}/p/${slug}`
     await withDbSession(async () => {
       await q(`UPDATE businesses SET preview_url = $2, demo_at = now(), demo_status = 'done', demo_error = NULL, updated_at = now() WHERE id = $1`, [b.id, url])
@@ -99,6 +102,7 @@ export interface EditDeps {
   generate?: (prompt: string) => Promise<string>
   publish?: (slug: string, html: string) => Promise<void>
   schedule?: (p: Promise<unknown>) => void
+  screenshot?: (slug: string, html: string) => Promise<void>
 }
 
 export const slugOf = (previewUrl: string | null) => previewUrl?.match(/\/p\/([a-z0-9-]+)$/)?.[1] || null
@@ -155,6 +159,7 @@ async function runEdit(b: DemoLeadRow, slug: string, opts: { instructions: strin
       const { put } = await import('@vercel/blob')
       await put(`previews/${slug}.html`, finalHtml, { access: 'public', contentType: 'text/html; charset=utf-8', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 })
     }
+    await takeShot(slug, finalHtml, deps.screenshot)
     await withDbSession(async () => {
       await q(`UPDATE businesses SET demo_at = now(), demo_status = 'done', demo_error = NULL, updated_at = now() WHERE id = $1`, [b.id])
       await logActivity(b.id, 'demo_published', `Site edited: ${opts.instructions.slice(0, 300)}`)
@@ -165,4 +170,9 @@ async function runEdit(b: DemoLeadRow, slug: string, opts: { instructions: strin
     await withDbSession(() => q(`UPDATE businesses SET demo_status = 'error', demo_error = $2, updated_at = now() WHERE id = $1`, [b.id, msg.slice(0, 500)])).catch(() => {})
     return false
   }
+}
+
+// Poza pentru WhatsApp: dacă nu reușește, demo-ul rămâne valabil (poza se poate face și la cerere)
+async function takeShot(slug: string, html: string, custom?: (slug: string, html: string) => Promise<void>) {
+  try { await (custom || ((s: string, h: string) => publishScreenshot(s, h)))(slug, html) } catch (e) { console.warn('screenshot failed', e) }
 }
