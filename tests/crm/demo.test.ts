@@ -139,3 +139,45 @@ describe('screenshot of the demo (for WhatsApp)', () => {
     expect(png.readUInt32BE(20)).toBe(1688)
   }, 60_000)
 })
+
+describe('client photos: Claude picks the best and puts them in the site', () => {
+  beforeEach(() => { process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_store_secret' })
+
+  it('sends every photo (with its URL) + the site to Claude, publishes on the same link, retakes the screenshot', async () => {
+    const { startPhotos } = await import('@/lib/crm/demo')
+    await freshDb()
+    const b = await one<{ id: string }>(`INSERT INTO businesses (name, category, city, lead_source, website_status, country, preview_url) VALUES ('Lolliland', 'hairdresser', 'Budapest', 'google_places', 'NO_WEBSITE', 'HU', 'https://app.test/p/lolliland-abb22b') RETURNING id`)
+    const urls = Array.from({ length: 3 }, (_, k) => `https://store.public.blob.vercel-storage.com/client-photos/${b!.id}/${k + 1}-x.jpg`)
+    const stored: Record<string, string> = { 'lolliland-abb22b': '<!DOCTYPE html><html><head></head><body><img src="https://maps.googleapis.com/old.jpg"></body></html>' }
+    let content: unknown[] = []
+    const shots: string[] = []
+    const r = await startPhotos(b!.id, { note: 'csak a szalon képei', designer: 'Geri' }, {
+      photos: async () => urls,
+      load: async slug => stored[slug],
+      generate: async c => { content = c; return `<!DOCTYPE html><html><head></head><body><img src="${urls[1]}"></body></html>` },
+      publish: async (slug, html) => { stored[slug] = html },
+      screenshot: async slug => { shots.push(slug) },
+    })
+    expect(r).toMatchObject({ status: 'running', count: 3 })
+    expect(await r.job).toBe(true)
+    const images = content.filter((x: any) => x.type === 'image') // eslint-disable-line @typescript-eslint/no-explicit-any
+    expect(images.map((x: any) => x.source.url)).toEqual(urls) // eslint-disable-line @typescript-eslint/no-explicit-any
+    const text = content.filter((x: any) => x.type === 'text').map((x: any) => x.text).join('\n') // eslint-disable-line @typescript-eslint/no-explicit-any
+    expect(text).toContain(`Poza 2: ${urls[1]}`)
+    expect(text).toContain('csak a szalon képei')
+    expect(text).toContain('maps.googleapis.com/old.jpg')
+    expect(stored['lolliland-abb22b']).toContain(urls[1])
+    expect(stored['lolliland-abb22b']).toContain('concept-banner')
+    expect(shots).toEqual(['lolliland-abb22b'])
+    expect(await one('SELECT demo_status FROM businesses WHERE id = $1', [b!.id])).toEqual({ demo_status: 'done' })
+  })
+
+  it('asks for photos first / a demo first', async () => {
+    const { startPhotos } = await import('@/lib/crm/demo')
+    await freshDb()
+    const a = await one<{ id: string }>(`INSERT INTO businesses (name, category, city, lead_source, website_status, preview_url) VALUES ('X', 'plumber', 'Leeds', 'google_places', 'NO_WEBSITE', 'https://app.test/p/x-abc123') RETURNING id`)
+    await expect(startPhotos(a!.id, {}, { photos: async () => [], generate: async () => '' })).rejects.toThrow(/Încarcă întâi pozele/)
+    const n = await one<{ id: string }>(`INSERT INTO businesses (name, category, city, lead_source, website_status) VALUES ('Y', 'plumber', 'Leeds', 'google_places', 'NO_WEBSITE') RETURNING id`)
+    await expect(startPhotos(n!.id, {}, { photos: async () => ['u'], generate: async () => '' })).rejects.toThrow(/fă mai întâi demo-ul/)
+  })
+})

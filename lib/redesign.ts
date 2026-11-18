@@ -77,7 +77,7 @@ Răspunde DOAR cu documentul HTML complet, începând cu <!DOCTYPE html>. Fără
   return prompt
 }
 
-export async function generateHtml(client: Anthropic, prompt: string, onProgress?: (chars: number) => void): Promise<string> {
+export async function generateHtml(client: Anthropic, prompt: string | Anthropic.Beta.BetaContentBlockParam[], onProgress?: (chars: number) => void): Promise<string> {
   const stream = client.beta.messages.stream({
     model: 'claude-opus-5-5',
     max_tokens: 48000,

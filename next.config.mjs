@@ -16,6 +16,7 @@ const nextConfig = {
       '/api/crm/leads/*/screenshot': ['./node_modules/@sparticuz/chromium/bin/**'],
       '/api/crm/leads/*/demo': ['./node_modules/@sparticuz/chromium/bin/**'],
       '/api/crm/leads/*/demo/edit': ['./node_modules/@sparticuz/chromium/bin/**'],
+      '/api/crm/leads/*/photos/apply': ['./node_modules/@sparticuz/chromium/bin/**'],
     },
   },
 }
