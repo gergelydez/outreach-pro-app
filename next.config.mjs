@@ -3,7 +3,7 @@ const nextConfig = {
   experimental: {
     // PGlite (Postgres în WebAssembly) pentru baza de date a CRM-ului ținută în Vercel Blob:
     // se încarcă din node_modules la runtime, iar fișierele .wasm/.data sunt incluse explicit
-    serverComponentsExternalPackages: ['@electric-sql/pglite'],
+    serverComponentsExternalPackages: ['@electric-sql/pglite', '@sparticuz/chromium', 'puppeteer-core'],
     outputFileTracingIncludes: {
       '/api/crm/**/*': [
         './node_modules/@electric-sql/pglite/dist/*.js',
@@ -12,6 +12,10 @@ const nextConfig = {
         './node_modules/@electric-sql/pglite/dist/*.data',
         './node_modules/@electric-sql/pglite/package.json',
       ],
+      // Chromium pentru poza demo-ului (arhivele binare nu sunt găsite automat)
+      '/api/crm/leads/*/screenshot': ['./node_modules/@sparticuz/chromium/bin/**'],
+      '/api/crm/leads/*/demo': ['./node_modules/@sparticuz/chromium/bin/**'],
+      '/api/crm/leads/*/demo/edit': ['./node_modules/@sparticuz/chromium/bin/**'],
     },
   },
 }

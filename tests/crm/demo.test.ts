@@ -17,6 +17,7 @@ const fakeDeps = (published: Record<string, string>, gen?: () => Promise<string>
   generate: gen || (async (prompt: string) => `<!DOCTYPE html><html><head></head><body><h1>Demo</h1><!--${prompt.length}--></body></html>`),
   publish: async (slug: string, html: string) => { published[slug] = html },
   siteContent: async () => null,
+  screenshot: async () => {},
 })
 
 describe('demo generated fully on the server (page can be closed)', () => {
@@ -89,13 +90,16 @@ describe('client edits + final site download', () => {
     const b = await one<{ id: string }>(`INSERT INTO businesses (name, category, city, lead_source, website_status, country, preview_url) VALUES ('Pensiunea Bradul', 'pension', 'Brașov', 'google_places', 'NO_WEBSITE', 'RO', 'https://app.test/p/pensiunea-bradul-abc123') RETURNING id`)
     const stored: Record<string, string> = { 'pensiunea-bradul-abc123': withConceptBanner('<!DOCTYPE html><html><head></head><body><h1>Tel 0722 111 111</h1></body></html>', 'Pensiunea Bradul', 'Grig', 'ro') }
     let seen = ''
+    const shots: string[] = []
     const r = await startEdit(b!.id, { instructions: 'schimbă telefonul în 0722 000 000', designer: 'Grig' }, {
       load: async slug => stored[slug],
       generate: async prompt => { seen = prompt; return '<!DOCTYPE html><html><head></head><body><h1>Tel 0722 000 000</h1></body></html>' },
       publish: async (slug, html) => { stored[slug] = html },
+      screenshot: async (slug, html) => { shots.push(slug + ':' + html.length) },
     })
     expect(await r.job).toBe(true)
     expect(seen).toContain('schimbă telefonul în 0722 000 000')
+    expect(shots).toHaveLength(1) // poza se reface după modificări
     expect(seen).toContain('Tel 0722 111 111')
     expect(seen).not.toContain('concept-banner')
     expect(stored['pensiunea-bradul-abc123']).toContain('0722 000 000')
@@ -123,4 +127,15 @@ describe('client edits + final site download', () => {
     expect(zip.readUInt32LE(zip.length - 22)).toBe(0x06054b50)
     expect(zip.includes(Buffer.from(clean))).toBe(true)
   })
+})
+
+describe('screenshot of the demo (for WhatsApp)', () => {
+  it('takes a real phone-size PNG of the page, without the concept banner', async () => {
+    const { screenshotHtml } = await import('@/lib/crm/screenshot')
+    const { withConceptBanner } = await import('@/lib/preview')
+    const png = await screenshotHtml(withConceptBanner('<!DOCTYPE html><html><head><style>body{margin:0;background:#c2185b;color:#fff;font:700 40px sans-serif}</style></head><body><h1>Lolliland</h1></body></html>', 'Lolliland', 'Geri', 'hu'))
+    expect(png.subarray(1, 4).toString()).toBe('PNG')
+    expect(png.readUInt32BE(16)).toBe(780) // 390 px × 2 (retina)
+    expect(png.readUInt32BE(20)).toBe(1688)
+  }, 60_000)
 })
