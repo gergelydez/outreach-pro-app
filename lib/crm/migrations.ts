@@ -327,4 +327,18 @@ CREATE INDEX IF NOT EXISTS businesses_country_stage_idx ON businesses (country, 
 ALTER TABLE businesses ADD COLUMN IF NOT EXISTS demo_error text;
 ALTER TABLE businesses ADD COLUMN IF NOT EXISTS demo_started_at timestamptz;`,
   },
+  {
+    // Panoul clientului: link privat + PIN, de unde își schimbă singur tarifele, ofertele, pozele și contactul
+    id: '007_client_portal',
+    sql: `CREATE TABLE IF NOT EXISTS client_portals (
+  business_id uuid PRIMARY KEY REFERENCES businesses(id) ON DELETE CASCADE,
+  token text UNIQUE NOT NULL,
+  pin_hash text NOT NULL,
+  content jsonb NOT NULL DEFAULT '{}'::jsonb,
+  failed_attempts int NOT NULL DEFAULT 0,
+  locked_until timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);`,
+  },
 ]

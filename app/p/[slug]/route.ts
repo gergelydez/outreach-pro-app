@@ -1,9 +1,10 @@
 import { head } from '@vercel/blob'
+import { injectCmsScript } from '@/lib/crm/cms-shared'
 
 // Servește preview-ul publicat. CSP sandbox îi dă o origine opacă, ca
 // scripturile din demo să nu poată citi localStorage-ul aplicației (chei API).
 
-export async function GET(_req: Request, { params }: { params: { slug: string } }) {
+export async function GET(req: Request, { params }: { params: { slug: string } }) {
   const slug = params.slug
   if (!/^[a-z0-9-]{3,60}$/.test(slug)) return new Response('Not found', { status: 404 })
 
@@ -11,7 +12,8 @@ export async function GET(_req: Request, { params }: { params: { slug: string } 
     const meta = await head(`previews/${slug}.html`)
     const res = await fetch(meta.url, { cache: 'no-store' })
     if (!res.ok) throw new Error(String(res.status))
-    return new Response(await res.text(), {
+    // site cu panou de client: /cms.js aduce tarifele, ofertele, pozele și contactul la zi
+    return new Response(injectCmsScript(await res.text(), new URL(req.url).origin, slug), {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
         'Content-Security-Policy': 'sandbox allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals',
