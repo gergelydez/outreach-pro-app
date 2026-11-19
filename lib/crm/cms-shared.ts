@@ -60,9 +60,9 @@ export const FORM_RULES = `FORMULAR DE CONTACT: formularul de contact sau de rez
 
 // Reguli de așezare pe telefon pentru demo-urile din CRM (după probleme văzute pe site-uri reale)
 export const DEMO_LAYOUT_RULES = `REGULI PENTRU TELEFON (obligatorii):
-- NU pune secțiune de „Locație” / „Cum ajungi” și nici hartă Google încorporată (iframe). Adresa apare doar în contact și în subsol, ca text, cu un link simplu „Deschide în Google Maps”.
+- Secțiunea „Locație / Cum ajungi” (adresă, indicații, buton „Deschide în Google Maps”) rămâne, dar fără să se suprapună cu nimic.
 - NU pune buton plutitor „Cere disponibilitatea” (sau alt buton fix în mijlocul ecranului). Pe telefon e permisă cel mult O bară fixă jos, cu două butoane: „Sună” și „WhatsApp” (sau „Rezervă” care duce la formular).
-- Antetul fix nu are voie să acopere titlurile: pune scroll-margin-top pe secțiuni și padding-top pe pagină egal cu înălțimea antetului. Pe ecrane mici (sub 900px) linkurile de meniu stau doar în meniul ☰.
+- Antetul (bara de navigație) fix are fundal opac și z-index mai mare decât tot conținutul, deci niciun titlu sau text al paginii nu apare peste el sau prin el la scroll. Pune scroll-margin-top pe secțiuni și padding-top pe pagină egal cu înălțimea antetului, ca titlurile să nu ajungă sub el. Pe ecrane mici (sub 900px) linkurile de meniu stau doar în meniul ☰.
 - POZE: folosește DOAR URL-urile de imagini primite mai sus (pozele afacerii, de pe site-ul ei sau ale localității). Nu inventa și nu folosi alte linkuri de imagini (Unsplash, stock, placeholder). Dacă sunt puține poze, completează designul cu fundaluri în gradient, forme și iconițe SVG, nu cu imagini externe.
 - DESIGN: modern și atractiv, ca un site premium de agenție: tipografie mare și elegantă, mult spațiu alb, culori armonioase potrivite afacerii, butoane clare, animații discrete la scroll (fără să ascundă conținutul dacă JavaScript nu rulează).
 - Niciun element nu se suprapune peste altul la lățimi de 360–430px: titluri, butoane, carduri și texte rămân lizibile. Lasă jos un spațiu liber cât bara fixă, ca ultimul conținut să nu fie acoperit.`
