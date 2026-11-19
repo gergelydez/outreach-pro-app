@@ -33,7 +33,8 @@ export async function publishContent(slug: string, content: CmsContent, put?: (p
 }
 
 // Scriptul care aduce datele la zi pe site: doar dacă HTML-ul are marcaje
-export const hasCmsMarkers = (html: string) => /data-cms(?:-text|-tel|-mailto)?=/.test(html)
+export const hasCmsMarkers = (html: string) => /data-cms(?:-text|-tel|-mailto|-form)?[=\s>]/.test(html)
+export const hasCmsForm = (html: string) => /data-cms-form/.test(html)
 export function injectCmsScript(html: string, origin: string, slug: string) {
   if (!hasCmsMarkers(html) || html.includes('/cms.js')) return html
   const tag = `<script src="${origin}/cms.js" data-src="${origin}/api/site/${slug}" defer></script>`
@@ -53,3 +54,6 @@ export function extractInitial(html: string): { html: string; content: CmsConten
 export function cmsPromptAddon(content: CmsContent) {
   return `\n\nATENȚIE: site-ul are marcaje data-cms-* pentru panoul clientului. Păstrează-le pe toate (inclusiv câte un element-model în fiecare listă). Datele actuale din panoul clientului, care au prioritate față de ce scrie în HTML:\n${JSON.stringify(content)}\nAplică modificările și asupra acestor date, iar chiar înainte de </body> pune <script type="application/json" id="cms-initial">…</script> cu datele actualizate, în același format JSON.`
 }
+
+// Formularul de contact / rezervare: trimis prin /cms.js la /api/site/<slug>/contact (email + panoul clientului)
+export const FORM_RULES = `FORMULAR DE CONTACT: formularul de contact sau de rezervare (dacă nu există, adaugă unul simplu, potrivit designului, în secțiunea de contact) are atributul data-cms-form, fără action și fără mailto. Câmpurile au exact aceste atribute name: "name" (nume), "phone" (telefon), "email", "message" (mesaj); pentru cazare poți adăuga "checkin", "checkout" (type="date") și "guests". Butonul e type="submit". Adaugă în formular un element ascuns <p data-cms-form-success hidden>…</p> cu un mesaj de mulțumire scurt, în limba site-ului.`

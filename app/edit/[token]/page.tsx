@@ -13,27 +13,28 @@ interface Content {
 
 const T = {
   ro: {
-    title: 'Administrare site', pinLabel: 'Codul de acces (6 cifre)', enter: 'Intră', wrongPin: 'Cod greșit.', locked: 'Prea multe încercări. Încearcă din nou peste 15 minute.', badLink: 'Linkul nu mai este valabil.',
+    title: 'Administrare site', messages: 'Mesaje de pe site', noMessages: 'Încă niciun mesaj. Mesajele din formularul site-ului apar aici și pe email.', reply: 'Răspunde', call: 'Sună', pinLabel: 'Codul de acces (6 cifre)', enter: 'Intră', wrongPin: 'Cod greșit.', locked: 'Prea multe încercări. Încearcă din nou peste 15 minute.', badLink: 'Linkul nu mai este valabil.',
     contact: 'Contact', phone: 'Telefon', email: 'Email', address: 'Adresă', hours: 'Program', prices: 'Tarife', name: 'Denumire', price: 'Preț', note: 'Notă (opțional)', addPrice: '+ Adaugă tarif',
     offers: 'Oferte și promoții', offerTitle: 'Titlu', offerText: 'Descriere', from: 'De la', to: 'Până la', active: 'Activă', addOffer: '+ Adaugă ofertă', offersHint: 'Ofertele expirate dispar singure de pe site.',
     gallery: 'Galerie foto', addPhotos: '+ Adaugă poze', uploading: 'Se încarcă pozele…', galleryHint: 'Prima poză apare prima în galerie.',
     save: 'Salvează', saving: 'Se salvează…', saved: 'Salvat ✓ Apare pe site în câteva secunde.', unsaved: 'Ai modificări nesalvate', view: 'Vezi site-ul', logout: 'Ieși', remove: 'Șterge', error: 'A apărut o eroare. Încearcă din nou.',
   },
   hu: {
-    title: 'Weboldal kezelése', pinLabel: 'Belépési kód (6 számjegy)', enter: 'Belépés', wrongPin: 'Hibás kód.', locked: 'Túl sok próbálkozás. Próbálja újra 15 perc múlva.', badLink: 'A link már nem érvényes.',
+    title: 'Weboldal kezelése', messages: 'Üzenetek az oldalról', noMessages: 'Még nincs üzenet. A weboldal űrlapjáról érkező üzenetek itt és e-mailben jelennek meg.', reply: 'Válasz', call: 'Hívás', pinLabel: 'Belépési kód (6 számjegy)', enter: 'Belépés', wrongPin: 'Hibás kód.', locked: 'Túl sok próbálkozás. Próbálja újra 15 perc múlva.', badLink: 'A link már nem érvényes.',
     contact: 'Elérhetőség', phone: 'Telefon', email: 'E-mail', address: 'Cím', hours: 'Nyitvatartás', prices: 'Árak', name: 'Megnevezés', price: 'Ár', note: 'Megjegyzés (nem kötelező)', addPrice: '+ Új ár',
     offers: 'Ajánlatok, akciók', offerTitle: 'Cím', offerText: 'Leírás', from: 'Kezdete', to: 'Vége', active: 'Aktív', addOffer: '+ Új ajánlat', offersHint: 'A lejárt ajánlatok automatikusan eltűnnek az oldalról.',
     gallery: 'Fotógaléria', addPhotos: '+ Képek hozzáadása', uploading: 'Képek feltöltése…', galleryHint: 'Az első kép jelenik meg elsőként.',
     save: 'Mentés', saving: 'Mentés…', saved: 'Mentve ✓ Néhány másodperc múlva megjelenik az oldalon.', unsaved: 'Nem mentett változások', view: 'Az oldal megtekintése', logout: 'Kilépés', remove: 'Törlés', error: 'Hiba történt. Próbálja újra.',
   },
   en: {
-    title: 'Manage your website', pinLabel: 'Access code (6 digits)', enter: 'Sign in', wrongPin: 'Wrong code.', locked: 'Too many attempts. Try again in 15 minutes.', badLink: 'This link is no longer valid.',
+    title: 'Manage your website', messages: 'Website messages', noMessages: 'No messages yet. Messages from your website form appear here and by email.', reply: 'Reply', call: 'Call', pinLabel: 'Access code (6 digits)', enter: 'Sign in', wrongPin: 'Wrong code.', locked: 'Too many attempts. Try again in 15 minutes.', badLink: 'This link is no longer valid.',
     contact: 'Contact', phone: 'Phone', email: 'Email', address: 'Address', hours: 'Opening hours', prices: 'Prices', name: 'Name', price: 'Price', note: 'Note (optional)', addPrice: '+ Add price',
     offers: 'Offers & promotions', offerTitle: 'Title', offerText: 'Description', from: 'From', to: 'Until', active: 'Active', addOffer: '+ Add offer', offersHint: 'Expired offers disappear from the site automatically.',
     gallery: 'Photo gallery', addPhotos: '+ Add photos', uploading: 'Uploading photos…', galleryHint: 'The first photo is shown first.',
     save: 'Save', saving: 'Saving…', saved: 'Saved ✓ It will show on the site in a few seconds.', unsaved: 'Unsaved changes', view: 'View site', logout: 'Sign out', remove: 'Remove', error: 'Something went wrong. Please try again.',
   },
 }
+interface Msg { id: string; name: string; email: string; phone: string; message: string; extra: Record<string, string> | null; created_at: string }
 type Lang = keyof typeof T
 
 const input = 'w-full h-11 rounded-lg border border-slate-300 px-3 text-[15px] bg-white text-slate-900 placeholder:text-slate-400'
@@ -48,6 +49,7 @@ export default function EditPage({ params }: { params: { token: string } }) {
   const [bid, setBid] = useState('')
   const [preview, setPreview] = useState<string | null>(null)
   const [data, setData] = useState<Content | null>(null)
+  const [messages, setMessages] = useState<Msg[]>([])
   const [dirty, setDirty] = useState(false)
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
@@ -63,7 +65,7 @@ export default function EditPage({ params }: { params: { token: string } }) {
         if (!quiet) setErr(res.status === 429 ? t.locked : res.status === 404 ? t.badLink : t.wrongPin)
       } else {
         setLang(d.country === 'HU' ? 'hu' : d.country === 'UK' ? 'en' : 'ro')
-        setName(d.name); setBid(d.id); setPreview(d.preview_url); setData(d.content); setPin(p)
+        setName(d.name); setBid(d.id); setPreview(d.preview_url); setData(d.content); setMessages(d.messages || []); setPin(p)
         try { localStorage.setItem(key, p) } catch { /* */ }
       }
     } catch { if (!quiet) setErr(t.error) }
@@ -130,6 +132,21 @@ export default function EditPage({ params }: { params: { token: string } }) {
         </div>
       </header>
       <div className="max-w-xl mx-auto px-4 py-4 space-y-4">
+        <section className={card}>
+          <h2 className="font-semibold text-slate-900">📩 {t.messages}{messages.length ? ` · ${messages.length}` : ''}</h2>
+          {!messages.length ? <p className="text-[13px] text-slate-500">{t.noMessages}</p> : messages.slice(0, 20).map(m => (
+            <div key={m.id} className="rounded-xl border border-slate-200 p-3 text-[14px] space-y-1">
+              <div className="flex justify-between gap-2"><b>{m.name || m.email || m.phone}</b><span className="text-[12px] text-slate-400 shrink-0">{new Date(m.created_at).toLocaleString(lang === 'hu' ? 'hu-HU' : lang === 'en' ? 'en-GB' : 'ro-RO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span></div>
+              {m.extra && (m.extra.checkin || m.extra.checkout || m.extra.guests) && <div className="text-[13px] text-slate-600">📅 {[m.extra.checkin, m.extra.checkout].filter(Boolean).join(' → ')}{m.extra.guests ? ` · 👥 ${m.extra.guests}` : ''}</div>}
+              {m.message && <p className="whitespace-pre-wrap text-slate-700">{m.message}</p>}
+              <div className="flex gap-2 pt-1">
+                {m.phone && <a className="h-9 px-3 inline-flex items-center rounded-lg border border-slate-300 text-sm" href={`tel:${m.phone.replace(/[^\d+]/g, '')}`}>📞 {t.call}</a>}
+                {m.email && <a className="h-9 px-3 inline-flex items-center rounded-lg border border-slate-300 text-sm" href={`mailto:${m.email}`}>✉️ {t.reply}</a>}
+              </div>
+            </div>
+          ))}
+        </section>
+
         <section className={card}>
           <h2 className="font-semibold text-slate-900">☎️ {t.contact}</h2>
           {(['phone', 'email', 'address'] as const).map(k => (

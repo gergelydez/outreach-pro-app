@@ -9,7 +9,7 @@ import { categoriesFor, asCountry } from './countries'
 import { buildRedesignPrompt, generateHtml } from '@/lib/redesign'
 import { slugify, withConceptBanner, stripConceptBanner } from '@/lib/preview'
 import { publishScreenshot } from './screenshot'
-import { hasCmsMarkers, cmsPromptAddon, extractInitial, sanitizeContent, publishContent, type CmsContent } from './cms-shared'
+import { hasCmsMarkers, cmsPromptAddon, extractInitial, sanitizeContent, publishContent, FORM_RULES, type CmsContent } from './cms-shared'
 import { friendlyAnthropicError } from '@/lib/anthropic-error'
 import type { RebuildLead } from '@/lib/rebuild'
 
@@ -63,7 +63,7 @@ async function runDemo(b: DemoLeadRow, opts: { origin: string; apiKey: string; g
       phone: b.phone || '', phone_intl: b.phone_e164 || '', website: ownSite ? b.website_url : '', no_site: !ownSite,
       rating: Number(b.google_rating || 0), reviews_count: b.google_review_count || 0, audit,
     } as unknown as RebuildLead
-    const prompt = await buildRedesignPrompt(lead, { googleApiKey: opts.googleKey, origin: opts.origin, language: country === 'HU' ? 'hu' : country === 'UK' ? 'en' : undefined })
+    const prompt = await buildRedesignPrompt(lead, { googleApiKey: opts.googleKey, origin: opts.origin, language: country === 'HU' ? 'hu' : country === 'UK' ? 'en' : undefined, extraInstructions: FORM_RULES })
     const html = deps.generate ? await deps.generate(prompt) : await generateHtml(new Anthropic({ apiKey: opts.apiKey }), prompt)
 
     // același link la regenerare (poate l-ai trimis deja)
