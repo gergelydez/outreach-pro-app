@@ -9,6 +9,7 @@ import { categoriesFor, asCountry } from './countries'
 import { buildRedesignPrompt, generateHtml } from '@/lib/redesign'
 import { slugify, withConceptBanner, stripConceptBanner } from '@/lib/preview'
 import { publishScreenshot } from './screenshot'
+import { hasCmsMarkers, cmsPromptAddon, extractInitial, sanitizeContent, publishContent, type CmsContent } from './cms-shared'
 import { friendlyAnthropicError } from '@/lib/anthropic-error'
 import type { RebuildLead } from '@/lib/rebuild'
 
@@ -103,6 +104,7 @@ export interface EditDeps {
   publish?: (slug: string, html: string) => Promise<void>
   schedule?: (p: Promise<unknown>) => void
   screenshot?: (slug: string, html: string) => Promise<void>
+  put?: (path: string, body: string) => Promise<void>
 }
 
 export const slugOf = (previewUrl: string | null) => previewUrl?.match(/\/p\/([a-z0-9-]+)$/)?.[1] || null
@@ -151,8 +153,10 @@ async function runEdit(b: DemoLeadRow, slug: string, opts: { instructions: strin
   const lang = country === 'HU' ? 'hu' : country === 'UK' ? 'en' : 'ro'
   try {
     const current = stripConceptBanner(deps.load ? await deps.load(slug) : await loadSiteHtml(slug))
-    const prompt = buildEditPrompt(current, opts.instructions, lang === 'hu' ? 'maghiară' : lang === 'en' ? 'engleză' : 'română')
-    const html = deps.generate ? await deps.generate(prompt) : await generateHtml(new Anthropic({ apiKey: opts.apiKey }), prompt)
+    const cms = hasCmsMarkers(current) ? await portalContent(b.id) : null
+    const prompt = buildEditPrompt(current, opts.instructions, lang === 'hu' ? 'maghiară' : lang === 'en' ? 'engleză' : 'română') + (cms ? cmsPromptAddon(cms) : '')
+    const raw = deps.generate ? await deps.generate(prompt) : await generateHtml(new Anthropic({ apiKey: opts.apiKey }), prompt)
+    const html = cms ? await savePortalFromHtml(b.id, slug, raw, deps.put) : raw
     const finalHtml = withConceptBanner(html, b.name, opts.designer || '', lang)
     if (deps.publish) await deps.publish(slug, finalHtml)
     else {
@@ -173,7 +177,7 @@ async function runEdit(b: DemoLeadRow, slug: string, opts: { instructions: strin
 }
 
 // Poza pentru WhatsApp: dacă nu reușește, demo-ul rămâne valabil (poza se poate face și la cerere)
-async function takeShot(slug: string, html: string, custom?: (slug: string, html: string) => Promise<void>) {
+export async function takeShot(slug: string, html: string, custom?: (slug: string, html: string) => Promise<void>) {
   try { await (custom || ((s: string, h: string) => publishScreenshot(s, h)))(slug, html) } catch (e) { console.warn('screenshot failed', e) }
 }
 
@@ -234,8 +238,11 @@ export async function startPhotos(id: string, opts: { note?: string; anthropicKe
     const lang = country === 'HU' ? 'hu' : country === 'UK' ? 'en' : 'ro'
     try {
       const current = stripConceptBanner(deps.load ? await deps.load(slug) : await loadSiteHtml(slug))
+      const cms = hasCmsMarkers(current) ? await portalContent(b.id) : null
       const content = buildPhotosPrompt(current, photos, b.name, lang === 'hu' ? 'maghiară' : lang === 'en' ? 'engleză' : 'română', opts.note)
-      const html = deps.generate ? await deps.generate(content) : await generateHtml(new Anthropic({ apiKey: apiKey || '' }), content)
+      if (cms) content.push({ type: 'text', text: cmsPromptAddon(cms) })
+      const raw = deps.generate ? await deps.generate(content) : await generateHtml(new Anthropic({ apiKey: apiKey || '' }), content)
+      const html = cms ? await savePortalFromHtml(b.id, slug, raw, deps.put) : raw
       const finalHtml = withConceptBanner(html, b.name, opts.designer || '', lang)
       if (deps.publish) await deps.publish(slug, finalHtml)
       else {
@@ -256,4 +263,19 @@ export async function startPhotos(id: string, opts: { note?: string; anthropicKe
   })
   ;(deps.schedule || (p => { void p }))(job)
   return { status: 'running' as const, already: false, job, count: photos.length }
+}
+
+// Site cu panou de client: datele lui merg în prompt, iar ce întoarce Claude devine noul conținut al panoului
+async function portalContent(id: string): Promise<CmsContent | null> {
+  const p = await withDbSession(() => one<{ content: CmsContent }>('SELECT content FROM client_portals WHERE business_id = $1', [id])).catch(() => null)
+  return p ? sanitizeContent(p.content) : null
+}
+async function savePortalFromHtml(id: string, slug: string, raw: string, put?: (path: string, body: string) => Promise<void>): Promise<string> {
+  const { html, content } = extractInitial(raw)
+  if (content) {
+    const c = { ...content, updated_at: new Date().toISOString() }
+    await withDbSession(() => q('UPDATE client_portals SET content = $2, updated_at = now() WHERE business_id = $1', [id, JSON.stringify(c)]))
+    await publishContent(slug, c, put)
+  }
+  return html
 }
