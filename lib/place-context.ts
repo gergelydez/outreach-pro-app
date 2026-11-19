@@ -70,6 +70,23 @@ async function commonsPhotos(query: string, limit: number): Promise<ContextPhoto
     })
 }
 
+// Places API (New): pozele au nume „places/…/photos/…”, recenziile vin în același apel
+async function googleDetailsNew(placeId: string, key: string, language = 'ro') {
+  const res = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}?languageCode=${language}`, {
+    headers: { 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': 'photos,reviews' },
+    signal: AbortSignal.timeout(8000),
+  })
+  if (!res.ok) throw new Error(`places new ${res.status}`)
+  const d = await res.json() as {
+    photos?: { name: string; authorAttributions?: { displayName?: string }[] }[]
+    reviews?: { rating?: number; text?: { text?: string }; relativePublishTimeDescription?: string; authorAttribution?: { displayName?: string } }[]
+  }
+  return {
+    photos: (d.photos || []).map(p => ({ photo_reference: p.name, html_attributions: p.authorAttributions?.[0]?.displayName ? [p.authorAttributions[0].displayName] : [] })),
+    reviews: (d.reviews || []).map(r => ({ author_name: r.authorAttribution?.displayName, rating: r.rating, text: r.text?.text, relative_time_description: r.relativePublishTimeDescription })),
+  }
+}
+
 export async function placeContext(opts: { placeId: string; address: string; city: string; googleKey?: string; origin: string; language?: string }): Promise<PlaceContext> {
   const locality = localityFromAddress(opts.address, opts.city)
   const ctx: PlaceContext = { photos: [], reviews: [], locality, localityPhotos: [] }
@@ -77,7 +94,8 @@ export async function placeContext(opts: { placeId: string; address: string; cit
   const key = process.env.GOOGLE_PLACES_API_KEY || opts.googleKey
   if (key) {
     try {
-      const r = await googleDetails(opts.placeId, key, opts.language)
+      // întâi API-ul nou (cheile noi au de obicei doar „Places API (New)”), apoi cel vechi
+      const r = await googleDetailsNew(opts.placeId, key, opts.language).catch(() => googleDetails(opts.placeId, key, opts.language))
       ctx.reviews = (r.reviews || [])
         .filter(rv => (rv.text || '').trim().length >= 20)
         .map(rv => ({ author: (rv.author_name || '').split(' ')[0], rating: rv.rating || 0, text: (rv.text || '').trim().slice(0, 500), when: rv.relative_time_description || '' }))
