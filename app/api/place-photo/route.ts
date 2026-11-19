@@ -13,12 +13,19 @@ export async function GET(req: NextRequest) {
     return new Response('Not found', { status: 404 })
   }
 
-  const u = new URL('https://maps.googleapis.com/maps/api/place/photo')
-  u.searchParams.set('maxwidth', '1600')
-  u.searchParams.set('photo_reference', ref)
-  u.searchParams.set('key', key)
+  // poză din Places API (New): „places/<id>/photos/<id>”; altfel referința din API-ul vechi
+  let url: string
+  if (/^places\/[^/]+\/photos\/[^/]+$/.test(ref)) {
+    url = `https://places.googleapis.com/v1/${ref}/media?maxWidthPx=1600&key=${encodeURIComponent(key)}`
+  } else {
+    const u = new URL('https://maps.googleapis.com/maps/api/place/photo')
+    u.searchParams.set('maxwidth', '1600')
+    u.searchParams.set('photo_reference', ref)
+    u.searchParams.set('key', key)
+    url = u.toString()
+  }
   try {
-    const res = await fetch(u.toString(), { signal: AbortSignal.timeout(10000) })
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) })
     const type = res.headers.get('content-type') || ''
     if (!res.ok || !type.startsWith('image/')) return new Response('Not found', { status: 404 })
     return new Response(res.body, {
