@@ -57,3 +57,10 @@ export function cmsPromptAddon(content: CmsContent) {
 
 // Formularul de contact / rezervare: trimis prin /cms.js la /api/site/<slug>/contact (email + panoul clientului)
 export const FORM_RULES = `FORMULAR DE CONTACT: formularul de contact sau de rezervare (dacă nu există, adaugă unul simplu, potrivit designului, în secțiunea de contact) are atributul data-cms-form, fără action și fără mailto. Câmpurile au exact aceste atribute name: "name" (nume), "phone" (telefon), "email", "message" (mesaj); pentru cazare poți adăuga "checkin", "checkout" (type="date") și "guests". Butonul e type="submit". Adaugă în formular un element ascuns <p data-cms-form-success hidden>…</p> cu un mesaj de mulțumire scurt, în limba site-ului.`
+
+// Reguli de așezare pe telefon pentru demo-urile din CRM (după probleme văzute pe site-uri reale)
+export const DEMO_LAYOUT_RULES = `REGULI PENTRU TELEFON (obligatorii):
+- NU pune secțiune de „Locație” / „Cum ajungi” și nici hartă Google încorporată (iframe). Adresa apare doar în contact și în subsol, ca text, cu un link simplu „Deschide în Google Maps”.
+- NU pune buton plutitor „Cere disponibilitatea” (sau alt buton fix în mijlocul ecranului). Pe telefon e permisă cel mult O bară fixă jos, cu două butoane: „Sună” și „WhatsApp” (sau „Rezervă” care duce la formular).
+- Antetul fix nu are voie să acopere titlurile: pune scroll-margin-top pe secțiuni și padding-top pe pagină egal cu înălțimea antetului. Pe ecrane mici (sub 900px) linkurile de meniu stau doar în meniul ☰.
+- Niciun element nu se suprapune peste altul la lățimi de 360–430px: titluri, butoane, carduri și texte rămân lizibile. Lasă jos un spațiu liber cât bara fixă, ca ultimul conținut să nu fie acoperit.`

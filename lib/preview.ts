@@ -22,13 +22,16 @@ export function withConceptBanner(html: string, businessName: string, designer: 
 
   let out = html.replace(/<meta name="robots"[^>]*>/gi, '')
   out = /<head[^>]*>/i.test(out) ? out.replace(/<head[^>]*>/i, m => `${m}\n${meta}`) : meta + out
-  out = /<\/body>/i.test(out) ? out.replace(/<\/body>(?![\s\S]*<\/body>)/i, `${banner}\n</body>`) : out + banner
+  // pe telefon, deasupra barei fixe de jos (Sună / WhatsApp) a site-ului
+  const bannerCss = '<style>@media (max-width:767px){#concept-banner{bottom:84px!important}}</style>'
+  out = /<\/body>/i.test(out) ? out.replace(/<\/body>(?![\s\S]*<\/body>)/i, `${bannerCss}${banner}\n</body>`) : out + bannerCss + banner
   return out
 }
 
 // Varianta finală pentru client: fără bannerul „concept” și fără noindex (site-ul live trebuie să apară pe Google)
 export function stripConceptBanner(html: string): string {
   return html
+    .replace(/<style>@media \(max-width:767px\)\{#concept-banner[^<]*<\/style>/g, '')
     .replace(/<div id="concept-banner"[\s\S]*?<\/button><\/div>\n?/g, '')
     .replace(/<meta name="robots" content="noindex,nofollow">\n?/gi, '')
 }
