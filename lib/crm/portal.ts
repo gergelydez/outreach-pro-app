@@ -11,7 +11,7 @@ import { loadSiteHtml, slugOf, takeShot, DEMO_STALE_MIN } from './demo'
 import { generateHtml } from '@/lib/redesign'
 import { withConceptBanner, stripConceptBanner } from '@/lib/preview'
 import { friendlyAnthropicError } from '@/lib/anthropic-error'
-import { sanitizeContent, publishContent, hasCmsMarkers, extractInitial, EMPTY_CONTENT, type CmsContent } from './cms-shared'
+import { sanitizeContent, publishContent, hasCmsMarkers, extractInitial, EMPTY_CONTENT, FORM_RULES, type CmsContent } from './cms-shared'
 export * from './cms-shared'
 
 export function hashPin(pin: string) {
@@ -76,7 +76,8 @@ export function buildMarkupPrompt(html: string, lang: string) {
 2. OFERTE: la fel, cu data-cms-section="offers", data-cms="offers", câmpurile title, text și period. Dacă nu există oferte, secțiunea are un singur element-model și style="display:none".
 3. GALERIE: secțiunea cu poze primește data-cms-section="gallery"; containerul data-cms="gallery", iar fiecare poză este un copil direct cu data-cms-item care conține un <img data-cms-field="src">. Păstrează pozele existente.
 4. CONTACT: orice afișare a telefonului primește data-cms-text="phone", iar orice link tel: primește data-cms-tel; emailul afișat data-cms-text="email", linkurile mailto: data-cms-mailto; adresa data-cms-text="address"; programul data-cms-text="hours".
-5. Chiar înainte de </body>, adaugă:
+5. ${FORM_RULES}
+6. Chiar înainte de </body>, adaugă:
 <script type="application/json" id="cms-initial">{"contact":{"phone":"","email":"","address":"","hours":""},"prices":[{"name":"","price":"","note":""}],"offers":[{"title":"","text":"","from":"","to":"","active":true}],"gallery":[{"src":"","alt":""}]}</script>
 completat cu valorile EXACTE de acum de pe site (listele goale [] dacă nu există; datele from/to în format AAAA-LL-ZZ sau ""). Nu inventa nimic.
 Nu adăuga alte scripturi pentru asta. Textele noi, dacă e nevoie, în ${lang}. Răspunde DOAR cu codul HTML complet, începând cu <!DOCTYPE html>.

@@ -341,4 +341,18 @@ ALTER TABLE businesses ADD COLUMN IF NOT EXISTS demo_started_at timestamptz;`,
   updated_at timestamptz NOT NULL DEFAULT now()
 );`,
   },
+  {
+    // Mesajele trimise din formularul de contact al site-ului: salvate (le vede clientul în panou) și trimise pe email
+    id: '008_site_messages',
+    sql: `CREATE TABLE IF NOT EXISTS site_messages (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id uuid NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  name text, email text, phone text, message text, extra jsonb,
+  ip_hash text,
+  emailed boolean NOT NULL DEFAULT false,
+  email_error text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS site_messages_business_idx ON site_messages (business_id, created_at DESC);`,
+  },
 ]

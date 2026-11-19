@@ -14,6 +14,7 @@ const SITE = `<!DOCTYPE html><html><head><title>Hanul</title></head><body>
 <section data-cms-section="offers" style="display:none"><div data-cms="offers"><article data-cms-item><h3 data-cms-field="title"></h3><p data-cms-field="text"></p><em data-cms-field="period"></em></article></div></section>
 <section data-cms-section="gallery"><div data-cms="gallery"><figure data-cms-item><img data-cms-field="src" src="https://img.test/old.jpg"></figure></div></section>
 <p data-cms-text="hours">L–D 8–22</p>
+<form data-cms-form><input name="name"><input name="phone"><input name="email"><textarea name="message"></textarea><button type="submit">Trimite</button><p data-cms-form-success hidden>Mulțumim!</p></form>
 </body></html>`
 
 async function biz() {
@@ -132,11 +133,13 @@ describe('cms.js on the site (real browser)', () => {
         offers: [{ title: 'Ofertă activă', text: 'azi', from: '', to: today, active: true }, { title: 'Expirată', text: '', from: '', to: '2020-01-01', active: true }, { title: 'Oprită', text: '', from: '', to: '', active: false }],
         gallery: [{ src: 'https://img.test/1.jpg', alt: 'a' }, { src: 'https://img.test/2.jpg', alt: 'b' }],
       }
+      let posted: Record<string, string> = {}
       await page.setRequestInterception(true)
       page.on('request', req => {
         const u = req.url()
         if (u === 'https://site.test/') return req.respond({ contentType: 'text/html', body: injectCmsScript(SITE, 'https://app.test', 'hanul-abc123') })
         if (u.endsWith('/cms.js')) return req.respond({ contentType: 'text/javascript', body: readFileSync('public/cms.js', 'utf8') })
+        if (u.endsWith('/contact')) { if (req.method() === 'OPTIONS') return req.respond({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'Content-Type', 'access-control-allow-methods': 'POST' } }); posted = JSON.parse(req.postData() || '{}'); return req.respond({ contentType: 'application/json', body: '{"ok":true}', headers: { 'access-control-allow-origin': '*' } }) }
         if (u.startsWith('https://app.test/api/site/')) return req.respond({ contentType: 'application/json', body: JSON.stringify(data), headers: { 'access-control-allow-origin': '*' } })
         return req.respond({ status: 404, body: '' })
       })
@@ -160,6 +163,45 @@ describe('cms.js on the site (real browser)', () => {
       expect(r.tel).toBe('tel:0723111222')
       expect(r.hours).toBe('Zilnic 9–21')
       expect(r.noteHidden).toBe('none')
+      await page.type('form[data-cms-form] [name=name]', 'Ana')
+      await page.type('form[data-cms-form] [name=message]', 'Aveți loc?')
+      await page.click('form[data-cms-form] [type=submit]')
+      await page.waitForFunction(() => !(document.querySelector('[data-cms-form-success]') as HTMLElement).hidden)
+      expect(posted).toMatchObject({ name: 'Ana', message: 'Aveți loc?', website: '' })
     } finally { await browser.close() }
   }, 60_000)
+})
+
+describe('contact form messages', () => {
+  beforeEach(() => { process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_store_secret' })
+
+  it('saves the message, emails the address from the client panel with Reply-To = visitor, blocks bots and floods', async () => {
+    const { receiveSiteMessage, listSiteMessages } = await import('@/lib/crm/site-messages')
+    const id = await biz()
+    await createPortal(id)
+    await saveContent(id, { contact: { email: 'rezervari@hanul.ro' } }, { put: async () => {} })
+    const sent: { to: string; replyTo?: string; subject: string; text: string }[] = []
+    const send = async (m: typeof sent[0]) => { sent.push(m) }
+    expect(await receiveSiteMessage('hanul-abc123', { name: 'Ana', email: 'ana@x.ro', phone: '0722', message: 'Aveți loc de Revelion?', checkin: '2026-12-30' }, '1.2.3.4', send)).toEqual({ ok: true, emailed: true })
+    expect(sent[0]).toMatchObject({ to: 'rezervari@hanul.ro', replyTo: 'ana@x.ro' })
+    expect(sent[0].subject).toContain('Hanul Izvorul Rece')
+    expect(sent[0].text).toContain('Sosire: 2026-12-30')
+    expect(await receiveSiteMessage('hanul-abc123', { message: 'spam', website: 'http://spam' }, '1.2.3.4', send)).toMatchObject({ spam: true })
+    for (let i = 0; i < 4; i++) await receiveSiteMessage('hanul-abc123', { message: `m${i}` }, '1.2.3.4', send)
+    await expect(receiveSiteMessage('hanul-abc123', { message: 'prea multe' }, '1.2.3.4', send)).rejects.toMatchObject({ status: 429 })
+    await expect(receiveSiteMessage('hanul-abc123', { message: '' }, '5.6.7.8', send)).rejects.toMatchObject({ status: 400 })
+    await expect(receiveSiteMessage('nu-exista', { message: 'x' }, '5.6.7.8', send)).rejects.toMatchObject({ status: 404 })
+    const list = await listSiteMessages(id)
+    expect(list).toHaveLength(5)
+    expect(list[4]).toMatchObject({ name: 'Ana', emailed: true })
+  })
+
+  it('keeps the message (for the panel) even when email fails or there is no address', async () => {
+    const { receiveSiteMessage, listSiteMessages } = await import('@/lib/crm/site-messages')
+    const id = await biz()
+    expect(await receiveSiteMessage('hanul-abc123', { message: 'Bună' }, '9.9.9.9', async () => { throw new Error('down') })).toEqual({ ok: true, emailed: false })
+    const row = await one<{ email_error: string }>('SELECT email_error FROM site_messages WHERE business_id = $1', [id])
+    expect(row!.email_error).toBe('no recipient email')
+    expect(await listSiteMessages(id)).toHaveLength(1)
+  })
 })

@@ -41,5 +41,29 @@
     all('[data-cms="offers"]', function (b) { list(b, offers) })
     all('[data-cms="gallery"]', function (b) { if ((d.gallery || []).length) list(b, d.gallery) })
   }
+  // Formularul de contact: trimis la aplicație (email către client + panoul lui)
+  var lang = (document.documentElement.lang || 'ro').slice(0, 2)
+  var TXT = { ro: ['Se trimite…', 'Mulțumim! Vă contactăm în curând.', 'Mesajul nu a putut fi trimis. Vă rugăm să ne sunați.'], hu: ['Küldés…', 'Köszönjük! Hamarosan jelentkezünk.', 'Az üzenetet nem sikerült elküldeni. Kérjük, hívjon minket.'], en: ['Sending…', 'Thank you! We will get back to you soon.', 'The message could not be sent. Please call us.'] }[lang] || null
+  if (!TXT) TXT = ['Se trimite…', 'Mulțumim! Vă contactăm în curând.', 'Mesajul nu a putut fi trimis. Vă rugăm să ne sunați.']
+  all('form[data-cms-form]', function (f) {
+    var hp = document.createElement('input'); hp.type = 'text'; hp.name = 'website'; hp.tabIndex = -1; hp.autocomplete = 'off'
+    hp.setAttribute('aria-hidden', 'true'); hp.style.cssText = 'position:absolute;left:-9999px;width:1px;height:1px;opacity:0'
+    f.appendChild(hp)
+    f.addEventListener('submit', function (e) {
+      e.preventDefault()
+      var btn = f.querySelector('[type=submit]'), label = btn && btn.textContent
+      if (btn) { btn.disabled = true; btn.textContent = TXT[0] }
+      var data = {}; new FormData(f).forEach(function (v, k) { data[k] = String(v) })
+      fetch(src + '/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+        .then(function (r) { if (!r.ok) throw new Error(r.status) })
+        .then(function () {
+          f.reset()
+          var ok = f.querySelector('[data-cms-form-success]')
+          if (ok) { ok.hidden = false; ok.style.display = '' } else { var p = document.createElement('p'); p.textContent = TXT[1]; p.style.cssText = 'margin-top:12px;font-weight:600'; f.appendChild(p) }
+          if (btn) btn.textContent = '✓'
+        })
+        .catch(function () { if (btn) { btn.disabled = false; btn.textContent = label } alert(TXT[2]) })
+    })
+  })
   fetch(src, { cache: 'no-cache' }).then(function (r) { return r.ok ? r.json() : null }).then(function (d) { if (d && d.updated_at) apply(d) }).catch(function () {})
 })()
