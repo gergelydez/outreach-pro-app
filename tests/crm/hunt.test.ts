@@ -171,9 +171,9 @@ describe('Hungary + paying-first + rebuild message', () => {
     expect(none.first).toMatch(/no website for people to land on/)
     const hu = buildMessages(TEMPLATES.HU, { name: 'Kovács Fűtés', trades: '', website_status: 'OUTDATED_WEBSITE', findingCodes: ['not_mobile_friendly'], country: 'HU' })
     expect(hu.first).toMatch(/nincs mobilra optimalizálva/)
-    expect(hu.second).toMatch(/mint a mostani/)
-    expect(hu.second).toMatch(/70 000 Ft-tól/)
-    expect(hu.price).toMatch(/70 000 Ft-tól/)
+    expect(hu.second).toBe('Csak akkor kell fizetnie, ha tetszik: az élesítés kb. 50 000 Ft lenne. Elküldjem, hogy megnézze? 🙂')
+    expect(hu.price).toMatch(/50 000 Ft/)
+    expect(hu.first + hu.second + hu.demo + hu.followup).not.toMatch(/a\(z\)/i)
   })
 
   it('only saves active businesses (rating ≥ 4, a few reviews)', async () => {
