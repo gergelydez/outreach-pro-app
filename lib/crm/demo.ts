@@ -9,6 +9,7 @@ import { categoriesFor, asCountry } from './countries'
 import { buildRedesignPrompt, generateHtml } from '@/lib/redesign'
 import { slugify, withConceptBanner, stripConceptBanner } from '@/lib/preview'
 import { publishScreenshot } from './screenshot'
+import { pickDirection, directionById, directionPrompt } from './design-directions'
 import { hasCmsMarkers, cmsPromptAddon, extractInitial, sanitizeContent, publishContent, FORM_RULES, DEMO_LAYOUT_RULES, type CmsContent } from './cms-shared'
 import { friendlyAnthropicError } from '@/lib/anthropic-error'
 import type { RebuildLead } from '@/lib/rebuild'
@@ -29,7 +30,7 @@ export interface DemoDeps {
   screenshot?: (slug: string, html: string) => Promise<void>
 }
 
-export async function startDemo(id: string, opts: { origin: string; anthropicKey?: string; googleKey?: string; designer?: string }, deps: DemoDeps = {}) {
+export async function startDemo(id: string, opts: { origin: string; anthropicKey?: string; googleKey?: string; designer?: string; style?: string }, deps: DemoDeps = {}) {
   const b = await one<DemoLeadRow>(`SELECT id, name, category, city, address, phone, phone_e164, email, website_url, website_status, google_place_id,
       google_rating, google_review_count, preview_url, country, demo_status, demo_started_at FROM businesses WHERE id = $1`, [id])
   if (!b) throw new Error('Lead not found')
@@ -37,15 +38,18 @@ export async function startDemo(id: string, opts: { origin: string; anthropicKey
   if (running) return { status: 'running' as const, already: true }
   const apiKey = process.env.ANTHROPIC_API_KEY || opts.anthropicKey
   if (!apiKey && !deps.generate) throw new Error('Lipsă cheia Claude: pune ANTHROPIC_API_KEY în Vercel sau cheia în Setări.')
-  await q(`UPDATE businesses SET demo_status = 'running', demo_error = NULL, demo_started_at = now(), updated_at = now() WHERE id = $1`, [id])
+  // stilul: ales de utilizator sau automat (potrivit meseriei, diferit de ultimele 4 demo-uri)
+  const recent = (await q<{ demo_style: string }>(`SELECT demo_style FROM businesses WHERE demo_style IS NOT NULL AND id <> $1 ORDER BY demo_at DESC NULLS LAST, updated_at DESC LIMIT 4`, [id])).map(r => r.demo_style)
+  const direction = directionById(opts.style) || pickDirection(b.category, recent)
+  await q(`UPDATE businesses SET demo_status = 'running', demo_error = NULL, demo_started_at = now(), demo_style = $2, updated_at = now() WHERE id = $1`, [id, direction.id])
 
   // munca grea rulează în fundal, în afara sesiunii acestei cereri
-  const job = outsideSession(() => runDemo(b, { ...opts, apiKey: apiKey || '' }, deps))
+  const job = outsideSession(() => runDemo(b, { ...opts, apiKey: apiKey || '', styleId: direction.id }, deps))
   ;(deps.schedule || (p => { void p }))(job)
-  return { status: 'running' as const, already: false, job }
+  return { status: 'running' as const, already: false, job, style: direction.id }
 }
 
-async function runDemo(b: DemoLeadRow, opts: { origin: string; apiKey: string; googleKey?: string; designer?: string }, deps: DemoDeps) {
+async function runDemo(b: DemoLeadRow, opts: { origin: string; apiKey: string; googleKey?: string; designer?: string; styleId: string }, deps: DemoDeps) {
   const country = asCountry(b.country)
   try {
     const ownSite = !!b.website_url && !['NO_WEBSITE', 'SOCIAL_ONLY', 'DIRECTORY_ONLY'].includes(b.website_status)
@@ -63,7 +67,7 @@ async function runDemo(b: DemoLeadRow, opts: { origin: string; apiKey: string; g
       phone: b.phone || '', phone_intl: b.phone_e164 || '', website: ownSite ? b.website_url : '', no_site: !ownSite,
       rating: Number(b.google_rating || 0), reviews_count: b.google_review_count || 0, audit,
     } as unknown as RebuildLead
-    const prompt = await buildRedesignPrompt(lead, { googleApiKey: opts.googleKey, origin: opts.origin, language: country === 'HU' ? 'hu' : country === 'UK' ? 'en' : undefined, extraInstructions: `${FORM_RULES}\n\n${DEMO_LAYOUT_RULES}` })
+    const prompt = await buildRedesignPrompt(lead, { googleApiKey: opts.googleKey, origin: opts.origin, language: country === 'HU' ? 'hu' : country === 'UK' ? 'en' : undefined, extraInstructions: `${directionPrompt(directionById(opts.styleId)!)}\n\n${FORM_RULES}\n\n${DEMO_LAYOUT_RULES}` })
     const html = deps.generate ? await deps.generate(prompt) : await generateHtml(new Anthropic({ apiKey: opts.apiKey }), prompt)
 
     // același link la regenerare (poate l-ai trimis deja)

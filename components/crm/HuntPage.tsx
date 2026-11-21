@@ -10,6 +10,7 @@ import { categoriesFor, citiesFor, waDigits, type Country } from '@/lib/crm/coun
 import { STATUS_RO, findingRo, CATEGORY_RO, MANUAL_PROBLEMS } from '@/lib/crm/ro'
 import { TEMPLATES, DEMO_STATUSES, buildMessages, type UkTemplates } from '@/lib/crm/uk-templates'
 import { getSettings as getAppSettings } from '@/lib/storage'
+import { DIRECTIONS, directionById } from '@/lib/crm/design-directions'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 interface Keys { google: string; anthropic: string }
@@ -20,6 +21,7 @@ interface Lead {
   google_rating: number | null; google_review_count: number | null; google_maps_url: string | null
   opportunity_score: number | null; stage: string; findings: { code: string; what: string }[] | null; audited_at: string | null
   manual_problems: string[] | null
+  demo_style?: string | null
   next_follow_up_at: string | null; contacted_at: string | null
   demo_status: string | null; demo_error: string | null; demo_started_at: string | null
 }
@@ -556,6 +558,22 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
     : country === 'UK'
     ? `Hi! Here you can update the prices, offers, photos and contact details on your website yourself:\n${portal.link}\nAccess code: ${portal.pin}\nChanges show on the site a few seconds after you tap Save. 🙂`
     : `Bună ziua! Aici puteți schimba singuri tarifele, ofertele, pozele și datele de contact de pe site:\n${portal.link}\nCod de acces: ${portal.pin}\nModificările apar pe site în câteva secunde după ce apăsați Salvează. 🙂`) : ''
+  // formularul de pe site: unde ajung mesajele + ce a venit deja
+  const [forms, setForms] = useState<{ recipient: string; fromPanel: boolean; emailReady: boolean; messages: { id: string; name: string; email: string; phone: string; message: string; created_at: string }[] } | null>(null)
+  const [formEmail, setFormEmail] = useState('')
+  useEffect(() => {
+    if (!open || !r.preview_url) return
+    api<NonNullable<typeof forms>>(`/api/crm/leads/${r.id}/messages`).then(d => { setForms(d); setFormEmail(d.recipient) }).catch(() => {})
+  }, [open, r.preview_url, r.id])
+  async function saveFormEmail() {
+    setBusy('formEmail'); setErr('')
+    try {
+      await api(`/api/crm/leads/${r.id}`, { method: 'PATCH', json: { email: formEmail.trim() } })
+      setForms(f => f && { ...f, recipient: formEmail.trim() }); onChange({ email: formEmail.trim() || null })
+      setInfoMsg('Emailul pentru formular a fost salvat.')
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+    setBusy('')
+  }
   const [replyText, setReplyText] = useState('')
   const [help, setHelp] = useState<ReplyHelp | null>(null)
   const [helpReply, setHelpReply] = useState('')
@@ -573,12 +591,13 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
     setBusy('')
   }
+  const [style, setStyle] = useState('auto')
   async function makeDemo() {
     setEditing(false)
     setErr(''); setBusy('demo')
     try {
-      await api(`/api/crm/leads/${r.id}/demo`, { json: { anthropic_key: keys.anthropic || undefined, google_key: keys.google || undefined, designer: templates.me } })
-      onChange({ demo_status: 'running', demo_error: null, demo_started_at: new Date().toISOString() })
+      await api(`/api/crm/leads/${r.id}/demo`, { json: { anthropic_key: keys.anthropic || undefined, google_key: keys.google || undefined, designer: templates.me, style: style === 'auto' ? undefined : style } })
+      onChange({ demo_status: 'running', demo_error: null, demo_started_at: new Date().toISOString(), demo_style: style === 'auto' ? r.demo_style : style })
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
     setBusy('')
   }
@@ -833,6 +852,26 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
                 <Button size="sm" variant="primary" className="h-9" loading={busy === 'edit'} disabled={editText.trim().length < 3} onClick={applyEdits}>Aplică modificările (același link)</Button>
                 <p className="text-[11px] text-slate-400">Claude modifică site-ul pe server; poți închide pagina. Clientul vede schimbările pe același link.</p>
               </div>
+              {forms && (
+                <div className="rounded-lg border border-sky-200 bg-sky-50 p-2.5 space-y-2">
+                  <div className="text-[12px] font-medium text-sky-900">📩 Formularul de pe site{forms.messages.length ? ` · ${forms.messages.length} mesaje` : ''}</div>
+                  {forms.fromPanel
+                    ? <p className="text-[12px] text-slate-700">Mesajele ajung la <b>{forms.recipient}</b> (setat de client în panou).</p>
+                    : <div className="flex gap-2">
+                        <input className="flex-1 h-9 rounded-md border border-slate-300 bg-white px-2 text-[13px] text-slate-900" placeholder="Emailul firmei, unde ajung mesajele" value={formEmail} onChange={e => setFormEmail(e.target.value)} />
+                        <Button size="sm" className="h-9" loading={busy === 'formEmail'} disabled={formEmail.trim() === forms.recipient} onClick={saveFormEmail}>Salvează</Button>
+                      </div>}
+                  {!forms.recipient && <p className="text-[12px] text-amber-800">Fără email, mesajele se salvează doar aici și în panoul clientului.</p>}
+                  {!forms.emailReady && <p className="text-[12px] text-amber-800">Trimiterea pe email nu e pornită încă: lipsesc RESEND_API_KEY / FORM_FROM_EMAIL în Vercel. Mesajele se salvează oricum.</p>}
+                  {forms.messages.slice(0, 5).map(m => (
+                    <div key={m.id} className="rounded-md bg-white border border-slate-200 p-2 text-[12px]">
+                      <div className="flex justify-between gap-2"><b>{m.name || m.email || m.phone}</b><span className="text-slate-400">{new Date(m.created_at).toLocaleString('ro-RO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span></div>
+                      {m.message && <p className="text-slate-700 whitespace-pre-wrap">{m.message}</p>}
+                      <p className="text-slate-500">{[m.phone, m.email].filter(Boolean).join(' · ')}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
               {portal && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5 space-y-2">
                   <div className="text-[12px] font-medium text-amber-900">🔑 Panou pentru client (tarife, oferte, poze, contact)</div>
@@ -868,11 +907,25 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
                   </details>
                 </div>
               )}
-              <button className="text-xs text-slate-500 underline" disabled={busy === 'demo'} onClick={makeDemo}>↻ Refă demo-ul de la zero (păstrează același link)</button>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                {r.demo_style && <span>Stil: <b className="text-slate-700">{directionById(r.demo_style)?.name || r.demo_style}</b></span>}
+                <select className="h-8 rounded-md border border-slate-300 bg-white px-1.5 text-xs text-slate-700" value={style} onChange={e => setStyle(e.target.value)}>
+                  <option value="auto">Stil nou automat</option>
+                  {DIRECTIONS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+                <button className="underline" disabled={busy === 'demo'} onClick={makeDemo}>↻ Refă demo-ul de la zero (același link)</button>
+              </div>
             </div>
           ) : (
             <>
               {r.demo_status === 'error' && <p className="mb-2 text-xs text-rose-700">Demo-ul n-a reușit: {r.demo_error || 'eroare necunoscută'}. Încearcă din nou.</p>}
+              <div className="flex items-center gap-2 mb-2 text-xs text-slate-600">
+                <span>Stil:</span>
+                <select className="h-8 flex-1 rounded-md border border-slate-300 bg-white px-1.5 text-xs text-slate-700" value={style} onChange={e => setStyle(e.target.value)}>
+                  <option value="auto">Automat (potrivit meseriei, diferit de ultimele demo-uri)</option>
+                  {DIRECTIONS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
               <Button variant="primary" className="w-full h-10" loading={busy === 'demo'} onClick={makeDemo}>🎨 Fă demo site pentru {r.name}</Button>
               <p className="text-[11px] text-slate-400 mt-1">Site concept în {LANG_RO[country]}, cu pozele și recenziile lui reale din Google{r.website_url && !['NO_WEBSITE', 'SOCIAL_ONLY', 'DIRECTORY_ONLY'].includes(r.website_status) ? ' și textele de pe site-ul actual' : ''}. Se face pe server — nu trebuie să stai pe pagină.</p>
             </>
