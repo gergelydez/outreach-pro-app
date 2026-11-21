@@ -38,7 +38,7 @@ interface Stats { contacted: number; replied: number; interested: number; won: n
 const COUNTRY_TITLE: Record<Country, string> = { UK: 'UK 🇬🇧', HU: 'Ungaria 🇭🇺', RO: 'România 🇷🇴' }
 const LANG_RO: Record<Country, string> = { UK: 'engleză', HU: 'maghiară', RO: 'română' }
 // varianta veche a mesajelor (cu „student / proiect la facultate”), salvată pe telefon înainte de schimbare
-const OLD_TEXTS = /university student|egyetemista|proiect la facultate|firmele locale să crească|below market price to help local businesses/
+const OLD_TEXTS = /university student|egyetemista|proiect la facultate|firmele locale să crească|below market price to help local businesses|70 000 Ft-tól indulnak/
 // Ce WhatsApp deschid butoanele verzi (Android): Business / normal / ce alege telefonul.
 // Secure Folder nu poate fi deschis din afara lui: acolo aplicația trebuie deschisă din browserul din Secure Folder.
 type WaApp = 'business' | 'personal' | 'auto'
@@ -757,7 +757,7 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
         </>}
         <div className="flex flex-wrap gap-2 mt-1.5">
           {!!msgs.second.trim() && <Btn onClick={() => copy('2', second)}>{copied === '2' ? 'Copiat ✓' : '📋 Copiază partea 2'}</Btn>}
-          {r.email && <Btn href={`mailto:${r.email}?subject=${encodeURIComponent(country === 'HU' ? `Ötlet a(z) ${r.name} számára` : country === 'RO' ? `O idee pentru ${r.name}` : `A quick idea for ${r.name}`)}&body=${encodeURIComponent(`${first}\n\n${second}`)}`}>✉️ Email</Btn>}
+          {r.email && <Btn href={`mailto:${r.email}?subject=${encodeURIComponent(country === 'HU' ? `Weboldal-ötlet – ${r.name}` : country === 'RO' ? `O idee pentru ${r.name}` : `A quick idea for ${r.name}`)}&body=${encodeURIComponent(`${first}\n\n${second}`)}`}>✉️ Email</Btn>}
         </div>
         {waiting && (
           <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 p-2.5">

@@ -30,15 +30,15 @@ const UK: UkTemplates = {
 }
 
 const HU: UkTemplates = {
-  me: 'Geri',
-  intro_nosite: "Jó napot kívánok! {me} vagyok 👋 A Google-ön találtam rá a(z) {name} vállalkozásra, és láttam, hogy a környékbeli cégekkel ellentétben Önöknek nincs weboldaluk, ezért készítettem Önöknek ingyen egy weboldaltervet.",
-  intro_social: "Jó napot kívánok! {me} vagyok 👋 A Google-ön találtam rá a(z) {name} vállalkozásra, és láttam, hogy csak Facebook/Instagram oldaluk van, saját weboldaluk nincs, ezért készítettem Önöknek ingyen egy weboldaltervet.",
-  intro_site: "Jó napot kívánok! {me} vagyok 👋 A Google-ön találtam rá a(z) {name} vállalkozásra, és megnéztem a weboldalukat: azt vettem észre, hogy {problem}. Ezért készítettem Önöknek ingyen egy tervet egy új, modern weboldalra.",
-  offer: "Egy modern, jól elkészített weboldal sokkal több ügyfelet hozhat, olyanokat, akik most a konkurenciához mennek. Ebben a hónapban piaci ár alatt készítem a weboldalakat, hogy segítsek a helyi vállalkozásoknak növekedni.\n\nHogy már az elején átlátható legyek: az árak 70 000 Ft-tól indulnak, de a már elkészült terv ingyenes. Elküldjem?",
-  offer_site: "Egy modern weboldal, gyors, mobilon is szép és Google-re optimalizált, sokkal több ügyfelet hozhat, mint a mostani. Ebben a hónapban piaci ár alatt készítem a weboldalakat, hogy segítsek a helyi vállalkozásoknak növekedni.\n\nHogy már az elején átlátható legyek: az árak 70 000 Ft-tól indulnak, de a már elkészült terv ingyenes. Elküldjem?",
-  price: "Hogy átlátható legyek: az árak 70 000 Ft-tól indulnak, a már elkészült terv pedig ingyenes és semmire sem kötelez.",
-  demo: "Itt is van a terv, amit a(z) {name} számára készítettem: {link}\nNézze meg telefonon, és írja meg, mit gondol 🙂 Ha tetszik, 70 000 Ft-tól élesítem.",
-  followup: "Csak röviden visszatérnék 🙂 A(z) {name} számára készített ingyenes weboldalterv továbbra is várja Önöket. Elküldjem? A 70 000 Ft-tól induló árak a hónap végéig érvényesek.",
+  me: "Geri",
+  intro_nosite: "Jó napot kívánok! {me} vagyok 👋 A Google-ön találtam rá az Ön vállalkozására ({name}), és láttam, hogy a környékbeli cégekkel ellentétben nincs weboldala, ezért készítettem Önnek ingyen egy működő weboldalt. Ha tetszik, személyre szabom és élesítem.",
+  intro_social: "Jó napot kívánok! {me} vagyok 👋 A Google-ön találtam rá az Ön vállalkozására ({name}), és láttam, hogy csak Facebook/Instagram oldala van, saját weboldala nincs, ezért készítettem Önnek ingyen egy működő weboldalt. Ha tetszik, személyre szabom és élesítem.",
+  intro_site: "Jó napot kívánok! {me} vagyok 👋 A Google-ön találtam rá az Ön vállalkozására ({name}), és megnéztem a weboldalát: azt vettem észre, hogy {problem}. Ezért készítettem Önnek ingyen egy új, modern weboldalt. Ha tetszik, személyre szabom és élesítem.",
+  offer: "Csak akkor kell fizetnie, ha tetszik: az élesítés kb. 50 000 Ft lenne. Elküldjem, hogy megnézze? 🙂",
+  offer_site: "Csak akkor kell fizetnie, ha tetszik: az élesítés kb. 50 000 Ft lenne. Elküldjem, hogy megnézze? 🙂",
+  price: "Csak akkor kell fizetnie, ha tetszik: az élesítés kb. 50 000 Ft lenne, a weboldal megnézése pedig ingyenes és semmire sem kötelez.",
+  demo: "Itt is van a weboldal, amit Önnek készítettem: {link}\nNézze meg telefonon, és írja meg, mit gondol 🙂 Ha tetszik, kb. 50 000 Ft-ért élesítem.",
+  followup: "Csak röviden visszatérnék 🙂 A weboldal, amit Önnek készítettem, továbbra is várja. Elküldjem, hogy megnézze? Csak akkor kell fizetnie, ha tetszik.",
 }
 
 const RO: UkTemplates = {
@@ -150,11 +150,17 @@ export function fill(t: string, v: Record<string, string>): string {
 
 const NO_OWN_SITE = ['NO_WEBSITE', 'SOCIAL_ONLY', 'DIRECTORY_ONLY']
 
+// „Gázszerelő Kacziba Zsolt - Gázszerelés Fűtésszerelés Konvektor” → „Gázszerelő Kacziba Zsolt”
+export function shortName(name: string): string {
+  const first = name.split(/\s+[-–—|·•]\s+|\s*\|\s*/)[0].trim()
+  return first.length >= 3 ? first : name.trim()
+}
+
 export function buildMessages(t: UkTemplates, lead: { name: string; trades: string; website_status: string; findingCodes: string[]; previewUrl?: string | null; country?: Country; rating?: number | string | null; reviews?: number | null; variant?: number }) {
   const country = lead.country || 'UK'
   const rating = Number(lead.rating || 0)
   const vars = {
-    me: t.me || 'Geri', name: lead.name, trades: lead.trades, problem: mainProblem(lead.findingCodes, country), link: lead.previewUrl || '[link]',
+    me: t.me || 'Geri', name: shortName(lead.name), trades: lead.trades, problem: mainProblem(lead.findingCodes, country), link: lead.previewUrl || '[link]',
     rating: rating > 0 ? rating.toFixed(1) : '', reviews: lead.reviews && lead.reviews > 0 ? String(lead.reviews) : '',
     // „58 de recenzii”, dar „12 recenzii” (româna pune „de” de la 20 în sus)
     reviews_ro: lead.reviews && lead.reviews > 0 ? (lead.reviews % 100 >= 20 || lead.reviews >= 100 && lead.reviews % 100 === 0 ? `${lead.reviews} de recenzii` : `${lead.reviews} recenzii`) : '',
