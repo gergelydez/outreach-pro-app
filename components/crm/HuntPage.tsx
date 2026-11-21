@@ -38,7 +38,7 @@ interface Stats { contacted: number; replied: number; interested: number; won: n
 const COUNTRY_TITLE: Record<Country, string> = { UK: 'UK 🇬🇧', HU: 'Ungaria 🇭🇺', RO: 'România 🇷🇴' }
 const LANG_RO: Record<Country, string> = { UK: 'engleză', HU: 'maghiară', RO: 'română' }
 // varianta veche a mesajelor (cu „student / proiect la facultate”), salvată pe telefon înainte de schimbare
-const OLD_TEXTS = /university student|egyetemista|proiect la facultate|firmele locale să crească|below market price to help local businesses|70 000 Ft-tól indulnak/
+const OLD_TEXTS = /university student|egyetemista|proiect la facultate|firmele locale să crească|below market price to help local businesses|70 000 Ft-tól indulnak|ca să ajut afacerile să crească/
 // Ce WhatsApp deschid butoanele verzi (Android): Business / normal / ce alege telefonul.
 // Secure Folder nu poate fi deschis din afara lui: acolo aplicația trebuie deschisă din browserul din Secure Folder.
 type WaApp = 'business' | 'personal' | 'auto'
