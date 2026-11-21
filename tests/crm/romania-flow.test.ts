@@ -89,3 +89,24 @@ describe('search by name or phone', () => {
     expect(await find('x')).toEqual([]) // prea scurt
   })
 })
+
+describe('Romanian message variants', () => {
+  it('rotates three wordings between businesses, keeps one per business, and reads naturally', async () => {
+    const { buildMessages, TEMPLATES, variantIndex } = await import('@/lib/crm/uk-templates')
+    const base = { name: 'Casa Roxana', trades: 'pensiune', website_status: 'NO_WEBSITE', findingCodes: [], country: 'RO' as const }
+    const v = (n: number, extra = {}) => buildMessages(TEMPLATES.RO, { ...base, variant: n, ...extra })
+    expect(new Set([0, 1, 2].map(n => v(n).first)).size).toBe(3)
+    expect(new Set([0, 1, 2].map(n => v(n).second)).size).toBe(3)
+    expect(v(0).first).toBe(buildMessages(TEMPLATES.RO, base).first) // A = textul aprobat
+    expect(v(1, { rating: 4.8, reviews: 58 }).first).toContain('4.8★ din 58 de recenzii, felicitări! Doar că nu am găsit un site')
+    expect(v(1, { rating: 4.8, reviews: 12 }).first).toContain('4.8★ din 12 recenzii')
+    expect(v(1).first).toBe('Bună ziua, sunt Grig 👋 Am văzut Casa Roxana pe Google, dar nu am găsit un site al dumneavoastră, așa că v-am pregătit gratuit un concept.')
+    for (let n = 0; n < 3; n++) expect(v(n).second).toMatch(/700 de lei/)
+    expect(variantIndex('abc')).toBe(variantIndex('abc'))
+    // dacă utilizatorul și-a scris propriul text, rămâne textul lui
+    const own = { ...TEMPLATES.RO, intro_nosite: 'Textul meu pentru {name}' }
+    expect(buildMessages(own, { ...base, variant: 2 }).first).toBe('Textul meu pentru Casa Roxana')
+    // UK/HU fără variante deocamdată
+    expect(buildMessages(TEMPLATES.HU, { ...base, country: 'HU', variant: 1 }).first).toBe(buildMessages(TEMPLATES.HU, { ...base, country: 'HU' }).first)
+  })
+})
