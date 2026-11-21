@@ -68,6 +68,7 @@ export const UK_CATEGORIES: { key: string; label: string; query: string; placesT
   // auto
   { key: 'car_repair', label: 'Garages', query: 'car garage mechanic MOT', placesType: 'car_repair' },
   { key: 'mobile_mechanic', label: 'Mobile mechanics', query: 'mobile mechanic' },
+  { key: 'towing', label: 'Vehicle recovery', query: 'vehicle recovery towing service' },
   { key: 'car_wash', label: 'Car washes', query: 'hand car wash valeting', placesType: 'car_wash' },
   { key: 'tyres', label: 'Tyre shops', query: 'tyre shop' },
   { key: 'body_shop', label: 'Body shops', query: 'car body repair' },

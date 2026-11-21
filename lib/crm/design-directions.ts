@@ -146,7 +146,7 @@ export function categoryGroup(key: string): CategoryGroup {
   if (/pension|cabin|apartment|hotel|guest|villa|camping|cazare|accommodation|b_?and_?b/.test(k)) return 'hospitality'
   if (/beauty|hair|nail|barber|massage|spa|cosmetic|salon|tattoo|lash|brow/.test(k)) return 'beauty'
   if (/confection|catering|restaurant|cafe|bakery|pizza|food|bistro|cake|pastry/.test(k)) return 'food'
-  if (/car|tyre|tire|auto|garage|mechanic|motor|wash/.test(k)) return 'auto'
+  if (/car|tyre|tire|auto|garage|mechanic|motor|wash|tow|recovery/.test(k)) return 'auto'
   if (/plumb|electric|roof|build|paint|window|boiler|heating|locksmith|clean|removal|garden|landscap|carpent|floor|tiler|handyman|construct/.test(k)) return 'trades'
   return 'services'
 }

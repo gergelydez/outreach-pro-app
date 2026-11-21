@@ -57,6 +57,7 @@ export const HU_CATEGORIES: CountryCategory[] = [
   { key: 'electrician', label: 'Villanyszerelők', query: 'villanyszerelő', ro: 'Electricieni' },
   { key: 'tyres', label: 'Gumiszervizek', query: 'gumiszerviz', ro: 'Vulcanizări (anvelope iarnă)' },
   { key: 'car_repair', label: 'Autószervizek', query: 'autószerviz', ro: 'Service-uri auto' },
+  { key: 'towing', label: 'Autómentők', query: 'autómentés', ro: 'Tractări auto' },
   { key: 'guesthouse', label: 'Vendégházak', query: 'vendégház', ro: 'Pensiuni / case de oaspeți' },
   { key: 'apartment', label: 'Apartmanok', query: 'apartman szállás', ro: 'Apartamente de închiriat' },
   { key: 'pension', label: 'Panziók', query: 'panzió', ro: 'Pensiuni' },
@@ -97,6 +98,7 @@ export const RO_CATEGORIES: CountryCategory[] = [
   { key: 'boiler_service', label: 'Service centrale termice', query: 'service centrale termice', ro: 'Service centrale termice' },
   { key: 'plumber', label: 'Instalatori', query: 'instalator', ro: 'Instalatori' },
   { key: 'car_repair', label: 'Service-uri auto', query: 'service auto', ro: 'Service-uri auto' },
+  { key: 'towing', label: 'Tractări auto', query: 'tractări auto', ro: 'Tractări auto' },
   { key: 'beauty', label: 'Saloane de înfrumusețare', query: 'salon înfrumusețare', ro: 'Saloane de înfrumusețare' },
   { key: 'hairdresser', label: 'Coafuri', query: 'coafor', ro: 'Coafuri' },
   { key: 'nails', label: 'Saloane de unghii', query: 'salon unghii manichiură', ro: 'Unghii' },
@@ -154,23 +156,23 @@ const WINTER = [10, 11, 0, 1] // nov, dec, ian, feb (getMonth)
 
 const UK_WINTER = ['heating_engineer', 'plumber', 'roofer', 'electrician', 'damp_proofing', 'double_glazing', 'accountant', 'locksmith', 'chimney_sweep',
   'beauty_salon', 'hairdresser', 'nail_salon', 'lash_brow', 'caterer', 'florist', 'bakery', 'driving_instructor', 'personal_trainer', 'removals',
-  'builder', 'carpenter', 'plasterer', 'painter_decorator', 'tiler', 'car_repair', 'body_shop', 'tyres', 'mobile_mechanic', 'pest_control',
+  'builder', 'carpenter', 'plasterer', 'painter_decorator', 'tiler', 'car_repair', 'towing', 'body_shop', 'tyres', 'mobile_mechanic', 'pest_control',
   'cleaning', 'carpet_cleaning', 'landscaping', 'driveways', 'fencing', 'tree_surgeon', 'massage', 'barber', 'tattoo', 'dog_groomer', 'photographer',
   'tutor', 'scaffolding', 'window_cleaner', 'gardener', 'handyman', 'phone_repair', 'computer_repair', 'tailor', 'cafe', 'takeaway', 'car_wash']
 const UK_REST = ['roofer', 'builder', 'landscaping', 'driveways', 'plumber', 'electrician', 'heating_engineer', 'double_glazing', 'damp_proofing', 'fencing',
-  'tree_surgeon', 'beauty_salon', 'hairdresser', 'nail_salon', 'lash_brow', 'removals', 'accountant', 'car_repair', 'body_shop', 'carpenter', 'plasterer',
+  'tree_surgeon', 'beauty_salon', 'hairdresser', 'nail_salon', 'lash_brow', 'removals', 'accountant', 'car_repair', 'towing', 'body_shop', 'carpenter', 'plasterer',
   'painter_decorator', 'tiler', 'cleaning', 'caterer', 'photographer', 'personal_trainer', 'driving_instructor']
 
 const HU_WINTER = ['heating', 'boiler_service', 'plumber', 'tyres', 'guesthouse', 'apartment', 'pension', 'beauty', 'hairdresser', 'nails', 'massage',
-  'confectionery', 'florist', 'catering', 'event', 'electrician', 'car_repair', 'accountant', 'photographer', 'driving_school', 'language_school',
+  'confectionery', 'florist', 'catering', 'event', 'electrician', 'car_repair', 'towing', 'accountant', 'photographer', 'driving_school', 'language_school',
   'personal_trainer', 'windows', 'roofer', 'locksmith', 'cleaning', 'dentist', 'vet', 'removals', 'painter', 'tiler', 'builder', 'carpenter', 'dog_groomer', 'barber']
-const RO_WINTER = ['cabin', 'pension', 'apartment', 'tyres', 'boiler_service', 'plumber', 'car_repair', 'beauty', 'hairdresser', 'nails', 'confectionery',
+const RO_WINTER = ['cabin', 'pension', 'apartment', 'tyres', 'towing', 'boiler_service', 'plumber', 'car_repair', 'beauty', 'hairdresser', 'nails', 'confectionery',
   'florist', 'catering', 'event', 'photographer', 'driving_school', 'gym', 'dentist', 'accountant', 'windows', 'electrician', 'massage', 'barber',
   'car_rental', 'vet', 'locksmith', 'roofer', 'builder', 'painter', 'cleaning', 'removals', 'car_wash', 'tailor', 'phone_repair', 'garden']
-const RO_REST = ['pension', 'cabin', 'apartment', 'roofer', 'windows', 'builder', 'garden', 'car_repair', 'beauty', 'hairdresser', 'nails', 'dentist',
+const RO_REST = ['pension', 'cabin', 'apartment', 'roofer', 'windows', 'builder', 'garden', 'car_repair', 'towing', 'beauty', 'hairdresser', 'nails', 'dentist',
   'catering', 'event', 'photographer', 'driving_school', 'gym', 'electrician', 'plumber']
 const HU_REST = ['guesthouse', 'apartment', 'pension', 'roofer', 'windows', 'builder', 'electrician', 'plumber', 'heating', 'beauty', 'hairdresser', 'nails',
-  'massage', 'car_repair', 'tyres', 'catering', 'event', 'photographer', 'confectionery', 'florist', 'accountant', 'dentist']
+  'massage', 'car_repair', 'towing', 'tyres', 'catering', 'event', 'photographer', 'confectionery', 'florist', 'accountant', 'dentist']
 
 export function categoriesFor(country: Country): CountryCategory[] {
   if (country === 'HU') return HU_CATEGORIES

@@ -48,7 +48,7 @@ export const CATEGORY_RO: Record<string, string> = {
   locksmith: 'Lăcătuși', carpenter: 'Tâmplari', plasterer: 'Tencuitori', handyman: 'Meșteri (handyman)',
   tiler: 'Faianțari', gardener: 'Grădinari', tree_surgeon: 'Toaletare copaci', fencing: 'Garduri', driveways: 'Alei și pavaje',
   window_cleaner: 'Spălători geamuri', carpet_cleaning: 'Curățare covoare', removals: 'Mutări / transport', pest_control: 'Dezinsecție',
-  scaffolding: 'Schele', car_repair: 'Service-uri auto', mobile_mechanic: 'Mecanici mobili', car_wash: 'Spălătorii auto',
+  scaffolding: 'Schele', car_repair: 'Service-uri auto', towing: 'Tractări auto', mobile_mechanic: 'Mecanici mobili', car_wash: 'Spălătorii auto',
   tyres: 'Vulcanizări', body_shop: 'Tinichigerii', driving_instructor: 'Instructori auto', barber: 'Frizerii',
   hairdresser: 'Coafuri', beauty_salon: 'Saloane de înfrumusețare', nail_salon: 'Saloane de unghii', lash_brow: 'Gene și sprâncene',
   massage: 'Masaj', tattoo: 'Tatuaje', dog_groomer: 'Toaletaj câini', personal_trainer: 'Antrenori personali',
