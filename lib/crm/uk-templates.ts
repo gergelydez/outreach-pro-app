@@ -53,6 +53,28 @@ const RO: UkTemplates = {
   followup: "Revin pe scurt 🙂 Conceptul de site pregătit pentru {name} vă așteaptă, e gratuit. Vreți să vedeți cum arată? Prețurile de la 700 lei sunt valabile până la sfârșitul lunii.",
 }
 
+// Variante de formulare (același sens și același preț), alternate între firme ca mesajele să nu fie identice.
+// Se folosesc doar cât timp textul din șablon e cel implicit (dacă îl modifici în aplicație, rămâne textul tău).
+const VARIANTS: Partial<Record<Country, Partial<Record<'intro_nosite' | 'offer', string[]>>>> = {
+  RO: {
+    intro_nosite: [RO.intro_nosite, "Bună ziua, sunt {me} 👋 [[Am văzut {name} pe Google: {rating}★ din {reviews_ro}, felicitări! Doar că nu am găsit||Am văzut {name} pe Google, dar nu am găsit]] un site al dumneavoastră, așa că v-am pregătit gratuit un concept.", "Bună ziua! Mă numesc {me} 😊 Am găsit {name} pe Google și am observat că încă nu aveți un site, deși mulți clienți vă caută acolo. V-am pregătit gratuit un concept de site."],
+    offer: [RO.offer, "Un site bine făcut aduce clienți noi, oameni care acum ajung la concurență. Luna aceasta lucrez sub prețul pieței, ca să ajut afacerile să crească.\n\nCa să fiu transparent: prețurile pornesc de la 700 de lei, iar conceptul e deja gata și e gratuit. Vă pot oferi și factură pe firmă. Să vi-l trimit să vedeți cum arată?", "Azi mulți clienți caută pe telefon înainte să sune, iar un site modern îi aduce direct la dumneavoastră. Luna aceasta fac site-urile sub prețul pieței.\n\nPrețurile pornesc de la 700 de lei, cu factură pe firmă dacă doriți, iar conceptul pentru dumneavoastră e deja gata și e gratuit. Vreți să vedeți cum arată?"],
+  },
+}
+
+// același index pentru aceeași firmă (reamintirea și notițele rămân coerente)
+export function variantIndex(key: string): number {
+  let h = 0
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0
+  return h
+}
+
+function pickVariant(t: UkTemplates, country: Country, field: 'intro_nosite' | 'offer', variant: number | undefined): string {
+  const list = VARIANTS[country]?.[field]
+  if (variant == null || !list || t[field] !== TEMPLATES[country][field]) return t[field]
+  return list[variant % list.length]
+}
+
 export const DEFAULT_TEMPLATES: UkTemplates = UK
 export const TEMPLATES: Record<Country, UkTemplates> = { UK, HU, RO }
 
@@ -120,7 +142,7 @@ export function mainProblem(codes: string[], country: Country = 'UK', max = 2): 
 
 // [[cu recenzii||fără recenzii]]: prima variantă doar dacă știm ratingul și numărul de recenzii
 export function fill(t: string, v: Record<string, string>): string {
-  const withReviews = !!v.rating && !!v.reviews
+  const withReviews = !!v.rating && !!(v.reviews || v.reviews_ro)
   return t
     .replace(/\[\[([\s\S]*?)\|\|([\s\S]*?)\]\]/g, (_m, yes, no) => (withReviews ? yes : no))
     .replace(/\{(\w+)\}/g, (m, k) => (k in v ? v[k] : m))
@@ -128,18 +150,20 @@ export function fill(t: string, v: Record<string, string>): string {
 
 const NO_OWN_SITE = ['NO_WEBSITE', 'SOCIAL_ONLY', 'DIRECTORY_ONLY']
 
-export function buildMessages(t: UkTemplates, lead: { name: string; trades: string; website_status: string; findingCodes: string[]; previewUrl?: string | null; country?: Country; rating?: number | string | null; reviews?: number | null }) {
+export function buildMessages(t: UkTemplates, lead: { name: string; trades: string; website_status: string; findingCodes: string[]; previewUrl?: string | null; country?: Country; rating?: number | string | null; reviews?: number | null; variant?: number }) {
   const country = lead.country || 'UK'
   const rating = Number(lead.rating || 0)
   const vars = {
     me: t.me || 'Geri', name: lead.name, trades: lead.trades, problem: mainProblem(lead.findingCodes, country), link: lead.previewUrl || '[link]',
     rating: rating > 0 ? rating.toFixed(1) : '', reviews: lead.reviews && lead.reviews > 0 ? String(lead.reviews) : '',
+    // „58 de recenzii”, dar „12 recenzii” (româna pune „de” de la 20 în sus)
+    reviews_ro: lead.reviews && lead.reviews > 0 ? (lead.reviews % 100 >= 20 || lead.reviews >= 100 && lead.reviews % 100 === 0 ? `${lead.reviews} de recenzii` : `${lead.reviews} recenzii`) : '',
   }
-  const intro = lead.website_status === 'NO_WEBSITE' ? t.intro_nosite
+  const intro = lead.website_status === 'NO_WEBSITE' ? pickVariant(t, country, 'intro_nosite', lead.variant)
     : ['SOCIAL_ONLY', 'DIRECTORY_ONLY'].includes(lead.website_status) ? t.intro_social
     : t.intro_site
   // partea 2: cine n-are site primește oferta de site propriu; cine are site slab, refacerea lui
-  const offer = NO_OWN_SITE.includes(lead.website_status) ? t.offer : (t.offer_site || t.offer)
+  const offer = NO_OWN_SITE.includes(lead.website_status) ? pickVariant(t, country, 'offer', lead.variant) : (t.offer_site || t.offer)
   return { first: fill(intro, vars), second: fill(offer, vars), price: fill(t.price, vars), demo: fill(t.demo, vars), followup: fill(t.followup || '', vars) }
 }
 

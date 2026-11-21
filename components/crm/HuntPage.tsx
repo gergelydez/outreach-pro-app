@@ -8,7 +8,7 @@ import { api, ApiError } from '@/lib/crm/client'
 import { Button, Select, Badge, cx } from '@/components/crm/ui'
 import { categoriesFor, citiesFor, waDigits, type Country } from '@/lib/crm/countries'
 import { STATUS_RO, findingRo, CATEGORY_RO, MANUAL_PROBLEMS } from '@/lib/crm/ro'
-import { TEMPLATES, DEMO_STATUSES, buildMessages, type UkTemplates } from '@/lib/crm/uk-templates'
+import { TEMPLATES, DEMO_STATUSES, buildMessages, variantIndex, type UkTemplates } from '@/lib/crm/uk-templates'
 import { getSettings as getAppSettings } from '@/lib/storage'
 import { DIRECTIONS, directionById } from '@/lib/crm/design-directions'
 
@@ -236,7 +236,7 @@ function leadMessages(r: Lead, templates: UkTemplates, country: Country) {
   const trades = (categoriesFor(country).find(c => c.key === r.category)?.label || (country === 'HU' ? 'vállalkozások' : 'businesses')).toLowerCase()
   const autoCodes = (r.findings || []).map(f => f.code)
   const problemCodes = r.manual_problems && r.manual_problems.length ? r.manual_problems : autoCodes
-  return buildMessages(templates, { name: r.name, trades, website_status: r.website_status, findingCodes: problemCodes, previewUrl: r.preview_url, country, rating: r.google_rating, reviews: r.google_review_count })
+  return buildMessages(templates, { name: r.name, trades, website_status: r.website_status, findingCodes: problemCodes, previewUrl: r.preview_url, country, rating: r.google_rating, reviews: r.google_review_count, variant: variantIndex(r.id) })
 }
 
 // ── Mod rapid: câte o firmă pe ecran. Seara verifici WhatsApp-ul (fără ciornă), dimineața trimiți. ──
@@ -384,7 +384,7 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
   const [infoMsg, setInfoMsg] = useState('')
   const [open, setOpen] = useState(false)
   const contacted = !['new_lead', 'researching', 'qualified', 'reviewed', 'ready_to_contact'].includes(r.stage)
-  const msgs = buildMessages(templates, { name: r.name, trades, website_status: r.website_status, findingCodes: problemCodes, previewUrl: r.preview_url, country, rating: r.google_rating, reviews: r.google_review_count })
+  const msgs = buildMessages(templates, { name: r.name, trades, website_status: r.website_status, findingCodes: problemCodes, previewUrl: r.preview_url, country, rating: r.google_rating, reviews: r.google_review_count, variant: variantIndex(r.id) })
   const [first, setFirst] = useState(msgs.first)
   const [second, setSecond] = useState(msgs.second)
   useEffect(() => { setFirst(msgs.first); setSecond(msgs.second) }, [msgs.first, msgs.second])
