@@ -67,3 +67,25 @@ describe('lists: return to / interested / clients + reminder', () => {
     expect((await (await simpleGet(req('/api/crm/simple?country=UK&show=won'))).json()).rows).toHaveLength(0)
   })
 })
+
+describe('search by name or phone', () => {
+  beforeEach(async () => { await freshDb() })
+
+  it('finds a business in any stage by part of the name (without diacritics) or by phone in any format', async () => {
+    await q(`INSERT INTO businesses (name, category, city, lead_source, website_status, phone, phone_e164, country, stage) VALUES
+      ('Hanul Izvorul Rece', 'pension', 'Sinaia', 'google_places', 'NO_WEBSITE', '0723 351 803', '+40723351803', 'RO', 'won'),
+      ('Pensiunea Țărănească', 'pension', 'Bran', 'google_places', 'NO_WEBSITE', '0744 111 222', '+40744111222', 'RO', 'new_lead'),
+      ('Kovács Fűtés', 'heating', 'Debrecen', 'google_places', 'NO_WEBSITE', '06 30 123 4567', '+36301234567', 'HU', 'contacted')`)
+    const find = async (term: string, country = 'RO') => ((await (await simpleGet(req(`/api/crm/simple?country=${country}&show=search&q=${encodeURIComponent(term)}`))).json()).rows as { name: string }[]).map(r => r.name)
+    expect(await find('izvorul')).toEqual(['Hanul Izvorul Rece'])
+    expect(await find('taraneasca')).toEqual(['Pensiunea Țărănească'])
+    expect(await find('0723 351 803')).toEqual(['Hanul Izvorul Rece'])
+    expect(await find('+40723351803')).toEqual(['Hanul Izvorul Rece'])
+    expect(await find('351803')).toEqual(['Hanul Izvorul Rece'])
+    expect(await find('pensiune')).toHaveLength(1)
+    expect(await find('kovacs')).toEqual([]) // altă țară
+    expect(await find('kovacs', 'HU')).toEqual(['Kovács Fűtés'])
+    expect(await find('+36 30 123 4567', 'HU')).toEqual(['Kovács Fűtés'])
+    expect(await find('x')).toEqual([]) // prea scurt
+  })
+})

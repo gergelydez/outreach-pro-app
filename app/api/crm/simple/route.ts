@@ -17,7 +17,17 @@ export const GET = route(async (req: Request) => {
   const country = asCountry(sp.get('country'))
   const where: string[] = []
   const P: unknown[] = []
-  if (show === 'pool') where.push(poolWhere(country))
+  if (show === 'search') {
+    const raw = (str(sp.get('q'), 80) || '').trim()
+    const fold = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[șş]/g, 's').replace(/[țţ]/g, 't')
+    const digits = raw.replace(/\D/g, '').replace(/^(00)?(44|36|40)(?=\d{8,})/, '').replace(/^0+/, '')
+    where.push(`b.country = '${country}'`)
+    const or: string[] = []
+    if (raw.length >= 2) { P.push(`%${fold(raw)}%`); or.push(`translate(lower(b.name), 'ăâîșşțţáéíóöőúüűàèìòùäëçñ', 'aaissttaeiooouuuaeiouaecn') LIKE $${P.length}`) }
+    if (digits.length >= 4) { P.push(`%${digits}%`); or.push(`regexp_replace(coalesce(b.phone_e164, '') || ' ' || coalesce(b.phone, ''), '[^0-9]', '', 'g') LIKE $${P.length}`) }
+    where.push(or.length ? `(${or.join(' OR ')})` : 'false')
+  }
+  else if (show === 'pool') where.push(poolWhere(country))
   // contactați / interesați: toată țara, ultimii contactați primii
   else if (show === 'followup') where.push(`b.country = '${country}' AND b.stage IN ('contacted','follow_up_1','follow_up_2','replied','interested','call_meeting','proposal_sent','negotiation','won')`)
   // de revenit: contactați care n-au răspuns încă
@@ -40,7 +50,7 @@ export const GET = route(async (req: Request) => {
       LEFT JOIN LATERAL (SELECT findings, created_at FROM website_audits w WHERE w.business_id = b.id ORDER BY created_at DESC LIMIT 1) a ON true
       LEFT JOIN LATERAL (SELECT output FROM ai_analyses x WHERE x.business_id = b.id AND x.kind = 'quick' ORDER BY created_at DESC LIMIT 1) m ON true
      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-     ORDER BY ${show === 'waiting' ? `(b.next_follow_up_at IS NOT NULL AND b.next_follow_up_at <= now()) DESC, b.last_contacted_at ASC NULLS LAST, ` : ''}${show === 'followup' ? `(b.stage = 'interested') DESC, b.last_contacted_at DESC NULLS LAST, ` : ''}${show === 'pool' ? `(b.whatsapp_source = 'manual' AND b.whatsapp_status = 'FOUND') DESC NULLS LAST, ` : ''}b.opportunity_score DESC NULLS LAST, b.google_review_count DESC NULLS LAST
+     ORDER BY ${show === 'search' ? `b.last_contacted_at DESC NULLS LAST, ` : ''}${show === 'waiting' ? `(b.next_follow_up_at IS NOT NULL AND b.next_follow_up_at <= now()) DESC, b.last_contacted_at ASC NULLS LAST, ` : ''}${show === 'followup' ? `(b.stage = 'interested') DESC, b.last_contacted_at DESC NULLS LAST, ` : ''}${show === 'pool' ? `(b.whatsapp_source = 'manual' AND b.whatsapp_status = 'FOUND') DESC NULLS LAST, ` : ''}b.opportunity_score DESC NULLS LAST, b.google_review_count DESC NULLS LAST
      LIMIT 150`, P)
   const pending = await one<{ n: string }>(`SELECT count(*)::text AS n FROM audit_jobs WHERE status IN ('pending','running') AND run_after <= now()`)
   return json({ rows, pendingAudits: Number(pending?.n || 0) })

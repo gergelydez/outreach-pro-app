@@ -58,6 +58,10 @@ export default function HuntPage({ country }: { country: Country }) {
   const [category, setCategory] = useState(cats[0].key)
   const [show, setShow] = useState<Show>('pool')
   const [quick, setQuick] = useState(false)
+  const [query, setQuery] = useState('')
+  const [searchQ, setSearchQ] = useState('')
+  useEffect(() => { const t = setTimeout(() => setSearchQ(query.trim()), 300); return () => clearTimeout(t) }, [query])
+  const searching = searchQ.length >= 2
   const [stats, setStats] = useState<Stats | null>(null)
   const [manualOpen, setManualOpen] = useState(false)
   const [sentNote, setSentNote] = useState('')
@@ -87,11 +91,13 @@ export default function HuntPage({ country }: { country: Country }) {
 
   const load = useCallback(async () => {
     try {
-      const d = await api<{ rows: Lead[]; pendingAudits: number }>(`/api/crm/simple?country=${country}&city=${encodeURIComponent(city)}&category=${category}&show=${show}`)
+      const d = await api<{ rows: Lead[]; pendingAudits: number }>(searching
+        ? `/api/crm/simple?country=${country}&show=search&q=${encodeURIComponent(searchQ)}`
+        : `/api/crm/simple?country=${country}&city=${encodeURIComponent(city)}&category=${category}&show=${show}`)
       setErr('')
       setRows(d.rows); setPending(d.pendingAudits)
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
-  }, [country, city, category, show])
+  }, [country, city, category, show, searching, searchQ])
   useEffect(() => { load() }, [load])
 
   async function auditAll() {
@@ -165,7 +171,13 @@ export default function HuntPage({ country }: { country: Country }) {
 
       {quick && <QuickMode country={country} templates={templates} waApp={waApp} onExit={() => { setQuick(false); load() }} />}
       <button onClick={() => setQuick(true)} className="mt-5 w-full h-12 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-semibold">⚡ Mod rapid — verifică seara, trimite dimineața</button>
-      <div className="mt-3 mb-3 grid grid-cols-4 gap-1.5">
+      <div className="mt-3 relative">
+        <input value={query} onChange={e => setQuery(e.target.value)} inputMode="search" placeholder="🔎 Caută după nume sau telefon (oricare firmă)"
+          className="w-full h-11 rounded-xl border border-slate-300 bg-white pl-3 pr-10 text-[15px] text-slate-900 placeholder:text-slate-400" />
+        {query && <button aria-label="Șterge căutarea" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg text-slate-500" onClick={() => setQuery('')}>✕</button>}
+      </div>
+      {searching && <div className="mt-2 mb-2 text-sm text-slate-600">{rows ? `${rows.length} ${rows.length === 1 ? 'rezultat' : 'rezultate'}` : 'Caut…'} pentru „{searchQ}” · <button className="underline" onClick={() => setQuery('')}>înapoi la liste</button></div>}
+      <div className={cx('mt-3 mb-3 grid grid-cols-4 gap-1.5', searching && 'hidden')}>
         {([
           ['pool', '📋', 'Lista zilei', null],
           ['waiting', '⏰', 'De revenit', stats ? stats.contacted - stats.replied : null],
@@ -197,7 +209,7 @@ export default function HuntPage({ country }: { country: Country }) {
 
       {rows && rows.length === 0 && (
         <p className="text-sm text-slate-500 bg-white border border-slate-200 rounded-xl p-4">
-          {show === 'waiting' ? 'Nimeni de revenit acum. După ce trimiți mesaje, firmele apar aici până răspund.' : show === 'interested' ? 'Încă niciun interesat. Când cineva răspunde, apasă „🙋 Interesat” pe cardul lui.' : show === 'won' ? 'Încă niciun client — urmează 🙂' : show === 'followup' ? 'Nu ai încă firme contactate.' : show === 'pool' ? 'Lista zilei e goală. Apasă „Completează”.' : show === 'todo' ? 'Nicio firmă de contactat aici. Apasă „Caută firme” sau alege alt oraș / altă meserie.' : 'Nicio firmă salvată încă pentru acest oraș și această meserie.'}
+          {searching ? `Nicio firmă găsită pentru „${searchQ}”. Încearcă doar o parte din nume sau ultimele cifre ale telefonului.` : show === 'waiting' ? 'Nimeni de revenit acum. După ce trimiți mesaje, firmele apar aici până răspund.' : show === 'interested' ? 'Încă niciun interesat. Când cineva răspunde, apasă „🙋 Interesat” pe cardul lui.' : show === 'won' ? 'Încă niciun client — urmează 🙂' : show === 'followup' ? 'Nu ai încă firme contactate.' : show === 'pool' ? 'Lista zilei e goală. Apasă „Completează”.' : show === 'todo' ? 'Nicio firmă de contactat aici. Apasă „Caută firme” sau alege alt oraș / altă meserie.' : 'Nicio firmă salvată încă pentru acest oraș și această meserie.'}
         </p>
       )}
 
