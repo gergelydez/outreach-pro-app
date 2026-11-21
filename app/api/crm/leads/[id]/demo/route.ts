@@ -12,17 +12,18 @@ type Ctx = { params: { id: string } }
 // Pornește demo-ul. Răspunde imediat; pagina poate fi închisă — linkul apare pe firmă când e gata.
 export const POST = route(async (req: Request, { params }: Ctx) => {
   const id = requireUuid(params.id)
-  const b = await body<{ anthropic_key?: string; google_key?: string; designer?: string }>(req)
+  const b = await body<{ anthropic_key?: string; google_key?: string; designer?: string; style?: string }>(req)
   const r = await startDemo(id, {
     origin: new URL(req.url).origin,
     anthropicKey: str(b.anthropic_key, 300) || undefined,
     googleKey: str(b.google_key, 200) || undefined,
     designer: str(b.designer, 60) || undefined,
+    style: str(b.style, 40) || undefined,
   }, { schedule: p => waitUntil(p) }).catch(e => {
     // configurare lipsă (cheia Claude) sau firmă inexistentă: mesaj clar, nu „Server error”
     throw new HttpError(/not found/i.test(String(e?.message)) ? 404 : 400, e instanceof Error ? e.message : String(e))
   })
-  return json({ status: r.status, already: r.already })
+  return json({ status: r.status, already: r.already, style: 'style' in r ? r.style : undefined })
 })
 
 // Starea demo-ului (pagina o verifică din când în când)

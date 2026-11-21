@@ -355,4 +355,9 @@ ALTER TABLE businesses ADD COLUMN IF NOT EXISTS demo_started_at timestamptz;`,
 );
 CREATE INDEX IF NOT EXISTS site_messages_business_idx ON site_messages (business_id, created_at DESC);`,
   },
+  {
+    // Stilul (direcția artistică) folosit la demo, ca următoarele demo-uri să arate diferit
+    id: '009_demo_style',
+    sql: `ALTER TABLE businesses ADD COLUMN IF NOT EXISTS demo_style text;`,
+  },
 ]
