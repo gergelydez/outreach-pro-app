@@ -3,6 +3,7 @@
 import { createHash } from 'crypto'
 import { q, one } from './db'
 import { sanitizeContent } from './cms-shared'
+import { sendPush } from './push'
 
 export interface SiteMessageInput { name?: unknown; email?: unknown; phone?: unknown; message?: unknown; checkin?: unknown; checkout?: unknown; guests?: unknown; website?: unknown }
 const s = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
@@ -61,10 +62,11 @@ export async function receiveSiteMessage(slug: string, input: SiteMessageInput, 
     catch (e) { error = e instanceof Error ? e.message : String(e) }
   }
   await q('UPDATE site_messages SET emailed = $2, email_error = $3 WHERE id = $1', [row!.id, emailed, error ? error.slice(0, 300) : null])
+  await sendPush(b.id, { title: `${t.subject} · ${m.name || m.phone || m.email}`, body: (m.message || [extra.checkin, extra.checkout].filter(Boolean).join(' → ') || '').slice(0, 140), url: '/client' }).catch(() => 0)
   return { ok: true, emailed }
 }
 
 export async function listSiteMessages(businessId: string, limit = 50) {
-  return q<{ id: string; name: string; email: string; phone: string; message: string; extra: Record<string, string> | null; emailed: boolean; created_at: string }>(
-    'SELECT id, name, email, phone, message, extra, emailed, created_at FROM site_messages WHERE business_id = $1 ORDER BY created_at DESC LIMIT $2', [businessId, limit])
+  return q<{ id: string; name: string; email: string; phone: string; message: string; extra: Record<string, string> | null; emailed: boolean; status: string; replied_via: string | null; created_at: string }>(
+    'SELECT id, name, email, phone, message, extra, emailed, status, replied_via, created_at FROM site_messages WHERE business_id = $1 ORDER BY created_at DESC LIMIT $2', [businessId, limit])
 }

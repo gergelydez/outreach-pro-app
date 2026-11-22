@@ -14,10 +14,11 @@ type Ctx = { params: { id: string } }
 export const GET = route(async (req: Request, { params }: Ctx) => {
   const id = requireUuid(params.id)
   const p = await one<{ token: string }>('SELECT token FROM client_portals WHERE business_id = $1', [id])
-  const b = await one<{ preview_url: string | null }>('SELECT preview_url FROM businesses WHERE id = $1', [id])
+  const acc = await one<{ email: string; last_login_at: string | null }>('SELECT email, last_login_at FROM client_accounts WHERE business_id = $1', [id])
+  const b = await one<{ preview_url: string | null; live_url: string | null }>('SELECT preview_url, live_url FROM businesses WHERE id = $1', [id])
   const slug = slugOf(b?.preview_url ?? null)
   const ready = slug ? await loadSiteHtml(slug).then(h => hasCmsMarkers(h) && hasCmsForm(h)).catch(() => false) : false
-  return json({ exists: !!p, link: p ? `${new URL(req.url).origin}/edit/${p.token}` : null, ready })
+  return json({ exists: !!p, link: p ? `${new URL(req.url).origin}/edit/${p.token}` : null, ready, account: acc, live_url: b?.live_url ?? null })
 })
 
 // Activează panoul (sau un PIN nou, cu același link). Dacă site-ul nu are încă marcajele, Claude le adaugă în fundal.
