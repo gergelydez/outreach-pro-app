@@ -54,6 +54,9 @@ describe('client app: accounts linked to the website', () => {
 
     // intrare cu email + parolă; 5 greșeli → blocat
     expect((await login(req('/api/client/login', { method: 'POST', json: { email: 'han@x.ro', password: 'parola123' } }))).status).toBe(200)
+    const nobody = await login(req('/api/client/login', { method: 'POST', json: { email: 'nimeni@x.ro', password: 'parola123' } }))
+    expect(nobody.status).toBe(401)
+    expect((await nobody.json()).error).toBe('no_account')
     for (let i = 0; i < 4; i++) expect((await login(req('/api/client/login', { method: 'POST', json: { email: 'han@x.ro', password: 'gresit' } }))).status).toBe(401)
     expect((await login(req('/api/client/login', { method: 'POST', json: { email: 'han@x.ro', password: 'gresit' } }))).status).toBe(429)
     expect((await login(req('/api/client/login', { method: 'POST', json: { email: 'han@x.ro', password: 'parola123' } }))).status).toBe(429)

@@ -18,6 +18,7 @@ export default function Invite({ params }: { params: { token: string } }) {
   const [f, setF] = useState({ pin: '', email: '', password: '' })
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
+  const [showPw, setShowPw] = useState(false)
   const t = T[info?.country === 'HU' ? 'hu' : info?.country === 'UK' ? 'en' : 'ro']
 
   useEffect(() => {
@@ -49,8 +50,9 @@ export default function Invite({ params }: { params: { token: string } }) {
           <label className="block text-[13px] font-medium text-slate-600">{t.pin}
             <input className={`${input} mt-1.5 text-center text-2xl tracking-[0.4em]`} inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={f.pin} onChange={e => setF({ ...f, pin: e.target.value.replace(/\D/g, '') })} required />
           </label>
-          <label className="block text-[13px] font-medium text-slate-600">{t.email}<input className={`${input} mt-1.5`} type="email" autoComplete="email" value={f.email} onChange={e => setF({ ...f, email: e.target.value })} required /></label>
-          <label className="block text-[13px] font-medium text-slate-600">{t.pw}<input className={`${input} mt-1.5`} type="password" autoComplete="new-password" value={f.password} onChange={e => setF({ ...f, password: e.target.value })} minLength={8} required /></label>
+          <label className="block text-[13px] font-medium text-slate-600">{t.email}<input className={`${input} mt-1.5`} type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="email" value={f.email} onChange={e => setF({ ...f, email: e.target.value })} required /></label>
+          <label className="block text-[13px] font-medium text-slate-600">{t.pw}<input className={`${input} mt-1.5`} type={showPw ? 'text' : 'password'} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="new-password" value={f.password} onChange={e => setF({ ...f, password: e.target.value })} minLength={8} required /></label>
+          <label className="flex items-center gap-2 text-[13px] text-slate-600"><input type="checkbox" className="w-4 h-4" checked={showPw} onChange={e => setShowPw(e.target.checked)} />{info?.country === 'HU' ? 'Jelszó mutatása' : info?.country === 'UK' ? 'Show password' : 'Arată parola'}</label>
           {err && <p className="text-sm text-rose-600">{err}</p>}
           <button className="w-full h-12 rounded-xl bg-slate-900 text-white font-semibold disabled:opacity-50" disabled={busy || f.pin.length !== 6 || !info}>{busy ? '…' : info?.has_account ? t.resetBtn : t.create}</button>
           {info?.has_account && <p className="text-[13px] text-slate-500 text-center">{t.have} <a className="underline text-slate-800" href="/client">{t.signIn}</a></p>}

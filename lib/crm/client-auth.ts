@@ -92,7 +92,7 @@ export async function registerAccount(businessId: string, email: string, passwor
 export async function login(email: string, password: string) {
   const a = await one<{ id: string; password_hash: string; failed_attempts: number; locked_until: string | null }>(
     'SELECT id, password_hash, failed_attempts, locked_until FROM client_accounts WHERE email = $1', [email.trim().toLowerCase()])
-  if (!a) throw new ClientAuthError('wrong', 401)
+  if (!a) throw new ClientAuthError('no_account', 401)
   if (a.locked_until && new Date(a.locked_until).getTime() > Date.now()) throw new ClientAuthError('locked', 429)
   if (!passwordOk(password, a.password_hash)) {
     const fails = a.failed_attempts + 1

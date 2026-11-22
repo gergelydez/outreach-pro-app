@@ -19,7 +19,7 @@ type Lang = 'ro' | 'hu' | 'en'
 const T = {
   ro: {
     login: 'Intră în cont', email: 'Email', password: 'Parola', signIn: 'Intră', wrong: 'Email sau parolă greșită.', locked: 'Prea multe încercări. Încearcă din nou peste 15 minute.',
-    noAccount: 'Nu ai cont? Deschide linkul de activare primit pe WhatsApp.', error: 'A apărut o eroare. Încearcă din nou.',
+    noAccount: 'Nu ai cont? Deschide linkul de activare primit pe WhatsApp.', noSuchAccount: 'Nu există cont cu acest email. Verifică adresa sau creează contul din linkul de activare.', wrongPw: 'Parola e greșită. Apasă pe ochi ca să vezi ce ai scris.', forgot: 'Ai uitat parola? Cere-i designerului site-ului un cod nou: cu același link îți setezi o parolă nouă.', show: 'Arată parola', hide: 'Ascunde parola', error: 'A apărut o eroare. Încearcă din nou.',
     inbox: 'Mesaje', site: 'Site-ul meu', account: 'Cont', viewSite: 'Vezi site-ul', refresh: 'Reîncarcă',
     fNew: 'Noi', fAll: 'Toate', fReplied: 'Răspunse', emptyNew: 'Niciun mesaj nou. Când cineva completează formularul de pe site, apare aici.', emptyAll: 'Încă niciun mesaj de pe site.',
     call: 'Sună', whatsapp: 'WhatsApp', mail: 'Email', done: 'Rezolvat', checkin: 'Sosire', checkout: 'Plecare', guests: 'persoane', repliedBy: 'Răspuns prin',
@@ -37,7 +37,7 @@ const T = {
   },
   hu: {
     login: 'Belépés', email: 'E-mail', password: 'Jelszó', signIn: 'Belépés', wrong: 'Hibás e-mail vagy jelszó.', locked: 'Túl sok próbálkozás. Próbálja újra 15 perc múlva.',
-    noAccount: 'Nincs még fiókja? Nyissa meg a WhatsAppon kapott aktiváló linket.', error: 'Hiba történt. Próbálja újra.',
+    noAccount: 'Nincs még fiókja? Nyissa meg a WhatsAppon kapott aktiváló linket.', noSuchAccount: 'Ezzel az e-mail címmel nincs fiók. Ellenőrizze a címet, vagy hozza létre a fiókot az aktiváló linkkel.', wrongPw: 'Hibás jelszó. Koppintson a szemre, hogy lássa, mit írt be.', forgot: 'Elfelejtette a jelszót? Kérjen új kódot a weboldal készítőjétől: ugyanazzal a linkkel új jelszót állíthat be.', show: 'Jelszó mutatása', hide: 'Jelszó elrejtése', error: 'Hiba történt. Próbálja újra.',
     inbox: 'Üzenetek', site: 'Weboldalam', account: 'Fiók', viewSite: 'Weboldal', refresh: 'Frissítés',
     fNew: 'Új', fAll: 'Összes', fReplied: 'Megválaszolt', emptyNew: 'Nincs új üzenet. Ha valaki kitölti az űrlapot, itt jelenik meg.', emptyAll: 'Még nem érkezett üzenet.',
     call: 'Hívás', whatsapp: 'WhatsApp', mail: 'E-mail', done: 'Kész', checkin: 'Érkezés', checkout: 'Távozás', guests: 'fő', repliedBy: 'Válasz:',
@@ -55,7 +55,7 @@ const T = {
   },
   en: {
     login: 'Sign in', email: 'Email', password: 'Password', signIn: 'Sign in', wrong: 'Wrong email or password.', locked: 'Too many attempts. Try again in 15 minutes.',
-    noAccount: 'No account yet? Open the activation link you received on WhatsApp.', error: 'Something went wrong. Please try again.',
+    noAccount: 'No account yet? Open the activation link you received on WhatsApp.', noSuchAccount: 'There is no account with this email. Check the address or create the account from your activation link.', wrongPw: 'Wrong password. Tap the eye to see what you typed.', forgot: 'Forgot your password? Ask your website designer for a new code: the same link lets you set a new password.', show: 'Show password', hide: 'Hide password', error: 'Something went wrong. Please try again.',
     inbox: 'Messages', site: 'My website', account: 'Account', viewSite: 'View site', refresh: 'Refresh',
     fNew: 'New', fAll: 'All', fReplied: 'Replied', emptyNew: 'No new messages. When someone fills in your website form, it shows up here.', emptyAll: 'No messages yet.',
     call: 'Call', whatsapp: 'WhatsApp', mail: 'Email', done: 'Done', checkin: 'Check-in', checkout: 'Check-out', guests: 'guests', repliedBy: 'Replied by',
@@ -158,41 +158,57 @@ export default function ClientApp() {
     if (r.ok) { setMe(r.data); setLang(r.data.business.country === 'HU' ? 'hu' : r.data.business.country === 'UK' ? 'en' : 'ro'); setState('ready') }
   }, [])
   useEffect(() => {
-    try { const l = navigator.language.slice(0, 2); if (l === 'hu' || l === 'en') setLang(l) } catch { /* */ }
+    try { const saved = localStorage.getItem('client_lang'); const l = (saved || navigator.language).slice(0, 2); if (l === 'hu' || l === 'en' || l === 'ro') setLang(l as Lang) } catch { /* */ }
     load()
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/client-sw.js', { scope: '/client' }).catch(() => {})
   }, [load])
 
   if (state === 'loading') return <div className="min-h-[100dvh] grid place-items-center bg-[#f4f5f7]"><div className="w-8 h-8 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" /></div>
-  if (state === 'login' || !me) return <Login t={t} onDone={load} />
+  if (state === 'login' || !me) return <Login t={t} lang={lang} setLang={l => { setLang(l); try { localStorage.setItem('client_lang', l) } catch { /* */ } }} onDone={load} />
   return <Shell me={me} t={t} lang={lang} reload={load} setMe={setMe} />
 }
 
-function Login({ t, onDone }: { t: typeof T.ro; onDone: () => void }) {
+function Login({ t, lang, setLang, onDone }: { t: typeof T.ro; lang: Lang; setLang: (l: Lang) => void; onDone: () => void }) {
   const [email, setEmail] = useState('')
   const [pw, setPw] = useState('')
+  const [showPw, setShowPw] = useState(false)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setErr('')
-    const r = await call('/api/client/login', 'POST', { email, password: pw })
+    const r = await call<{ error?: string }>('/api/client/login', 'POST', { email: email.trim(), password: pw })
     setBusy(false)
     if (r.ok) onDone()
-    else setErr(r.status === 429 ? t.locked : r.status === 401 ? t.wrong : t.error)
+    else setErr(r.status === 429 ? t.locked : r.status === 401 ? (r.data.error === 'no_account' ? t.noSuchAccount : t.wrongPw) : t.error)
   }
   return (
     <main className="min-h-[100dvh] bg-[#f4f5f7] text-slate-900 flex flex-col">
       <div className="bg-slate-900 text-white px-6 pt-[max(48px,env(safe-area-inset-top))] pb-16">
         <img src="/icons/client-192.png" alt="" className="w-12 h-12 rounded-xl mb-5" />
-        <h1 className="text-[28px] font-semibold tracking-tight">{t.login}</h1>
+        <div className="flex items-end justify-between gap-3">
+          <h1 className="text-[28px] font-semibold tracking-tight">{t.login}</h1>
+          <div className="flex gap-1 text-[12px] font-medium">
+            {(['ro', 'hu', 'en'] as Lang[]).map(l => <button key={l} type="button" onClick={() => setLang(l)} className={`h-8 px-2.5 rounded-full uppercase ${lang === l ? 'bg-white text-slate-900' : 'bg-white/10 text-slate-300'}`}>{l}</button>)}
+          </div>
+        </div>
       </div>
       <form onSubmit={submit} className={`${card} mx-4 -mt-10 p-5 space-y-4`}>
-        <label className="block text-[13px] font-medium text-slate-600">{t.email}<input className={`${input} mt-1.5`} type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required /></label>
-        <label className="block text-[13px] font-medium text-slate-600">{t.password}<input className={`${input} mt-1.5`} type="password" autoComplete="current-password" value={pw} onChange={e => setPw(e.target.value)} required /></label>
+        <label className="block text-[13px] font-medium text-slate-600">{t.email}<input className={`${input} mt-1.5`} type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required /></label>
+        <label className="block text-[13px] font-medium text-slate-600">{t.password}
+          <div className="relative mt-1.5">
+            <input className={`${input} pr-12`} type={showPw ? 'text' : 'password'} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="current-password" value={pw} onChange={e => setPw(e.target.value)} required />
+            <button type="button" aria-label={showPw ? t.hide : t.show} onClick={() => setShowPw(v => !v)} className="absolute right-1.5 top-1/2 -translate-y-1/2 h-9 w-9 grid place-items-center rounded-lg text-slate-500">
+              {showPw
+                ? <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><path d="m1 1 22 22" /></svg>
+                : <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>}
+            </button>
+          </div>
+        </label>
         {err && <p className="text-sm text-rose-600">{err}</p>}
         <button className="w-full h-12 rounded-xl bg-slate-900 text-white font-semibold disabled:opacity-50 active:scale-[.98] transition" disabled={busy}>{busy ? '…' : t.signIn}</button>
       </form>
       <p className="mx-6 mt-5 text-[13px] text-slate-500 text-center">{t.noAccount}</p>
+      <p className="mx-6 mt-2 text-[13px] text-slate-500 text-center">{t.forgot}</p>
     </main>
   )
 }
