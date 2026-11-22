@@ -539,25 +539,32 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
     setPhotoCount(0); setUploadMsg('')
   }
   // panoul clientului: link + PIN, de unde își schimbă singur tarifele, ofertele, pozele și contactul
-  const [portal, setPortal] = useState<{ exists: boolean; link: string | null; ready: boolean; pin?: string } | null>(null)
+  const [portal, setPortal] = useState<{ exists: boolean; link: string | null; ready: boolean; pin?: string; account?: { email: string; last_login_at: string | null } | null; live_url?: string | null } | null>(null)
+  const [liveUrl, setLiveUrl] = useState('')
   useEffect(() => {
     if (!open || !r.preview_url || !['won', 'interested', 'negotiation', 'proposal_sent', 'call_meeting', 'replied'].includes(r.stage)) return
-    api<{ exists: boolean; link: string | null; ready: boolean }>(`/api/crm/leads/${r.id}/portal`).then(setPortal).catch(() => {})
+    api<{ exists: boolean; link: string | null; ready: boolean; account: { email: string; last_login_at: string | null } | null; live_url: string | null }>(`/api/crm/leads/${r.id}/portal`).then(d => { setPortal(d); setLiveUrl(d.live_url || '') }).catch(() => {})
   }, [open, r.preview_url, r.stage, r.id, demoRunning])
   async function activatePortal() {
     setErr(''); setBusy('portal')
     try {
       const d = await api<{ link: string; pin: string; markup: string }>(`/api/crm/leads/${r.id}/portal`, { json: { anthropic_key: keys.anthropic || undefined, designer: templates.me } })
-      setPortal({ exists: true, link: d.link, ready: d.markup === 'ready', pin: d.pin })
+      setPortal(x => ({ ...(x || {}), exists: true, link: d.link, ready: d.markup === 'ready', pin: d.pin }))
       if (d.markup === 'running') { setEditing(true); onChange({ demo_status: 'running', demo_error: null, demo_started_at: new Date().toISOString() }) }
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
     setBusy('')
   }
+  const reset = !!portal?.account
   const portalMsg = portal?.link && portal.pin ? (country === 'HU'
-    ? `Jó napot! Itt tudja Ön is módosítani az árakat, ajánlatokat, képeket és az elérhetőséget az oldalon:\n${portal.link}\nBelépési kód: ${portal.pin}\nA változások a Mentés után néhány másodperc múlva megjelennek. 🙂`
+    ? (reset ? `Jó napot! Itt tud új jelszót beállítani a weboldal kezelőfelületéhez:\n${portal.link}\nKód: ${portal.pin}` : `Jó napot! Itt hozhatja létre a fiókját a weboldal kezelőfelületéhez (üzenetek az ügyfelektől, árak, ajánlatok, képek):\n${portal.link}\nAktiváló kód: ${portal.pin}\nBelépés után alkalmazásként telepítheti a telefonjára, és értesítést kap minden új üzenetről. 🙂`)
     : country === 'UK'
-    ? `Hi! Here you can update the prices, offers, photos and contact details on your website yourself:\n${portal.link}\nAccess code: ${portal.pin}\nChanges show on the site a few seconds after you tap Save. 🙂`
-    : `Bună ziua! Aici puteți schimba singuri tarifele, ofertele, pozele și datele de contact de pe site:\n${portal.link}\nCod de acces: ${portal.pin}\nModificările apar pe site în câteva secunde după ce apăsați Salvează. 🙂`) : ''
+    ? (reset ? `Hi! You can set a new password for your website panel here:\n${portal.link}\nCode: ${portal.pin}` : `Hi! Create your account for your website panel here (customer messages, prices, offers, photos):\n${portal.link}\nActivation code: ${portal.pin}\nOnce in, you can install it on your phone as an app and get a notification for every new message. 🙂`)
+    : (reset ? `Bună ziua! Aici vă puteți seta o parolă nouă pentru panoul site-ului:\n${portal.link}\nCod: ${portal.pin}` : `Bună ziua! Aici vă creați contul pentru panoul site-ului (mesajele de la clienți, tarife, oferte, poze):\n${portal.link}\nCod de activare: ${portal.pin}\nDupă ce intrați, îl puteți instala pe telefon ca aplicație și primiți notificare la fiecare mesaj nou. 🙂`)) : ''
+  async function saveLive() {
+    setBusy('live'); setErr('')
+    try { await api(`/api/crm/leads/${r.id}`, { method: 'PATCH', json: { live_url: liveUrl.trim() } }); setInfoMsg('Adresa site-ului a fost salvată.') } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+    setBusy('')
+  }
   // formularul de pe site: unde ajung mesajele + ce a venit deja
   const [forms, setForms] = useState<{ recipient: string; fromPanel: boolean; emailReady: boolean; messages: { id: string; name: string; email: string; phone: string; message: string; created_at: string }[] } | null>(null)
   const [formEmail, setFormEmail] = useState('')
@@ -874,7 +881,8 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
               )}
               {portal && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5 space-y-2">
-                  <div className="text-[12px] font-medium text-amber-900">🔑 Panou pentru client (tarife, oferte, poze, contact)</div>
+                  <div className="text-[12px] font-medium text-amber-900">📱 Aplicația clientului (mesaje, tarife, oferte, poze)</div>
+                  {portal.account && <p className="text-[12px] text-emerald-800">✓ Are cont: <b>{portal.account.email}</b>{portal.account.last_login_at ? ` · ultima intrare ${new Date(portal.account.last_login_at).toLocaleDateString('ro-RO')}` : ''}</p>}
                   {portal.pin ? (
                     <>
                       <div className="text-[13px] text-slate-800 break-all">Link: <a className="underline" href={portal.link || '#'} target="_blank" rel="noreferrer">{portal.link}</a></div>
@@ -886,9 +894,13 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
                       </div>
                     </>
                   ) : portal.exists ? (
-                    <p className="text-[12px] text-slate-700">Panoul e activ{portal.ready ? '' : ' (site-ul se pregătește)'}. <a className="underline" href={portal.link || '#'} target="_blank" rel="noreferrer">Deschide panoul</a>. Dacă clientul a uitat codul, fă unul nou (linkul rămâne același).</p>
-                  ) : <p className="text-[12px] text-slate-700">Clientul primește un link și un cod de 6 cifre și își schimbă singur tarifele, ofertele, pozele și datele de contact, de pe telefon. Site-ul se actualizează singur (și cel publicat pe domeniul lui).</p>}
-                  <Button size="sm" variant={portal.exists ? 'secondary' : 'primary'} className="h-9" loading={busy === 'portal'} disabled={demoRunning} onClick={activatePortal}>{portal.exists ? '🔄 Cod nou pentru client' : '🔑 Activează panoul clientului'}</Button>
+                    <p className="text-[12px] text-slate-700">{portal.account ? 'Clientul intră în aplicație cu emailul și parola lui, la adresa /client.' : 'Linkul de activare e trimis; clientul încă nu și-a creat contul.'}{portal.ready ? '' : ' Site-ul se pregătește.'} Dacă a uitat parola sau codul, fă un cod nou: cu același link își setează o parolă nouă.</p>
+                  ) : <p className="text-[12px] text-slate-700">Clientul primește un link și un cod de 6 cifre, își face cont (email + parolă) și are o aplicație pe telefon: primește mesajele de pe site cu notificare, răspunde dintr-o atingere (telefon, WhatsApp, email) și își schimbă tarifele, ofertele, pozele și contactul. Site-ul se actualizează singur.</p>}
+                  <div className="flex gap-2">
+                    <input className="flex-1 h-9 rounded-md border border-slate-300 bg-white px-2 text-[13px] text-slate-900" placeholder="Adresa site-ului live (ex. hanulizvorulrece.ro)" value={liveUrl} onChange={e => setLiveUrl(e.target.value)} />
+                    <Button size="sm" className="h-9" loading={busy === 'live'} disabled={liveUrl.trim() === (portal.live_url || '')} onClick={saveLive}>Salvează</Button>
+                  </div>
+                  <Button size="sm" variant={portal.exists ? 'secondary' : 'primary'} className="h-9" loading={busy === 'portal'} disabled={demoRunning} onClick={activatePortal}>{portal.exists ? (portal.account ? '🔄 Cod nou (resetare parolă)' : '🔄 Cod nou pentru client') : '📱 Activează aplicația clientului'}</Button>
                 </div>
               )}
               {['won', 'interested', 'call_meeting', 'proposal_sent', 'negotiation', 'replied'].includes(r.stage) && (

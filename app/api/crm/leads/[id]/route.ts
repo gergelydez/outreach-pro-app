@@ -43,6 +43,8 @@ const EDITABLE: Record<string, (v: unknown) => unknown> = {
   consent_notes: v => str(v, 1000),
   next_follow_up_at: v => (v ? new Date(String(v)).toISOString() : null),
   website_url: v => str(v, 300),
+  // adresa site-ului publicat (pentru butonul „Vezi site-ul” din aplicația clientului)
+  live_url: v => { const u = str(v, 300); return u ? (/^https?:\/\//i.test(u) ? u : `https://${u}`) : null },
   possible_duplicate_of: v => (v === null ? null : undefined), // doar „nu e duplicat”
 }
 

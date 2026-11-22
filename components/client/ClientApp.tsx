@@ -1,0 +1,487 @@
+'use client'
+
+// Aplicația clientului (instalabilă pe telefon): mesajele de pe site cu răspuns dintr-o atingere
+// (telefon, WhatsApp, email), editarea tarifelor / ofertelor / galeriei / contactului, contul și notificările.
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { shrinkImage } from '@/lib/client-image'
+import { normalizePhone, waDigits, asCountry } from '@/lib/crm/countries'
+
+interface Content {
+  contact: { phone: string; email: string; address: string; hours: string }
+  prices: { name: string; price: string; note: string }[]
+  offers: { title: string; text: string; from: string; to: string; active: boolean }[]
+  gallery: { src: string; alt: string }[]
+}
+interface Msg { id: string; name: string; email: string; phone: string; message: string; extra: Record<string, string> | null; status: string; replied_via: string | null; created_at: string }
+interface Me { account: { email: string }; business: { id: string; name: string; country: string; preview_url: string | null; live_url: string | null }; content: Content; messages: Msg[]; vapidPublicKey: string }
+type Lang = 'ro' | 'hu' | 'en'
+
+const T = {
+  ro: {
+    login: 'Intră în cont', email: 'Email', password: 'Parola', signIn: 'Intră', wrong: 'Email sau parolă greșită.', locked: 'Prea multe încercări. Încearcă din nou peste 15 minute.',
+    noAccount: 'Nu ai cont? Deschide linkul de activare primit pe WhatsApp.', error: 'A apărut o eroare. Încearcă din nou.',
+    inbox: 'Mesaje', site: 'Site-ul meu', account: 'Cont', viewSite: 'Vezi site-ul', refresh: 'Reîncarcă',
+    fNew: 'Noi', fAll: 'Toate', fReplied: 'Răspunse', emptyNew: 'Niciun mesaj nou. Când cineva completează formularul de pe site, apare aici.', emptyAll: 'Încă niciun mesaj de pe site.',
+    call: 'Sună', whatsapp: 'WhatsApp', mail: 'Email', done: 'Rezolvat', checkin: 'Sosire', checkout: 'Plecare', guests: 'persoane', repliedBy: 'Răspuns prin',
+    via: { phone: 'telefon', whatsapp: 'WhatsApp', email: 'email' } as Record<string, string>,
+    greet: (n: string) => `Bună ziua${n ? `, ${n}` : ''}! Vă mulțumim pentru mesajul trimis de pe site. `, mailSubject: 'Răspuns la mesajul dumneavoastră',
+    prices: 'Tarife', offers: 'Oferte', gallery: 'Galerie', contact: 'Contact', name: 'Denumire', price: 'Preț', note: 'Notă (opțional)', addPrice: 'Adaugă tarif',
+    offerTitle: 'Titlu', offerText: 'Descriere', from: 'De la', to: 'Până la', active: 'Activă pe site', addOffer: 'Adaugă ofertă', offersHint: 'Ofertele expirate dispar singure de pe site.',
+    addPhotos: 'Adaugă poze', uploading: 'Se încarcă…', galleryHint: 'Ordinea de aici este ordinea de pe site.', phone: 'Telefon', address: 'Adresă', hours: 'Program', contactEmail: 'Email (aici primești și mesajele de pe site)',
+    save: 'Salvează', saving: 'Se salvează…', saved: 'Salvat. Apare pe site în câteva secunde.', unsaved: 'Modificări nesalvate', remove: 'Șterge',
+    notif: 'Notificări pe telefon', notifOn: 'Activează notificările', notifOff: 'Oprește notificările', notifActive: 'Primești o notificare la fiecare mesaj nou.', notifBlocked: 'Notificările sunt blocate în setările browserului.',
+    notifIos: 'Pe iPhone, notificările merg după ce instalezi aplicația pe ecranul principal.', install: 'Instalează aplicația', installBtn: 'Instalează pe telefon',
+    installIos: 'Pe iPhone: apasă Distribuie, apoi „Adaugă pe ecranul principal”.', installAndroid: 'Sau din meniul browserului ⋮: „Instalează aplicația” / „Adaugă pe ecranul de pornire”.', installed: 'Aplicația este instalată.',
+    changePw: 'Schimbă parola', currentPw: 'Parola actuală', newPw: 'Parola nouă (minim 8 caractere)', pwSaved: 'Parola a fost schimbată.', logout: 'Ieși din cont', signedAs: 'Conectat ca',
+    today: 'azi', yesterday: 'ieri',
+  },
+  hu: {
+    login: 'Belépés', email: 'E-mail', password: 'Jelszó', signIn: 'Belépés', wrong: 'Hibás e-mail vagy jelszó.', locked: 'Túl sok próbálkozás. Próbálja újra 15 perc múlva.',
+    noAccount: 'Nincs még fiókja? Nyissa meg a WhatsAppon kapott aktiváló linket.', error: 'Hiba történt. Próbálja újra.',
+    inbox: 'Üzenetek', site: 'Weboldalam', account: 'Fiók', viewSite: 'Weboldal', refresh: 'Frissítés',
+    fNew: 'Új', fAll: 'Összes', fReplied: 'Megválaszolt', emptyNew: 'Nincs új üzenet. Ha valaki kitölti az űrlapot, itt jelenik meg.', emptyAll: 'Még nem érkezett üzenet.',
+    call: 'Hívás', whatsapp: 'WhatsApp', mail: 'E-mail', done: 'Kész', checkin: 'Érkezés', checkout: 'Távozás', guests: 'fő', repliedBy: 'Válasz:',
+    via: { phone: 'telefon', whatsapp: 'WhatsApp', email: 'e-mail' } as Record<string, string>,
+    greet: (n: string) => `Jó napot${n ? `, ${n}` : ''}! Köszönjük az üzenetét. `, mailSubject: 'Válasz az üzenetére',
+    prices: 'Árak', offers: 'Ajánlatok', gallery: 'Galéria', contact: 'Elérhetőség', name: 'Megnevezés', price: 'Ár', note: 'Megjegyzés (nem kötelező)', addPrice: 'Új ár',
+    offerTitle: 'Cím', offerText: 'Leírás', from: 'Kezdete', to: 'Vége', active: 'Aktív az oldalon', addOffer: 'Új ajánlat', offersHint: 'A lejárt ajánlatok automatikusan eltűnnek.',
+    addPhotos: 'Képek hozzáadása', uploading: 'Feltöltés…', galleryHint: 'Az itteni sorrend az oldalon is ugyanaz.', phone: 'Telefon', address: 'Cím', hours: 'Nyitvatartás', contactEmail: 'E-mail (ide érkeznek az üzenetek is)',
+    save: 'Mentés', saving: 'Mentés…', saved: 'Mentve. Néhány másodperc múlva megjelenik az oldalon.', unsaved: 'Nem mentett változások', remove: 'Törlés',
+    notif: 'Értesítések', notifOn: 'Értesítések bekapcsolása', notifOff: 'Értesítések kikapcsolása', notifActive: 'Minden új üzenetről értesítést kap.', notifBlocked: 'Az értesítések le vannak tiltva a böngészőben.',
+    notifIos: 'iPhone-on az értesítések a kezdőképernyőre telepítés után működnek.', install: 'Alkalmazás telepítése', installBtn: 'Telepítés a telefonra',
+    installIos: 'iPhone-on: Megosztás, majd „Főképernyőhöz adás”.', installAndroid: 'Vagy a böngésző menüjéből ⋮: „Alkalmazás telepítése”.', installed: 'Az alkalmazás telepítve van.',
+    changePw: 'Jelszó módosítása', currentPw: 'Jelenlegi jelszó', newPw: 'Új jelszó (legalább 8 karakter)', pwSaved: 'A jelszó megváltozott.', logout: 'Kilépés', signedAs: 'Bejelentkezve:',
+    today: 'ma', yesterday: 'tegnap',
+  },
+  en: {
+    login: 'Sign in', email: 'Email', password: 'Password', signIn: 'Sign in', wrong: 'Wrong email or password.', locked: 'Too many attempts. Try again in 15 minutes.',
+    noAccount: 'No account yet? Open the activation link you received on WhatsApp.', error: 'Something went wrong. Please try again.',
+    inbox: 'Messages', site: 'My website', account: 'Account', viewSite: 'View site', refresh: 'Refresh',
+    fNew: 'New', fAll: 'All', fReplied: 'Replied', emptyNew: 'No new messages. When someone fills in your website form, it shows up here.', emptyAll: 'No messages yet.',
+    call: 'Call', whatsapp: 'WhatsApp', mail: 'Email', done: 'Done', checkin: 'Check-in', checkout: 'Check-out', guests: 'guests', repliedBy: 'Replied by',
+    via: { phone: 'phone', whatsapp: 'WhatsApp', email: 'email' } as Record<string, string>,
+    greet: (n: string) => `Hello${n ? ` ${n}` : ''}, thank you for your message. `, mailSubject: 'Re: your message',
+    prices: 'Prices', offers: 'Offers', gallery: 'Gallery', contact: 'Contact', name: 'Name', price: 'Price', note: 'Note (optional)', addPrice: 'Add price',
+    offerTitle: 'Title', offerText: 'Description', from: 'From', to: 'Until', active: 'Live on site', addOffer: 'Add offer', offersHint: 'Expired offers disappear automatically.',
+    addPhotos: 'Add photos', uploading: 'Uploading…', galleryHint: 'The order here is the order on your site.', phone: 'Phone', address: 'Address', hours: 'Opening hours', contactEmail: 'Email (website messages also go here)',
+    save: 'Save', saving: 'Saving…', saved: 'Saved. It shows on your site in a few seconds.', unsaved: 'Unsaved changes', remove: 'Remove',
+    notif: 'Notifications', notifOn: 'Turn on notifications', notifOff: 'Turn off notifications', notifActive: 'You get a notification for every new message.', notifBlocked: 'Notifications are blocked in your browser settings.',
+    notifIos: 'On iPhone, notifications work after you add the app to your home screen.', install: 'Install the app', installBtn: 'Install on phone',
+    installIos: 'On iPhone: tap Share, then “Add to Home Screen”.', installAndroid: 'Or from the browser menu ⋮: “Install app”.', installed: 'The app is installed.',
+    changePw: 'Change password', currentPw: 'Current password', newPw: 'New password (at least 8 characters)', pwSaved: 'Password changed.', logout: 'Sign out', signedAs: 'Signed in as',
+    today: 'today', yesterday: 'yesterday',
+  },
+}
+
+const input = 'w-full h-12 rounded-xl border border-slate-200 bg-white px-3.5 text-[15px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
+const card = 'bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_2px_rgba(15,23,42,.04),0_4px_16px_rgba(15,23,42,.04)]'
+
+const Icon = {
+  inbox: <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" /></svg>,
+  site: <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5" /><path d="M3 9h18" /><path d="M8 14h5" /></svg>,
+  user: <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>,
+  phone: <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" /></svg>,
+  wa: <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="currentColor"><path d="M17.47 14.38c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.61-.92-2.2-.24-.58-.49-.5-.67-.5h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.06 2.88 1.21 3.08c.15.2 2.1 3.2 5.08 4.48.71.31 1.26.49 1.69.63.71.22 1.36.19 1.87.12.57-.09 1.75-.72 2-1.41.25-.69.25-1.29.17-1.41-.07-.12-.27-.2-.57-.35zM12.05 21.8a9.8 9.8 0 0 1-5-1.37l-.36-.21-3.72.97.99-3.62-.24-.37A9.8 9.8 0 1 1 12.05 21.8zm8.42-18.22A11.82 11.82 0 0 0 12.05 0C5.5 0 .16 5.33.16 11.88c0 2.1.55 4.14 1.59 5.94L.06 24l6.33-1.66a11.86 11.86 0 0 0 5.66 1.44h.01c6.55 0 11.88-5.33 11.89-11.88a11.8 11.8 0 0 0-3.48-8.32z" /></svg>,
+  mail: <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2.5" /><path d="m22 7-10 6L2 7" /></svg>,
+  check: <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>,
+  refresh: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8" /><path d="M21 3v5h-5" /></svg>,
+  ext: <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17 17 7" /><path d="M8 7h9v9" /></svg>,
+  up: <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="m6 15 6-6 6 6" /></svg>,
+  down: <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="m6 9 6 6 6-6" /></svg>,
+  trash: <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /></svg>,
+  plus: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>,
+  cal: <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>,
+}
+
+function move<X>(list: X[], i: number, d: number): X[] { const j = i + d; if (j < 0 || j >= list.length) return list; const c = list.slice(); [c[i], c[j]] = [c[j], c[i]]; return c }
+function b64ToUint8(s: string) { const pad = '='.repeat((4 - (s.length % 4)) % 4); const raw = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(raw, c => c.charCodeAt(0)) }
+
+async function call<T = unknown>(path: string, method = 'GET', body?: unknown): Promise<{ ok: boolean; status: number; data: T }> {
+  const res = await fetch(path, { method, headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined, body: body !== undefined ? JSON.stringify(body) : undefined, cache: 'no-store', credentials: 'same-origin' })
+  const data = await res.json().catch(() => ({})) as T
+  return { ok: res.ok, status: res.status, data }
+}
+
+export default function ClientApp() {
+  const [me, setMe] = useState<Me | null>(null)
+  const [state, setState] = useState<'loading' | 'login' | 'ready'>('loading')
+  const [lang, setLang] = useState<Lang>('ro')
+  const t = T[lang]
+
+  const load = useCallback(async () => {
+    const r = await call<Me>('/api/client/me')
+    if (r.status === 401) { setState('login'); return }
+    if (r.ok) { setMe(r.data); setLang(r.data.business.country === 'HU' ? 'hu' : r.data.business.country === 'UK' ? 'en' : 'ro'); setState('ready') }
+  }, [])
+  useEffect(() => {
+    try { const l = navigator.language.slice(0, 2); if (l === 'hu' || l === 'en') setLang(l) } catch { /* */ }
+    load()
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/client-sw.js', { scope: '/client' }).catch(() => {})
+  }, [load])
+
+  if (state === 'loading') return <div className="min-h-[100dvh] grid place-items-center bg-[#f4f5f7]"><div className="w-8 h-8 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" /></div>
+  if (state === 'login' || !me) return <Login t={t} onDone={load} />
+  return <Shell me={me} t={t} lang={lang} reload={load} setMe={setMe} />
+}
+
+function Login({ t, onDone }: { t: typeof T.ro; onDone: () => void }) {
+  const [email, setEmail] = useState('')
+  const [pw, setPw] = useState('')
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+  async function submit(e: React.FormEvent) {
+    e.preventDefault(); setBusy(true); setErr('')
+    const r = await call('/api/client/login', 'POST', { email, password: pw })
+    setBusy(false)
+    if (r.ok) onDone()
+    else setErr(r.status === 429 ? t.locked : r.status === 401 ? t.wrong : t.error)
+  }
+  return (
+    <main className="min-h-[100dvh] bg-[#f4f5f7] text-slate-900 flex flex-col">
+      <div className="bg-slate-900 text-white px-6 pt-[max(48px,env(safe-area-inset-top))] pb-16">
+        <img src="/icons/client-192.png" alt="" className="w-12 h-12 rounded-xl mb-5" />
+        <h1 className="text-[28px] font-semibold tracking-tight">{t.login}</h1>
+      </div>
+      <form onSubmit={submit} className={`${card} mx-4 -mt-10 p-5 space-y-4`}>
+        <label className="block text-[13px] font-medium text-slate-600">{t.email}<input className={`${input} mt-1.5`} type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required /></label>
+        <label className="block text-[13px] font-medium text-slate-600">{t.password}<input className={`${input} mt-1.5`} type="password" autoComplete="current-password" value={pw} onChange={e => setPw(e.target.value)} required /></label>
+        {err && <p className="text-sm text-rose-600">{err}</p>}
+        <button className="w-full h-12 rounded-xl bg-slate-900 text-white font-semibold disabled:opacity-50 active:scale-[.98] transition" disabled={busy}>{busy ? '…' : t.signIn}</button>
+      </form>
+      <p className="mx-6 mt-5 text-[13px] text-slate-500 text-center">{t.noAccount}</p>
+    </main>
+  )
+}
+
+function Shell({ me, t, lang, reload, setMe }: { me: Me; t: typeof T.ro; lang: Lang; reload: () => Promise<void>; setMe: (m: Me) => void }) {
+  const [tab, setTab] = useState<'inbox' | 'site' | 'account'>('inbox')
+  const unread = me.messages.filter(m => m.status === 'new').length
+  const siteUrl = me.business.live_url || me.business.preview_url
+  const [spinning, setSpinning] = useState(false)
+  const refresh = useCallback(async () => { setSpinning(true); await reload(); setTimeout(() => setSpinning(false), 400) }, [reload])
+
+  useEffect(() => {
+    const nav = navigator as Navigator & { setAppBadge?: (n?: number) => Promise<void>; clearAppBadge?: () => Promise<void> }
+    if (unread) nav.setAppBadge?.(unread).catch(() => {}); else nav.clearAppBadge?.().catch(() => {})
+  }, [unread])
+  useEffect(() => {
+    const onVis = () => { if (document.visibilityState === 'visible') reload() }
+    const onMsg = (e: MessageEvent) => { if (e.data?.type === 'refresh') reload() }
+    document.addEventListener('visibilitychange', onVis)
+    navigator.serviceWorker?.addEventListener('message', onMsg)
+    const iv = setInterval(() => { if (document.visibilityState === 'visible') reload() }, 60_000)
+    return () => { document.removeEventListener('visibilitychange', onVis); navigator.serviceWorker?.removeEventListener('message', onMsg); clearInterval(iv) }
+  }, [reload])
+
+  const tabs: { k: typeof tab; label: string; icon: JSX.Element; badge?: number }[] = [
+    { k: 'inbox', label: t.inbox, icon: Icon.inbox, badge: unread },
+    { k: 'site', label: t.site, icon: Icon.site },
+    { k: 'account', label: t.account, icon: Icon.user },
+  ]
+  return (
+    <div className="min-h-[100dvh] bg-[#f4f5f7] text-slate-900">
+      <header className="sticky top-0 z-30 bg-slate-900 text-white pt-[env(safe-area-inset-top)]">
+        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center gap-3">
+          <img src="/icons/client-192.png" alt="" className="w-8 h-8 rounded-lg" />
+          <div className="min-w-0 flex-1">
+            <div className="text-[11px] uppercase tracking-[.14em] text-slate-400">{tabs.find(x => x.k === tab)?.label}</div>
+            <div className="font-semibold leading-tight truncate">{me.business.name}</div>
+          </div>
+          {siteUrl && <a href={siteUrl} target="_blank" rel="noreferrer" className="h-9 px-3 inline-flex items-center gap-1 rounded-full bg-white/10 text-[13px]">{t.viewSite} {Icon.ext}</a>}
+          <button aria-label={t.refresh} onClick={refresh} className="h-9 w-9 grid place-items-center rounded-full bg-white/10"><span className={spinning ? 'animate-spin' : ''}>{Icon.refresh}</span></button>
+        </div>
+      </header>
+      <main className="max-w-2xl mx-auto px-4 pt-4 pb-[calc(96px+env(safe-area-inset-bottom))]">
+        {tab === 'inbox' && <Inbox me={me} t={t} lang={lang} setMe={setMe} />}
+        {tab === 'site' && <SiteEditor me={me} t={t} setMe={setMe} />}
+        {tab === 'account' && <Account me={me} t={t} />}
+      </main>
+      <nav className="fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur border-t border-slate-200 pb-[env(safe-area-inset-bottom)]">
+        <div className="max-w-2xl mx-auto grid grid-cols-3">
+          {tabs.map(x => (
+            <button key={x.k} onClick={() => setTab(x.k)} className={`relative h-16 flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${tab === x.k ? 'text-teal-700' : 'text-slate-500'}`}>
+              <span className="relative">{x.icon}{!!x.badge && <span className="absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold grid place-items-center">{x.badge > 99 ? '99+' : x.badge}</span>}</span>
+              {x.label}
+              {tab === x.k && <span className="absolute top-0 h-[3px] w-10 rounded-b-full bg-teal-600" />}
+            </button>
+          ))}
+        </div>
+      </nav>
+    </div>
+  )
+}
+
+function when(iso: string, t: typeof T.ro, lang: Lang) {
+  const d = new Date(iso), now = new Date()
+  const loc = lang === 'hu' ? 'hu-HU' : lang === 'en' ? 'en-GB' : 'ro-RO'
+  const time = d.toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' })
+  const days = Math.floor((new Date(now.toDateString()).getTime() - new Date(d.toDateString()).getTime()) / 864e5)
+  return days === 0 ? `${t.today}, ${time}` : days === 1 ? `${t.yesterday}, ${time}` : d.toLocaleDateString(loc, { day: 'numeric', month: 'short' }) + `, ${time}`
+}
+
+function Inbox({ me, t, lang, setMe }: { me: Me; t: typeof T.ro; lang: Lang; setMe: (m: Me) => void }) {
+  const [filter, setFilter] = useState<'new' | 'all' | 'replied'>(() => (me.messages.some(m => m.status === 'new') ? 'new' : 'all'))
+  const [openId, setOpenId] = useState<string | null>(null)
+  const list = me.messages.filter(m => m.status !== 'archived' && (filter === 'all' || (filter === 'new' ? m.status === 'new' : m.status === 'replied')))
+  const country = asCountry(me.business.country)
+
+  function patch(id: string, status: string, via?: string) {
+    setMe({ ...me, messages: me.messages.map(m => (m.id === id ? { ...m, status, replied_via: via || m.replied_via } : m)) })
+    call('/api/client/messages', 'PATCH', { id, status, via })
+  }
+  function open(m: Msg) { setOpenId(openId === m.id ? null : m.id); if (m.status === 'new') patch(m.id, 'read') }
+
+  const counts = { new: me.messages.filter(m => m.status === 'new').length, replied: me.messages.filter(m => m.status === 'replied').length }
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 p-1 rounded-xl bg-slate-200/70 text-[13px] font-medium">
+        {([['new', `${t.fNew}${counts.new ? ` · ${counts.new}` : ''}`], ['all', t.fAll], ['replied', t.fReplied]] as const).map(([k, l]) => (
+          <button key={k} onClick={() => setFilter(k)} className={`h-9 rounded-lg ${filter === k ? 'bg-white shadow-sm text-slate-900' : 'text-slate-600'}`}>{l}</button>
+        ))}
+      </div>
+      {!list.length && (
+        <div className={`${card} p-8 text-center`}>
+          <div className="mx-auto w-12 h-12 rounded-full bg-slate-100 grid place-items-center text-slate-400 mb-3">{Icon.inbox}</div>
+          <p className="text-[14px] text-slate-500">{filter === 'new' ? t.emptyNew : t.emptyAll}</p>
+        </div>
+      )}
+      {list.map(m => {
+        const who = m.name || m.email || m.phone
+        const digits = m.phone ? waDigits(normalizePhone(m.phone, country) || '') : null
+        const greet = t.greet(m.name.split(' ')[0] || '')
+        const isOpen = openId === m.id || m.status === 'new'
+        return (
+          <article key={m.id} className={`${card} overflow-hidden ${m.status === 'new' ? 'ring-1 ring-teal-500/30' : ''}`}>
+            <button className="w-full text-left p-4 flex gap-3" onClick={() => open(m)}>
+              <div className={`shrink-0 w-11 h-11 rounded-full grid place-items-center font-semibold ${m.status === 'new' ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'}`}>{(who || '?').trim().charAt(0).toUpperCase()}</div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline justify-between gap-2">
+                  <div className={`truncate ${m.status === 'new' ? 'font-semibold' : 'font-medium'}`}>{who}</div>
+                  <div className="shrink-0 text-[12px] text-slate-400">{when(m.created_at, t, lang)}</div>
+                </div>
+                {m.extra && (m.extra.checkin || m.extra.checkout || m.extra.guests) && (
+                  <div className="mt-1 inline-flex items-center gap-1.5 text-[12px] text-teal-800 bg-teal-50 rounded-full px-2 py-0.5">{Icon.cal}{[m.extra.checkin, m.extra.checkout].filter(Boolean).join(' → ')}{m.extra.guests ? ` · ${m.extra.guests} ${t.guests}` : ''}</div>
+                )}
+                <p className={`mt-1 text-[14px] text-slate-600 whitespace-pre-wrap ${isOpen ? '' : 'line-clamp-2'}`}>{m.message}</p>
+                {m.status === 'replied' && m.replied_via && <div className="mt-1.5 text-[12px] text-emerald-700 flex items-center gap-1">{Icon.check}{t.repliedBy} {t.via[m.replied_via]}</div>}
+              </div>
+            </button>
+            {isOpen && (
+              <div className="px-4 pb-4 grid grid-cols-4 gap-2">
+                {m.phone ? <a href={`tel:${m.phone.replace(/[^\d+]/g, '')}`} onClick={() => patch(m.id, 'replied', 'phone')} className="h-12 rounded-xl bg-slate-900 text-white flex flex-col items-center justify-center text-[11px] gap-0.5">{Icon.phone}{t.call}</a> : <span />}
+                {digits ? <a href={`https://wa.me/${digits}?text=${encodeURIComponent(greet)}`} target="_blank" rel="noreferrer" onClick={() => patch(m.id, 'replied', 'whatsapp')} className="h-12 rounded-xl bg-[#25D366] text-white flex flex-col items-center justify-center text-[11px] gap-0.5">{Icon.wa}{t.whatsapp}</a> : <span />}
+                {m.email ? <a href={`mailto:${m.email}?subject=${encodeURIComponent(t.mailSubject)}&body=${encodeURIComponent(`${greet}\n\n`)}`} onClick={() => patch(m.id, 'replied', 'email')} className="h-12 rounded-xl bg-sky-600 text-white flex flex-col items-center justify-center text-[11px] gap-0.5">{Icon.mail}{t.mail}</a> : <span />}
+                <button onClick={() => patch(m.id, m.status === 'replied' ? 'read' : 'replied')} className={`h-12 rounded-xl border flex flex-col items-center justify-center text-[11px] gap-0.5 ${m.status === 'replied' ? 'border-emerald-300 text-emerald-700 bg-emerald-50' : 'border-slate-200 text-slate-600'}`}>{Icon.check}{t.done}</button>
+              </div>
+            )}
+          </article>
+        )
+      })}
+    </div>
+  )
+}
+
+function SiteEditor({ me, t, setMe }: { me: Me; t: typeof T.ro; setMe: (m: Me) => void }) {
+  const [sec, setSec] = useState<'prices' | 'offers' | 'gallery' | 'contact'>('prices')
+  const [data, setData] = useState<Content>(me.content)
+  const [dirty, setDirty] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [busy, setBusy] = useState('')
+  const savedRef = useRef(me.content)
+  const update = (fn: (c: Content) => Content) => { setData(c => fn(c)); setDirty(true); setMsg('') }
+
+  async function save() {
+    setBusy('save'); setMsg('')
+    const r = await call<{ content: Content }>('/api/client/content', 'PUT', { content: data })
+    setBusy('')
+    if (r.ok) { setData(r.data.content); savedRef.current = r.data.content; setDirty(false); setMsg(t.saved); setMe({ ...me, content: r.data.content }) }
+    else setMsg(t.error)
+  }
+  async function addPhotos(files: FileList | null) {
+    if (!files?.length) return
+    setBusy('upload')
+    const { upload } = await import('@vercel/blob/client')
+    const added: { src: string; alt: string }[] = []
+    for (const f of Array.from(files).slice(0, 30)) {
+      try {
+        const b = await upload(`cms/${me.business.id}/${Date.now()}.jpg`, await shrinkImage(f), { access: 'public', handleUploadUrl: '/api/client/upload', contentType: 'image/jpeg' })
+        added.push({ src: b.url, alt: '' })
+      } catch { /* o poză stricată nu oprește restul */ }
+    }
+    setBusy('')
+    if (added.length) update(c => ({ ...c, gallery: [...c.gallery, ...added] }))
+  }
+
+  const small = 'h-9 w-9 shrink-0 rounded-lg border border-slate-200 bg-white text-slate-600 grid place-items-center'
+  const sections = [['prices', t.prices], ['offers', t.offers], ['gallery', t.gallery], ['contact', t.contact]] as const
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-1.5 overflow-x-auto -mx-4 px-4 pb-1">
+        {sections.map(([k, l]) => (
+          <button key={k} onClick={() => setSec(k)} className={`h-9 px-4 rounded-full text-[13px] font-medium whitespace-nowrap border ${sec === k ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200'}`}>{l}</button>
+        ))}
+      </div>
+
+      {sec === 'prices' && <>
+        {data.prices.map((p, i) => (
+          <div key={i} className={`${card} p-3 space-y-2`}>
+            <input className={input} placeholder={t.name} value={p.name} onChange={e => update(c => ({ ...c, prices: c.prices.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) }))} />
+            <div className="flex gap-2">
+              <input className={input} placeholder={t.price} value={p.price} onChange={e => update(c => ({ ...c, prices: c.prices.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)) }))} />
+              <div className="flex flex-col gap-1"><button className={small} onClick={() => update(c => ({ ...c, prices: move(c.prices, i, -1) }))}>{Icon.up}</button><button className={small} onClick={() => update(c => ({ ...c, prices: move(c.prices, i, 1) }))}>{Icon.down}</button></div>
+            </div>
+            <div className="flex gap-2">
+              <input className={input} placeholder={t.note} value={p.note} onChange={e => update(c => ({ ...c, prices: c.prices.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)) }))} />
+              <button className={`${small} h-12 w-12 text-rose-600`} aria-label={t.remove} onClick={() => update(c => ({ ...c, prices: c.prices.filter((_, j) => j !== i) }))}>{Icon.trash}</button>
+            </div>
+          </div>
+        ))}
+        <button className="w-full h-12 rounded-2xl border-2 border-dashed border-slate-300 text-slate-600 font-medium flex items-center justify-center gap-2" onClick={() => update(c => ({ ...c, prices: [...c.prices, { name: '', price: '', note: '' }] }))}>{Icon.plus}{t.addPrice}</button>
+      </>}
+
+      {sec === 'offers' && <>
+        <p className="text-[13px] text-slate-500 px-1">{t.offersHint}</p>
+        {data.offers.map((o, i) => (
+          <div key={i} className={`${card} p-3 space-y-2 ${o.active ? '' : 'opacity-70'}`}>
+            <input className={input} placeholder={t.offerTitle} value={o.title} onChange={e => update(c => ({ ...c, offers: c.offers.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)) }))} />
+            <textarea className={`${input} h-24 py-3`} placeholder={t.offerText} value={o.text} onChange={e => update(c => ({ ...c, offers: c.offers.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)) }))} />
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-[12px] text-slate-500">{t.from}<input type="date" className={input} value={o.from} onChange={e => update(c => ({ ...c, offers: c.offers.map((x, j) => (j === i ? { ...x, from: e.target.value } : x)) }))} /></label>
+              <label className="text-[12px] text-slate-500">{t.to}<input type="date" className={input} value={o.to} onChange={e => update(c => ({ ...c, offers: c.offers.map((x, j) => (j === i ? { ...x, to: e.target.value } : x)) }))} /></label>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="mr-auto flex items-center gap-2.5 text-[14px] text-slate-700">
+                <span className={`relative w-11 h-6 rounded-full transition ${o.active ? 'bg-teal-600' : 'bg-slate-300'}`}><span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${o.active ? 'left-[22px]' : 'left-0.5'}`} /></span>
+                <input type="checkbox" className="sr-only" checked={o.active} onChange={e => update(c => ({ ...c, offers: c.offers.map((x, j) => (j === i ? { ...x, active: e.target.checked } : x)) }))} />{t.active}
+              </label>
+              <button className={small} onClick={() => update(c => ({ ...c, offers: move(c.offers, i, -1) }))}>{Icon.up}</button>
+              <button className={small} onClick={() => update(c => ({ ...c, offers: move(c.offers, i, 1) }))}>{Icon.down}</button>
+              <button className={`${small} text-rose-600`} aria-label={t.remove} onClick={() => update(c => ({ ...c, offers: c.offers.filter((_, j) => j !== i) }))}>{Icon.trash}</button>
+            </div>
+          </div>
+        ))}
+        <button className="w-full h-12 rounded-2xl border-2 border-dashed border-slate-300 text-slate-600 font-medium flex items-center justify-center gap-2" onClick={() => update(c => ({ ...c, offers: [...c.offers, { title: '', text: '', from: '', to: '', active: true }] }))}>{Icon.plus}{t.addOffer}</button>
+      </>}
+
+      {sec === 'gallery' && <>
+        <p className="text-[13px] text-slate-500 px-1">{t.galleryHint}</p>
+        <div className="grid grid-cols-3 gap-2">
+          {data.gallery.map((g, i) => (
+            <div key={g.src} className="relative">
+              <img src={g.src} alt="" className="w-full aspect-square object-cover rounded-xl border border-slate-200" />
+              <div className="absolute inset-x-1 bottom-1 flex justify-between">
+                <button className="h-7 w-7 rounded-lg bg-white/95 grid place-items-center -rotate-90" onClick={() => update(c => ({ ...c, gallery: move(c.gallery, i, -1) }))}>{Icon.up}</button>
+                <button className="h-7 w-7 rounded-lg bg-white/95 text-rose-600 grid place-items-center" aria-label={t.remove} onClick={() => update(c => ({ ...c, gallery: c.gallery.filter((_, j) => j !== i) }))}>{Icon.trash}</button>
+                <button className="h-7 w-7 rounded-lg bg-white/95 grid place-items-center rotate-90" onClick={() => update(c => ({ ...c, gallery: move(c.gallery, i, 1) }))}>{Icon.up}</button>
+              </div>
+            </div>
+          ))}
+          <label className="aspect-square rounded-xl border-2 border-dashed border-slate-300 text-slate-500 flex flex-col items-center justify-center gap-1 text-[12px] cursor-pointer">
+            {busy === 'upload' ? <span className="w-6 h-6 rounded-full border-2 border-slate-300 border-t-slate-700 animate-spin" /> : Icon.plus}
+            {busy === 'upload' ? t.uploading : t.addPhotos}
+            <input type="file" accept="image/*" multiple className="hidden" disabled={busy === 'upload'} onChange={e => { addPhotos(e.target.files); e.target.value = '' }} />
+          </label>
+        </div>
+      </>}
+
+      {sec === 'contact' && (
+        <div className={`${card} p-4 space-y-3`}>
+          {([['phone', t.phone, 'tel'], ['email', t.contactEmail, 'email'], ['address', t.address, 'text']] as const).map(([k, l, type]) => (
+            <label key={k} className="block text-[13px] font-medium text-slate-600">{l}<input type={type} className={`${input} mt-1.5`} value={data.contact[k]} onChange={e => update(c => ({ ...c, contact: { ...c.contact, [k]: e.target.value } }))} /></label>
+          ))}
+          <label className="block text-[13px] font-medium text-slate-600">{t.hours}<textarea className={`${input} mt-1.5 h-24 py-3`} value={data.contact.hours} onChange={e => update(c => ({ ...c, contact: { ...c.contact, hours: e.target.value } }))} /></label>
+        </div>
+      )}
+
+      {(dirty || msg) && (
+        <div className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-20 px-4 pb-3">
+          <div className="max-w-2xl mx-auto rounded-2xl bg-slate-900 text-white shadow-xl p-2.5 pl-4 flex items-center gap-3">
+            <span className="flex-1 text-[13px]">{msg || t.unsaved}</span>
+            {dirty && <button className="h-10 px-5 rounded-xl bg-teal-500 text-slate-950 font-semibold disabled:opacity-60" disabled={busy === 'save' || busy === 'upload'} onClick={save}>{busy === 'save' ? t.saving : t.save}</button>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Account({ me, t }: { me: Me; t: typeof T.ro }) {
+  const [perm, setPerm] = useState<string>('default')
+  const [subscribed, setSubscribed] = useState(false)
+  const [installEvt, setInstallEvt] = useState<(Event & { prompt: () => Promise<void> }) | null>(null)
+  const [standalone, setStandalone] = useState(false)
+  const [pw, setPw] = useState({ current: '', next: '' })
+  const [pwMsg, setPwMsg] = useState('')
+  const ios = useMemo(() => typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent), [])
+  const pushSupported = typeof window !== 'undefined' && 'PushManager' in window && 'serviceWorker' in navigator && 'Notification' in window
+
+  useEffect(() => {
+    if (typeof Notification !== 'undefined') setPerm(Notification.permission)
+    setStandalone(window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true)
+    navigator.serviceWorker?.ready.then(r => r.pushManager.getSubscription()).then(s => setSubscribed(!!s)).catch(() => {})
+    const onPrompt = (e: Event) => { e.preventDefault(); setInstallEvt(e as Event & { prompt: () => Promise<void> }) }
+    window.addEventListener('beforeinstallprompt', onPrompt)
+    return () => window.removeEventListener('beforeinstallprompt', onPrompt)
+  }, [])
+
+  async function toggleNotif() {
+    const reg = await navigator.serviceWorker.register('/client-sw.js', { scope: '/client' })
+    await navigator.serviceWorker.ready
+    if (subscribed) {
+      const s = await reg.pushManager.getSubscription()
+      if (s) { await call('/api/client/push', 'DELETE', { endpoint: s.endpoint }); await s.unsubscribe() }
+      setSubscribed(false); return
+    }
+    const p = await Notification.requestPermission()
+    setPerm(p)
+    if (p !== 'granted') return
+    const s = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToUint8(me.vapidPublicKey) })
+    await call('/api/client/push', 'POST', { subscription: s.toJSON() })
+    setSubscribed(true)
+  }
+  async function changePw(e: React.FormEvent) {
+    e.preventDefault(); setPwMsg('')
+    const r = await call('/api/client/password', 'POST', pw)
+    setPwMsg(r.ok ? t.pwSaved : r.status === 401 ? t.wrong : t.newPw)
+    if (r.ok) setPw({ current: '', next: '' })
+  }
+  async function logout() { await call('/api/client/logout', 'POST'); location.reload() }
+
+  const row = 'p-4 border-t border-slate-100 first:border-t-0'
+  return (
+    <div className="space-y-3">
+      <section className={card}>
+        <div className={row}><div className="text-[12px] text-slate-500">{t.signedAs}</div><div className="font-medium">{me.account.email}</div></div>
+      </section>
+
+      <section className={card}>
+        <div className={row}>
+          <div className="font-semibold mb-1">{t.notif}</div>
+          {!pushSupported ? <p className="text-[13px] text-slate-500">{ios ? t.notifIos : t.notifBlocked}</p>
+            : perm === 'denied' ? <p className="text-[13px] text-rose-600">{t.notifBlocked}</p>
+            : <>
+                {subscribed && <p className="text-[13px] text-emerald-700 mb-2">{t.notifActive}</p>}
+                <button onClick={toggleNotif} className={`h-11 px-4 rounded-xl font-medium ${subscribed ? 'border border-slate-200 text-slate-700' : 'bg-slate-900 text-white'}`}>{subscribed ? t.notifOff : t.notifOn}</button>
+              </>}
+        </div>
+        <div className={row}>
+          <div className="font-semibold mb-1">{t.install}</div>
+          {standalone ? <p className="text-[13px] text-emerald-700">{t.installed}</p> : <>
+            {installEvt && <button onClick={() => installEvt.prompt()} className="h-11 px-4 rounded-xl bg-teal-600 text-white font-medium mb-2">{t.installBtn}</button>}
+            <p className="text-[13px] text-slate-500">{ios ? t.installIos : t.installAndroid}</p>
+          </>}
+        </div>
+      </section>
+
+      <form className={`${card} p-4 space-y-3`} onSubmit={changePw}>
+        <div className="font-semibold">{t.changePw}</div>
+        <input className={input} type="password" autoComplete="current-password" placeholder={t.currentPw} value={pw.current} onChange={e => setPw({ ...pw, current: e.target.value })} required />
+        <input className={input} type="password" autoComplete="new-password" placeholder={t.newPw} value={pw.next} onChange={e => setPw({ ...pw, next: e.target.value })} minLength={8} required />
+        {pwMsg && <p className="text-[13px] text-slate-600">{pwMsg}</p>}
+        <button className="h-11 px-4 rounded-xl border border-slate-200 font-medium">{t.changePw}</button>
+      </form>
+
+      <button onClick={logout} className="w-full h-12 rounded-2xl bg-white border border-slate-200 text-rose-600 font-medium">{t.logout}</button>
+    </div>
+  )
+}

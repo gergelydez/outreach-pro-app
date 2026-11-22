@@ -360,4 +360,29 @@ CREATE INDEX IF NOT EXISTS site_messages_business_idx ON site_messages (business
     id: '009_demo_style',
     sql: `ALTER TABLE businesses ADD COLUMN IF NOT EXISTS demo_style text;`,
   },
+  {
+    // Panoul clientului ca aplicație: cont (email + parolă), starea mesajelor, notificări pe telefon, adresa site-ului live
+    id: '010_client_app',
+    sql: `CREATE TABLE IF NOT EXISTS client_accounts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id uuid NOT NULL UNIQUE REFERENCES businesses(id) ON DELETE CASCADE,
+  email text NOT NULL UNIQUE,
+  password_hash text NOT NULL,
+  failed_attempts int NOT NULL DEFAULT 0,
+  locked_until timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  last_login_at timestamptz
+);
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id uuid NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  endpoint text NOT NULL UNIQUE,
+  keys jsonb NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE site_messages ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'new';
+ALTER TABLE site_messages ADD COLUMN IF NOT EXISTS replied_via text;
+ALTER TABLE site_messages ADD COLUMN IF NOT EXISTS replied_at timestamptz;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS live_url text;`,
+  },
 ]

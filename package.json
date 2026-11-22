@@ -23,7 +23,8 @@
     "pg": "^8.23.1",
     "puppeteer-core": "24.15.0",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "web-push": "3.6.7"
   },
   "devDependencies": {
     "@types/node": "^20",
@@ -31,6 +32,7 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/web-push": "3.6.4",
     "autoprefixer": "^10",
     "postcss": "^8",
     "tailwindcss": "^3",
