@@ -33,6 +33,7 @@ const T = {
     notifIos: 'Pe iPhone, notificările merg după ce instalezi aplicația pe ecranul principal.', install: 'Instalează aplicația', installBtn: 'Instalează pe telefon',
     installIos: 'Pe iPhone: apasă Distribuie, apoi „Adaugă pe ecranul principal”.', installAndroid: 'Sau din meniul browserului ⋮: „Instalează aplicația” / „Adaugă pe ecranul de pornire”.', installed: 'Aplicația este instalată.', installStepsAndroid: ['Deschide panoul în Google Chrome (nu Opera / Samsung Internet).', 'Apasă meniul ⋮ din dreapta sus și alege „Instalează aplicația” (nu „Adaugă pe ecranul de pornire”, care pune o scurtătură cu eticheta Chrome).', 'Confirmă: „Panoul meu” apare ca aplicație, cu iconița lui.'], installStepsIos: ['Deschide panoul în Safari.', 'Apasă butonul Distribuie (pătratul cu săgeată în sus).', 'Alege „Adaugă pe ecranul principal”, apoi „Adaugă”.'], installBanner: 'Instalează panoul pe telefon, ca o aplicație', installBannerSub: 'Îl deschizi dintr-o atingere și primești notificări la mesajele noi.', later: 'Mai târziu',
     mailNotif: 'Notificări pe email', mailNotifSub: 'Primești pe email fiecare mesaj trimis din formularul site-ului.', mailAddr: 'Emailul la care vrei notificările', sendCode: 'Trimite codul', codeSentTo: 'Ți-am trimis un cod de 6 cifre la', codeLabel: 'Codul din email', confirm: 'Confirmă', resend: 'Retrimite codul', change: 'Schimbă emailul', stopMail: 'Oprește notificările pe email', mailOn: 'Primești notificările la', wrongCode: 'Cod greșit.', expiredCode: 'Codul a expirat. Cere unul nou.', waitCode: 'Așteaptă un minut înainte de un cod nou.', mailBad: 'Emailul nu pare corect.', mailSoon: 'Notificările pe email vor fi disponibile în curând.', checkSpam: 'Nu găsești emailul? Uită-te și în Spam.',
+    sheetDone: 'Gata', visualEdit: 'Editează direct pe site', visualEditSub: 'Vezi site-ul tău și atinge secțiunea pe care vrei s-o schimbi.', preview: 'Previzualizare', publishLive: 'Publică live', backToEdit: 'Editare', editing: 'Editezi site-ul', editHint: 'Atinge o secțiune conturată sau alege mai jos', unsavedDraft: 'nepublicat încă', notReady: 'Secțiunile editabile nu sunt încă pregătite pe acest site. Cere-i designerului să activeze aplicația pentru site-ul tău.', leaveConfirm: 'Ai modificări nepublicate. Ieși oricum?',
     changePw: 'Schimbă parola', currentPw: 'Parola actuală', newPw: 'Parola nouă (minim 8 caractere)', pwSaved: 'Parola a fost schimbată.', logout: 'Ieși din cont', signedAs: 'Conectat ca',
     today: 'azi', yesterday: 'ieri',
   },
@@ -52,6 +53,7 @@ const T = {
     notifIos: 'iPhone-on az értesítések a kezdőképernyőre telepítés után működnek.', install: 'Alkalmazás telepítése', installBtn: 'Telepítés a telefonra',
     installIos: 'iPhone-on: Megosztás, majd „Főképernyőhöz adás”.', installAndroid: 'Vagy a böngésző menüjéből ⋮: „Alkalmazás telepítése”.', installed: 'Az alkalmazás telepítve van.', installStepsAndroid: ['Nyissa meg a Google Chrome-ban (nem Operában / Samsung Internetben).', 'Koppintson a ⋮ menüre, és válassza az „Alkalmazás telepítése” lehetőséget (nem a „Hozzáadás a kezdőképernyőhöz”, az csak parancsikon Chrome-jelzéssel).', 'Erősítse meg: a „Panoul meu” alkalmazásként jelenik meg, saját ikonnal.'], installStepsIos: ['Nyissa meg Safariban.', 'Koppintson a Megosztás gombra (négyzet felfelé mutató nyíllal).', 'Válassza a „Főképernyőhöz adás”, majd a „Hozzáadás” lehetőséget.'], installBanner: 'Telepítse a telefonjára alkalmazásként', installBannerSub: 'Egy koppintással megnyitja, és értesítést kap az új üzenetekről.', later: 'Később',
     mailNotif: 'E-mail értesítések', mailNotifSub: 'Minden űrlapüzenetet megkap e-mailben is.', mailAddr: 'E-mail cím az értesítésekhez', sendCode: 'Kód küldése', codeSentTo: '6 jegyű kódot küldtünk ide:', codeLabel: 'Az e-mailben kapott kód', confirm: 'Megerősítés', resend: 'Kód újraküldése', change: 'E-mail módosítása', stopMail: 'E-mail értesítések kikapcsolása', mailOn: 'Az értesítések ide érkeznek:', wrongCode: 'Hibás kód.', expiredCode: 'A kód lejárt. Kérjen újat.', waitCode: 'Várjon egy percet az új kód előtt.', mailBad: 'Az e-mail cím nem tűnik helyesnek.', mailSoon: 'Az e-mail értesítések hamarosan elérhetők lesznek.', checkSpam: 'Nem találja? Nézze meg a Spam mappát is.',
+    sheetDone: 'Kész', visualEdit: 'Szerkesztés közvetlenül az oldalon', visualEditSub: 'Látja a weboldalát, és arra a részre koppint, amelyet módosítani szeretne.', preview: 'Előnézet', publishLive: 'Közzététel', backToEdit: 'Szerkesztés', editing: 'Szerkesztés', editHint: 'Koppintson egy keretes részre, vagy válasszon lent', unsavedDraft: 'még nincs közzétéve', notReady: 'A szerkeszthető részek még nincsenek előkészítve ezen az oldalon. Kérje meg a weboldal készítőjét.', leaveConfirm: 'Vannak közzé nem tett módosításai. Biztosan kilép?',
     changePw: 'Jelszó módosítása', currentPw: 'Jelenlegi jelszó', newPw: 'Új jelszó (legalább 8 karakter)', pwSaved: 'A jelszó megváltozott.', logout: 'Kilépés', signedAs: 'Bejelentkezve:',
     today: 'ma', yesterday: 'tegnap',
   },
@@ -71,6 +73,7 @@ const T = {
     notifIos: 'On iPhone, notifications work after you add the app to your home screen.', install: 'Install the app', installBtn: 'Install on phone',
     installIos: 'On iPhone: tap Share, then “Add to Home Screen”.', installAndroid: 'Or from the browser menu ⋮: “Install app”.', installed: 'The app is installed.', installStepsAndroid: ['Open it in Google Chrome (not Opera / Samsung Internet).', 'Tap the ⋮ menu and choose “Install app” (not “Add to Home screen”, which adds a shortcut with the Chrome badge).', 'Confirm: “Panoul meu” appears as an app with its own icon.'], installStepsIos: ['Open it in Safari.', 'Tap the Share button (square with an up arrow).', 'Choose “Add to Home Screen”, then “Add”.'], installBanner: 'Install the panel on your phone as an app', installBannerSub: 'Open it with one tap and get notified about new messages.', later: 'Later',
     mailNotif: 'Email notifications', mailNotifSub: 'Get every message from your website form by email too.', mailAddr: 'Email for notifications', sendCode: 'Send code', codeSentTo: 'We sent a 6-digit code to', codeLabel: 'Code from the email', confirm: 'Confirm', resend: 'Resend code', change: 'Change email', stopMail: 'Turn off email notifications', mailOn: 'Notifications go to', wrongCode: 'Wrong code.', expiredCode: 'The code has expired. Ask for a new one.', waitCode: 'Wait a minute before asking for a new code.', mailBad: 'That email does not look right.', mailSoon: 'Email notifications will be available soon.', checkSpam: 'Can’t find it? Check your Spam folder.',
+    sheetDone: 'Done', visualEdit: 'Edit right on your site', visualEditSub: 'See your website and tap the section you want to change.', preview: 'Preview', publishLive: 'Publish', backToEdit: 'Edit', editing: 'Editing your site', editHint: 'Tap an outlined section or choose below', unsavedDraft: 'not published yet', notReady: 'The editable sections are not ready on this site yet. Ask your website designer to enable the app.', leaveConfirm: 'You have unpublished changes. Leave anyway?',
     changePw: 'Change password', currentPw: 'Current password', newPw: 'New password (at least 8 characters)', pwSaved: 'Password changed.', logout: 'Sign out', signedAs: 'Signed in as',
     today: 'today', yesterday: 'yesterday',
   },
@@ -348,47 +351,10 @@ function Inbox({ me, t, lang, setMe }: { me: Me; t: typeof T.ro; lang: Lang; set
   )
 }
 
-function SiteEditor({ me, t, setMe }: { me: Me; t: typeof T.ro; setMe: (m: Me) => void }) {
-  const [sec, setSec] = useState<'prices' | 'offers' | 'gallery' | 'contact'>('prices')
-  const [data, setData] = useState<Content>(me.content)
-  const [dirty, setDirty] = useState(false)
-  const [msg, setMsg] = useState('')
-  const [busy, setBusy] = useState('')
-  const savedRef = useRef(me.content)
-  const update = (fn: (c: Content) => Content) => { setData(c => fn(c)); setDirty(true); setMsg('') }
-
-  async function save() {
-    setBusy('save'); setMsg('')
-    const r = await call<{ content: Content }>('/api/client/content', 'PUT', { content: data })
-    setBusy('')
-    if (r.ok) { setData(r.data.content); savedRef.current = r.data.content; setDirty(false); setMsg(t.saved); setMe({ ...me, content: r.data.content }) }
-    else setMsg(t.error)
-  }
-  async function addPhotos(files: FileList | null) {
-    if (!files?.length) return
-    setBusy('upload')
-    const { upload } = await import('@vercel/blob/client')
-    const added: { src: string; alt: string }[] = []
-    for (const f of Array.from(files).slice(0, 30)) {
-      try {
-        const b = await upload(`cms/${me.business.id}/${Date.now()}.jpg`, await shrinkImage(f), { access: 'public', handleUploadUrl: '/api/client/upload', contentType: 'image/jpeg' })
-        added.push({ src: b.url, alt: '' })
-      } catch { /* o poză stricată nu oprește restul */ }
-    }
-    setBusy('')
-    if (added.length) update(c => ({ ...c, gallery: [...c.gallery, ...added] }))
-  }
-
+export function SectionFields({ sec, data, update, t, busy, addPhotos }: { sec: 'prices' | 'offers' | 'gallery' | 'contact'; data: Content; update: (fn: (c: Content) => Content) => void; t: typeof T.ro; busy: string; addPhotos: (f: FileList | null) => void }) {
   const small = 'h-9 w-9 shrink-0 rounded-lg border border-slate-200 bg-white text-slate-600 grid place-items-center'
-  const sections = [['prices', t.prices], ['offers', t.offers], ['gallery', t.gallery], ['contact', t.contact]] as const
   return (
     <div className="space-y-3">
-      <div className="flex gap-1.5 overflow-x-auto -mx-4 px-4 pb-1">
-        {sections.map(([k, l]) => (
-          <button key={k} onClick={() => setSec(k)} className={`h-9 px-4 rounded-full text-[13px] font-medium whitespace-nowrap border ${sec === k ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200'}`}>{l}</button>
-        ))}
-      </div>
-
       {sec === 'prices' && <>
         {data.prices.map((p, i) => (
           <div key={i} className={`${card} p-3 space-y-2`}>
@@ -460,14 +426,200 @@ function SiteEditor({ me, t, setMe }: { me: Me; t: typeof T.ro; setMe: (m: Me) =
         </div>
       )}
 
+    </div>
+  )
+}
+
+function useSiteFrame(data: Content, edit: boolean) {
+  const ref = useRef<HTMLIFrameElement>(null)
+  const [ready, setReady] = useState(false)
+  const [missing, setMissing] = useState(false)
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => { if (e.source === ref.current?.contentWindow && e.data?.type === 'cms-ready') { setReady(true); setMissing(!e.data.markers) } }
+    window.addEventListener('message', onMsg)
+    return () => window.removeEventListener('message', onMsg)
+  }, [])
+  useEffect(() => {
+    if (!ready) return
+    ref.current?.contentWindow?.postMessage({ type: 'cms-mode', edit }, '*')
+    ref.current?.contentWindow?.postMessage({ type: 'cms-content', data: { ...data, updated_at: 'draft' } }, '*')
+  }, [ready, data, edit])
+  return { ref, ready, missing }
+}
+
+function SitePreview({ data, t, onClose, onPublish, publishing }: { data: Content; t: typeof T.ro; onClose: () => void; onPublish: () => void; publishing: boolean }) {
+  const { ref, ready } = useSiteFrame(data, false)
+  const [device, setDevice] = useState<'phone' | 'desktop'>('phone')
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col">
+      <div className="pt-[env(safe-area-inset-top)] bg-slate-900 text-white">
+        <div className="h-14 px-3 flex items-center gap-2">
+          <button onClick={onClose} className="h-10 px-3 rounded-xl bg-white/10 text-[14px]">← {t.backToEdit}</button>
+          <div className="flex-1 text-center text-[12px] uppercase tracking-[.14em] text-slate-400">{t.preview}</div>
+          <div className="hidden sm:flex gap-1">{(['phone', 'desktop'] as const).map(d => <button key={d} onClick={() => setDevice(d)} className={`h-9 px-3 rounded-lg text-[13px] ${device === d ? 'bg-white text-slate-900' : 'bg-white/10'}`}>{d === 'phone' ? '📱' : '🖥️'}</button>)}</div>
+          <button onClick={onPublish} disabled={publishing} className="h-10 px-4 rounded-xl bg-teal-500 text-slate-950 font-semibold disabled:opacity-60">{publishing ? t.saving : `🚀 ${t.publishLive}`}</button>
+        </div>
+      </div>
+      <div className="flex-1 overflow-hidden flex justify-center bg-slate-800">
+        {!ready && <div className="absolute inset-0 top-14 grid place-items-center"><div className="w-8 h-8 rounded-full border-2 border-slate-500 border-t-white animate-spin" /></div>}
+        <iframe ref={ref} src="/api/client/site" title={t.preview} className={`bg-white h-full ${device === 'phone' ? 'w-full sm:w-[400px] sm:my-4 sm:rounded-[28px] sm:h-[calc(100%-32px)]' : 'w-full'}`} />
+      </div>
+    </div>
+  )
+}
+
+export function VisualEditor() {
+  const [me, setMe] = useState<Me | null>(null)
+  const [data, setData] = useState<Content | null>(null)
+  const [lang, setLang] = useState<Lang>('ro')
+  const [mode, setMode] = useState<'edit' | 'preview'>('edit')
+  const [sheet, setSheet] = useState<null | 'prices' | 'offers' | 'gallery' | 'contact'>(null)
+  const [dirty, setDirty] = useState(false)
+  const [busy, setBusy] = useState('')
+  const [toast, setToast] = useState('')
+  const t = T[lang]
+  useEffect(() => {
+    call<Me>('/api/client/me').then(r => {
+      if (r.status === 401) { location.href = '/client'; return }
+      if (r.ok) { setMe(r.data); setData(r.data.content); setLang(r.data.business.country === 'HU' ? 'hu' : r.data.business.country === 'UK' ? 'en' : 'ro') }
+    })
+  }, [])
+  const frame = useSiteFrame(data || EMPTY, mode === 'edit')
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => { if (e.source === frame.ref.current?.contentWindow && e.data?.type === 'cms-edit') setSheet(e.data.kind) }
+    window.addEventListener('message', onMsg)
+    return () => window.removeEventListener('message', onMsg)
+  }, [frame.ref])
+  useEffect(() => {
+    const warn = (e: BeforeUnloadEvent) => { if (dirty) { e.preventDefault(); e.returnValue = '' } }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
+  const update = (fn: (c: Content) => Content) => { setData(c => (c ? fn(c) : c)); setDirty(true) }
+  async function addPhotos(files: FileList | null) {
+    if (!files?.length || !me) return
+    setBusy('upload')
+    const { upload } = await import('@vercel/blob/client')
+    const added: { src: string; alt: string }[] = []
+    for (const f of Array.from(files).slice(0, 30)) {
+      try { const b = await upload(`cms/${me.business.id}/${Date.now()}.jpg`, await shrinkImage(f), { access: 'public', handleUploadUrl: '/api/client/upload', contentType: 'image/jpeg' }); added.push({ src: b.url, alt: '' }) } catch { /* */ }
+    }
+    setBusy('')
+    if (added.length) update(c => ({ ...c, gallery: [...c.gallery, ...added] }))
+  }
+  async function publish() {
+    if (!data) return
+    setBusy('save')
+    const r = await call<{ content: Content }>('/api/client/content', 'PUT', { content: data })
+    setBusy('')
+    if (r.ok) { setData(r.data.content); setDirty(false); setMode('edit'); setToast(t.saved); setTimeout(() => setToast(''), 3500) }
+    else setToast(t.error)
+  }
+  if (!me || !data) return <div className="min-h-[100dvh] grid place-items-center bg-slate-900"><div className="w-8 h-8 rounded-full border-2 border-slate-600 border-t-white animate-spin" /></div>
+  const sections = [['prices', t.prices], ['offers', t.offers], ['gallery', t.gallery], ['contact', t.contact]] as const
+  return (
+    <div className="fixed inset-0 bg-slate-950 flex flex-col text-slate-900">
+      <div className="pt-[env(safe-area-inset-top)] bg-slate-900 text-white">
+        <div className="h-14 px-3 flex items-center gap-2">
+          {mode === 'edit'
+            ? <a href="/client" onClick={e => { if (dirty && !confirm(t.leaveConfirm)) e.preventDefault() }} className="h-10 w-10 grid place-items-center rounded-xl bg-white/10" aria-label="Înapoi">✕</a>
+            : <button onClick={() => setMode('edit')} className="h-10 px-3 rounded-xl bg-white/10 text-[14px]">← {t.backToEdit}</button>}
+          <div className="flex-1 min-w-0 text-center"><div className="text-[11px] uppercase tracking-[.14em] text-slate-400">{mode === 'edit' ? t.editing : t.preview}</div><div className="text-[13px] font-medium truncate">{me.business.name}</div></div>
+          {mode === 'edit'
+            ? <button onClick={() => setMode('preview')} className="h-10 px-4 rounded-xl bg-white text-slate-900 font-semibold">👁 {t.preview}</button>
+            : <button onClick={publish} disabled={busy === 'save' || !dirty} className="h-10 px-4 rounded-xl bg-teal-500 text-slate-950 font-semibold disabled:opacity-50">{busy === 'save' ? t.saving : `🚀 ${t.publishLive}`}</button>}
+        </div>
+      </div>
+      <div className="relative flex-1 overflow-hidden bg-white">
+        <iframe ref={frame.ref} src="/api/client/site" title={me.business.name} className="w-full h-full" />
+        {frame.ready && frame.missing && <div className="absolute inset-x-3 top-3 rounded-2xl bg-amber-50 border border-amber-200 p-3 text-[13px] text-amber-900">{t.notReady}</div>}
+        {toast && <div className="absolute inset-x-0 top-3 flex justify-center"><div className="rounded-full bg-slate-900 text-white text-[13px] px-4 py-2 shadow-lg">{toast}</div></div>}
+      </div>
+      {mode === 'edit' && (
+        <div className="bg-slate-900 text-white pb-[env(safe-area-inset-bottom)]">
+          <div className="px-3 pt-2 text-[11px] text-slate-400 text-center">{t.editHint}{dirty ? ` · ${t.unsavedDraft}` : ''}</div>
+          <div className="flex gap-1.5 overflow-x-auto px-3 py-2">
+            {sections.map(([k, l]) => <button key={k} onClick={() => setSheet(k)} className="h-10 px-4 rounded-full bg-white/10 text-[13px] font-medium whitespace-nowrap">✏️ {l}</button>)}
+          </div>
+        </div>
+      )}
+      {sheet && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={() => setSheet(null)}>
+          <div className="absolute inset-0 bg-slate-950/40" />
+          <div className="relative bg-[#f4f5f7] rounded-t-3xl max-h-[78dvh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 pt-3 pb-2">
+              <div className="font-semibold text-[17px]">{sections.find(x => x[0] === sheet)?.[1]}</div>
+              <button onClick={() => setSheet(null)} className="h-10 px-4 rounded-xl bg-slate-900 text-white font-medium">{t.sheetDone}</button>
+            </div>
+            <div className="overflow-y-auto px-4 pb-[calc(16px+env(safe-area-inset-bottom))]">
+              <SectionFields sec={sheet} data={data} update={update} t={t} busy={busy} addPhotos={addPhotos} />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const EMPTY: Content = { contact: { phone: '', email: '', address: '', hours: '' }, prices: [], offers: [], gallery: [] }
+
+function SiteEditor({ me, t, setMe }: { me: Me; t: typeof T.ro; setMe: (m: Me) => void }) {
+  const [sec, setSec] = useState<'prices' | 'offers' | 'gallery' | 'contact'>('prices')
+  const [data, setData] = useState<Content>(me.content)
+  const [dirty, setDirty] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [busy, setBusy] = useState('')
+  const savedRef = useRef(me.content)
+  const [preview, setPreview] = useState(false)
+  const update = (fn: (c: Content) => Content) => { setData(c => fn(c)); setDirty(true); setMsg('') }
+
+  async function save() {
+    setBusy('save'); setMsg('')
+    const r = await call<{ content: Content }>('/api/client/content', 'PUT', { content: data })
+    setBusy('')
+    if (r.ok) { setData(r.data.content); savedRef.current = r.data.content; setDirty(false); setMsg(t.saved); setMe({ ...me, content: r.data.content }); setPreview(false) }
+    else setMsg(t.error)
+  }
+  async function addPhotos(files: FileList | null) {
+    if (!files?.length) return
+    setBusy('upload')
+    const { upload } = await import('@vercel/blob/client')
+    const added: { src: string; alt: string }[] = []
+    for (const f of Array.from(files).slice(0, 30)) {
+      try {
+        const b = await upload(`cms/${me.business.id}/${Date.now()}.jpg`, await shrinkImage(f), { access: 'public', handleUploadUrl: '/api/client/upload', contentType: 'image/jpeg' })
+        added.push({ src: b.url, alt: '' })
+      } catch { /* o poză stricată nu oprește restul */ }
+    }
+    setBusy('')
+    if (added.length) update(c => ({ ...c, gallery: [...c.gallery, ...added] }))
+  }
+
+  const sections = [['prices', t.prices], ['offers', t.offers], ['gallery', t.gallery], ['contact', t.contact]] as const
+  return (
+    <div className="space-y-3">
+      <a href="/client/editor" className={`${card} p-4 flex items-center gap-3`}>
+        <div className="w-11 h-11 rounded-xl bg-teal-600 text-white grid place-items-center shrink-0"><svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></div>
+        <div className="flex-1 min-w-0"><div className="font-semibold">{t.visualEdit}</div><div className="text-[13px] text-slate-500">{t.visualEditSub}</div></div>
+        <span className="text-slate-400">{Icon.ext}</span>
+      </a>
+      <div className="flex gap-1.5 overflow-x-auto -mx-4 px-4 pb-1">
+        {sections.map(([k, l]) => (
+          <button key={k} onClick={() => setSec(k)} className={`h-9 px-4 rounded-full text-[13px] font-medium whitespace-nowrap border ${sec === k ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200'}`}>{l}</button>
+        ))}
+      </div>
+
+      <SectionFields sec={sec} data={data} update={update} t={t} busy={busy} addPhotos={addPhotos} />
+
       {(dirty || msg) && (
         <div className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-20 px-4 pb-3">
           <div className="max-w-2xl mx-auto rounded-2xl bg-slate-900 text-white shadow-xl p-2.5 pl-4 flex items-center gap-3">
             <span className="flex-1 text-[13px]">{msg || t.unsaved}</span>
-            {dirty && <button className="h-10 px-5 rounded-xl bg-teal-500 text-slate-950 font-semibold disabled:opacity-60" disabled={busy === 'save' || busy === 'upload'} onClick={save}>{busy === 'save' ? t.saving : t.save}</button>}
+            {dirty && <button className="h-10 px-5 rounded-xl bg-teal-500 text-slate-950 font-semibold disabled:opacity-60" disabled={busy === 'save' || busy === 'upload'} onClick={() => setPreview(true)}>{t.preview}</button>}
           </div>
         </div>
       )}
+      {preview && <SitePreview data={data} t={t} onClose={() => setPreview(false)} onPublish={save} publishing={busy === 'save'} />}
     </div>
   )
 }
