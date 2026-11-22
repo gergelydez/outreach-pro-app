@@ -179,7 +179,7 @@ describe('contact form messages', () => {
     const { receiveSiteMessage, listSiteMessages } = await import('@/lib/crm/site-messages')
     const id = await biz()
     await createPortal(id)
-    await saveContent(id, { contact: { email: 'rezervari@hanul.ro' } }, { put: async () => {} })
+    await q(`UPDATE businesses SET email = 'rezervari@hanul.ro' WHERE id = $1`, [id]) // emailul pus de designer în CRM
     const sent: { to: string; replyTo?: string; subject: string; text: string }[] = []
     const send = async (m: typeof sent[0]) => { sent.push(m) }
     expect(await receiveSiteMessage('hanul-abc123', { name: 'Ana', email: 'ana@x.ro', phone: '0722', message: 'Aveți loc de Revelion?', checkin: '2026-12-30' }, '1.2.3.4', send)).toEqual({ ok: true, emailed: true })

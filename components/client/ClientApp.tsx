@@ -13,7 +13,7 @@ interface Content {
   gallery: { src: string; alt: string }[]
 }
 interface Msg { id: string; name: string; email: string; phone: string; message: string; extra: Record<string, string> | null; status: string; replied_via: string | null; created_at: string }
-interface Me { account: { email: string }; business: { id: string; name: string; country: string; preview_url: string | null; live_url: string | null }; content: Content; messages: Msg[]; vapidPublicKey: string }
+interface Me { account: { email: string }; notify: { email: string | null; pending: string | null; available: boolean }; business: { id: string; name: string; country: string; preview_url: string | null; live_url: string | null }; content: Content; messages: Msg[]; vapidPublicKey: string }
 type Lang = 'ro' | 'hu' | 'en'
 
 const T = {
@@ -32,6 +32,7 @@ const T = {
     notif: 'Notificări pe telefon', notifOn: 'Activează notificările', notifOff: 'Oprește notificările', notifActive: 'Primești o notificare la fiecare mesaj nou.', notifBlocked: 'Notificările sunt blocate pentru acest site.', notifUnblock: ['Apasă pe iconița din stânga adresei site-ului (🔒 sau ⚙️).', 'Alege „Permisiuni” sau „Setări site” → „Notificări” → „Permite”.', 'Revino aici și apasă din nou „Activează notificările”.'], notifUnblockApp: 'Dacă aplicația e instalată: Setări telefon → Aplicații → Panoul meu → Notificări → Permite.', notifUnblockInstalled: ['Ieși din aplicație și ține apăsat pe iconița „Panoul meu” de pe ecran.', 'Apasă ⓘ („Informații aplicație”) → „Notificări” → pornește „Permite notificări”.', 'Deschide din nou aplicația: notificările pornesc singure.'], notifAuto: 'După ce le permiți, revino aici: se activează automat.', notifUnsupported: 'Browserul acesta nu primește notificări. Deschide panoul în Chrome (Android) sau instalează-l pe ecranul principal (iPhone).',
     notifIos: 'Pe iPhone, notificările merg după ce instalezi aplicația pe ecranul principal.', install: 'Instalează aplicația', installBtn: 'Instalează pe telefon',
     installIos: 'Pe iPhone: apasă Distribuie, apoi „Adaugă pe ecranul principal”.', installAndroid: 'Sau din meniul browserului ⋮: „Instalează aplicația” / „Adaugă pe ecranul de pornire”.', installed: 'Aplicația este instalată.', installStepsAndroid: ['Deschide panoul în Google Chrome (nu Opera / Samsung Internet).', 'Apasă meniul ⋮ din dreapta sus și alege „Instalează aplicația” (nu „Adaugă pe ecranul de pornire”, care pune o scurtătură cu eticheta Chrome).', 'Confirmă: „Panoul meu” apare ca aplicație, cu iconița lui.'], installStepsIos: ['Deschide panoul în Safari.', 'Apasă butonul Distribuie (pătratul cu săgeată în sus).', 'Alege „Adaugă pe ecranul principal”, apoi „Adaugă”.'], installBanner: 'Instalează panoul pe telefon, ca o aplicație', installBannerSub: 'Îl deschizi dintr-o atingere și primești notificări la mesajele noi.', later: 'Mai târziu',
+    mailNotif: 'Notificări pe email', mailNotifSub: 'Primești pe email fiecare mesaj trimis din formularul site-ului.', mailAddr: 'Emailul la care vrei notificările', sendCode: 'Trimite codul', codeSentTo: 'Ți-am trimis un cod de 6 cifre la', codeLabel: 'Codul din email', confirm: 'Confirmă', resend: 'Retrimite codul', change: 'Schimbă emailul', stopMail: 'Oprește notificările pe email', mailOn: 'Primești notificările la', wrongCode: 'Cod greșit.', expiredCode: 'Codul a expirat. Cere unul nou.', waitCode: 'Așteaptă un minut înainte de un cod nou.', mailBad: 'Emailul nu pare corect.', mailSoon: 'Notificările pe email vor fi disponibile în curând.', checkSpam: 'Nu găsești emailul? Uită-te și în Spam.',
     changePw: 'Schimbă parola', currentPw: 'Parola actuală', newPw: 'Parola nouă (minim 8 caractere)', pwSaved: 'Parola a fost schimbată.', logout: 'Ieși din cont', signedAs: 'Conectat ca',
     today: 'azi', yesterday: 'ieri',
   },
@@ -50,6 +51,7 @@ const T = {
     notif: 'Értesítések', notifOn: 'Értesítések bekapcsolása', notifOff: 'Értesítések kikapcsolása', notifActive: 'Minden új üzenetről értesítést kap.', notifBlocked: 'Az értesítések le vannak tiltva ennél az oldalnál.', notifUnblock: ['Koppintson a címsor bal oldalán lévő ikonra (🔒 vagy ⚙️).', 'Válassza: „Engedélyek” vagy „Webhelybeállítások” → „Értesítések” → „Engedélyezés”.', 'Térjen vissza ide, és koppintson ismét az „Értesítések bekapcsolása” gombra.'], notifUnblockApp: 'Ha az alkalmazás telepítve van: Telefon beállításai → Alkalmazások → Panoul meu → Értesítések → Engedélyezés.', notifUnblockInstalled: ['Lépjen ki az alkalmazásból, és tartsa lenyomva a „Panoul meu” ikont.', 'Koppintson az ⓘ („Alkalmazásinformáció”) → „Értesítések” → kapcsolja be.', 'Nyissa meg újra az alkalmazást: az értesítések maguktól bekapcsolnak.'], notifAuto: 'Engedélyezés után térjen vissza ide: automatikusan bekapcsolnak.', notifUnsupported: 'Ez a böngésző nem fogad értesítéseket. Nyissa meg Chrome-ban (Android), vagy adja hozzá a kezdőképernyőhöz (iPhone).',
     notifIos: 'iPhone-on az értesítések a kezdőképernyőre telepítés után működnek.', install: 'Alkalmazás telepítése', installBtn: 'Telepítés a telefonra',
     installIos: 'iPhone-on: Megosztás, majd „Főképernyőhöz adás”.', installAndroid: 'Vagy a böngésző menüjéből ⋮: „Alkalmazás telepítése”.', installed: 'Az alkalmazás telepítve van.', installStepsAndroid: ['Nyissa meg a Google Chrome-ban (nem Operában / Samsung Internetben).', 'Koppintson a ⋮ menüre, és válassza az „Alkalmazás telepítése” lehetőséget (nem a „Hozzáadás a kezdőképernyőhöz”, az csak parancsikon Chrome-jelzéssel).', 'Erősítse meg: a „Panoul meu” alkalmazásként jelenik meg, saját ikonnal.'], installStepsIos: ['Nyissa meg Safariban.', 'Koppintson a Megosztás gombra (négyzet felfelé mutató nyíllal).', 'Válassza a „Főképernyőhöz adás”, majd a „Hozzáadás” lehetőséget.'], installBanner: 'Telepítse a telefonjára alkalmazásként', installBannerSub: 'Egy koppintással megnyitja, és értesítést kap az új üzenetekről.', later: 'Később',
+    mailNotif: 'E-mail értesítések', mailNotifSub: 'Minden űrlapüzenetet megkap e-mailben is.', mailAddr: 'E-mail cím az értesítésekhez', sendCode: 'Kód küldése', codeSentTo: '6 jegyű kódot küldtünk ide:', codeLabel: 'Az e-mailben kapott kód', confirm: 'Megerősítés', resend: 'Kód újraküldése', change: 'E-mail módosítása', stopMail: 'E-mail értesítések kikapcsolása', mailOn: 'Az értesítések ide érkeznek:', wrongCode: 'Hibás kód.', expiredCode: 'A kód lejárt. Kérjen újat.', waitCode: 'Várjon egy percet az új kód előtt.', mailBad: 'Az e-mail cím nem tűnik helyesnek.', mailSoon: 'Az e-mail értesítések hamarosan elérhetők lesznek.', checkSpam: 'Nem találja? Nézze meg a Spam mappát is.',
     changePw: 'Jelszó módosítása', currentPw: 'Jelenlegi jelszó', newPw: 'Új jelszó (legalább 8 karakter)', pwSaved: 'A jelszó megváltozott.', logout: 'Kilépés', signedAs: 'Bejelentkezve:',
     today: 'ma', yesterday: 'tegnap',
   },
@@ -68,6 +70,7 @@ const T = {
     notif: 'Notifications', notifOn: 'Turn on notifications', notifOff: 'Turn off notifications', notifActive: 'You get a notification for every new message.', notifBlocked: 'Notifications are blocked for this site.', notifUnblock: ['Tap the icon left of the site address (🔒 or ⚙️).', 'Choose “Permissions” or “Site settings” → “Notifications” → “Allow”.', 'Come back and tap “Turn on notifications” again.'], notifUnblockApp: 'If the app is installed: phone Settings → Apps → Panoul meu → Notifications → Allow.', notifUnblockInstalled: ['Leave the app and long-press the “Panoul meu” icon on your home screen.', 'Tap ⓘ (“App info”) → “Notifications” → turn them on.', 'Open the app again: notifications turn on by themselves.'], notifAuto: 'Once allowed, come back here: they turn on automatically.', notifUnsupported: 'This browser cannot receive notifications. Open it in Chrome (Android) or add it to your home screen (iPhone).',
     notifIos: 'On iPhone, notifications work after you add the app to your home screen.', install: 'Install the app', installBtn: 'Install on phone',
     installIos: 'On iPhone: tap Share, then “Add to Home Screen”.', installAndroid: 'Or from the browser menu ⋮: “Install app”.', installed: 'The app is installed.', installStepsAndroid: ['Open it in Google Chrome (not Opera / Samsung Internet).', 'Tap the ⋮ menu and choose “Install app” (not “Add to Home screen”, which adds a shortcut with the Chrome badge).', 'Confirm: “Panoul meu” appears as an app with its own icon.'], installStepsIos: ['Open it in Safari.', 'Tap the Share button (square with an up arrow).', 'Choose “Add to Home Screen”, then “Add”.'], installBanner: 'Install the panel on your phone as an app', installBannerSub: 'Open it with one tap and get notified about new messages.', later: 'Later',
+    mailNotif: 'Email notifications', mailNotifSub: 'Get every message from your website form by email too.', mailAddr: 'Email for notifications', sendCode: 'Send code', codeSentTo: 'We sent a 6-digit code to', codeLabel: 'Code from the email', confirm: 'Confirm', resend: 'Resend code', change: 'Change email', stopMail: 'Turn off email notifications', mailOn: 'Notifications go to', wrongCode: 'Wrong code.', expiredCode: 'The code has expired. Ask for a new one.', waitCode: 'Wait a minute before asking for a new code.', mailBad: 'That email does not look right.', mailSoon: 'Email notifications will be available soon.', checkSpam: 'Can’t find it? Check your Spam folder.',
     changePw: 'Change password', currentPw: 'Current password', newPw: 'New password (at least 8 characters)', pwSaved: 'Password changed.', logout: 'Sign out', signedAs: 'Signed in as',
     today: 'today', yesterday: 'yesterday',
   },
@@ -254,7 +257,7 @@ function Shell({ me, t, lang, reload, setMe }: { me: Me; t: typeof T.ro; lang: L
       <main className="max-w-2xl mx-auto px-4 pt-4 pb-[calc(96px+env(safe-area-inset-bottom))]">
         {tab === 'inbox' && <Inbox me={me} t={t} lang={lang} setMe={setMe} />}
         {tab === 'site' && <SiteEditor me={me} t={t} setMe={setMe} />}
-        {tab === 'account' && <Account me={me} t={t} />}
+        {tab === 'account' && <Account me={me} t={t} reload={reload} />}
       </main>
       <nav className="fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur border-t border-slate-200 pb-[env(safe-area-inset-bottom)]">
         <div className="max-w-2xl mx-auto grid grid-cols-3">
@@ -469,7 +472,57 @@ function SiteEditor({ me, t, setMe }: { me: Me; t: typeof T.ro; setMe: (m: Me) =
   )
 }
 
-function Account({ me, t }: { me: Me; t: typeof T.ro }) {
+function MailNotif({ me, t, reload }: { me: Me; t: typeof T.ro; reload: () => Promise<void> }) {
+  const [step, setStep] = useState<'view' | 'edit' | 'code'>(me.notify.pending ? 'code' : me.notify.email ? 'view' : 'edit')
+  const [email, setEmail] = useState(me.notify.pending || me.notify.email || me.account.email)
+  const [code, setCode] = useState('')
+  const [msg, setMsg] = useState('')
+  const [busy, setBusy] = useState(false)
+  const errText = (s: number, e?: string) => s === 429 ? t.waitCode : s === 410 ? t.expiredCode : s === 401 ? t.wrongCode : e === 'email' ? t.mailBad : t.error
+  async function send() {
+    setBusy(true); setMsg('')
+    const r = await call<{ error?: string }>('/api/client/notify-email', 'POST', { email })
+    setBusy(false)
+    if (r.ok) { setStep('code'); setCode('') } else setMsg(errText(r.status, r.data.error))
+  }
+  async function confirm() {
+    setBusy(true); setMsg('')
+    const r = await call<{ error?: string }>('/api/client/notify-email/confirm', 'POST', { code })
+    setBusy(false)
+    if (r.ok) { setStep('view'); await reload() } else setMsg(errText(r.status, r.data.error))
+  }
+  async function stop() { await call('/api/client/notify-email', 'DELETE'); setStep('edit'); await reload() }
+  if (!me.notify.available) return <p className="text-[13px] text-slate-500">{t.mailSoon}</p>
+  return (
+    <div className="space-y-2">
+      <p className="text-[13px] text-slate-500">{t.mailNotifSub}</p>
+      {step === 'view' && me.notify.email && <>
+        <p className="text-[14px] text-emerald-700 flex items-center gap-1.5">{Icon.check}{t.mailOn} <b className="break-all">{me.notify.email}</b></p>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => { setEmail(me.notify.email || ''); setStep('edit') }} className="h-10 px-4 rounded-xl border border-slate-200 text-[14px] font-medium">{t.change}</button>
+          <button onClick={stop} className="h-10 px-4 rounded-xl text-rose-600 text-[14px]">{t.stopMail}</button>
+        </div>
+      </>}
+      {step === 'edit' && <>
+        <input className={input} type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={t.mailAddr} value={email} onChange={e => setEmail(e.target.value)} />
+        <button onClick={send} disabled={busy || !email.trim()} className="h-11 px-4 rounded-xl bg-slate-900 text-white font-medium disabled:opacity-50">{busy ? '…' : t.sendCode}</button>
+      </>}
+      {step === 'code' && <>
+        <p className="text-[13px] text-slate-700">{t.codeSentTo} <b className="break-all">{email}</b></p>
+        <input className={`${input} text-center text-2xl tracking-[0.4em]`} inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="••••••" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} />
+        <div className="flex flex-wrap gap-2">
+          <button onClick={confirm} disabled={busy || code.length !== 6} className="h-11 px-4 rounded-xl bg-teal-600 text-white font-medium disabled:opacity-50">{busy ? '…' : t.confirm}</button>
+          <button onClick={send} disabled={busy} className="h-11 px-3 rounded-xl border border-slate-200 text-[14px]">{t.resend}</button>
+          <button onClick={() => setStep('edit')} className="h-11 px-3 rounded-xl text-slate-500 text-[14px]">{t.change}</button>
+        </div>
+        <p className="text-[12px] text-slate-400">{t.checkSpam}</p>
+      </>}
+      {msg && <p className="text-[13px] text-rose-600">{msg}</p>}
+    </div>
+  )
+}
+
+function Account({ me, t, reload }: { me: Me; t: typeof T.ro; reload: () => Promise<void> }) {
   const { standalone: installed } = useInstall()
   const [perm, setPerm] = useState<string>('default')
   const [subscribed, setSubscribed] = useState(false)
@@ -541,6 +594,10 @@ function Account({ me, t }: { me: Me; t: typeof T.ro }) {
                 {subscribed && <p className="text-[13px] text-emerald-700 mb-2">{t.notifActive}</p>}
                 <button onClick={toggleNotif} className={`h-11 px-4 rounded-xl font-medium ${subscribed ? 'border border-slate-200 text-slate-700' : 'bg-slate-900 text-white'}`}>{subscribed ? t.notifOff : t.notifOn}</button>
               </>}
+        </div>
+        <div className={row}>
+          <div className="font-semibold mb-1">{t.mailNotif}</div>
+          <MailNotif me={me} t={t} reload={reload} />
         </div>
         <div className={row}>
           <div className="font-semibold mb-1">{t.install}</div>

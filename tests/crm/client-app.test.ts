@@ -101,3 +101,35 @@ describe('client app: accounts linked to the website', () => {
     expect((await one<{ content: { prices?: unknown[] } }>('SELECT content FROM client_portals WHERE business_id = $1', [b.id]))!.content.prices || []).toHaveLength(0)
   })
 })
+
+describe('notification email chosen by the client (confirmed with a code)', () => {
+  beforeEach(async () => { process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_store_secret'; await freshDb() })
+
+  it('sends a code, confirms it, then form messages go to that email; can be changed or turned off', async () => {
+    const { requestEmailCode, confirmEmailCode, disableEmail } = await import('@/lib/crm/notify-email')
+    const { receiveSiteMessage } = await import('@/lib/crm/site-messages')
+    const { POST: register } = await import('@/app/api/client/register/route')
+    const a = await setup()
+    await register(req('/api/client/register', { method: 'POST', json: { token: a.token, pin: a.pin, email: 'owner@x.ro', password: 'parola123' } }))
+    const acc = (await one<{ id: string }>('SELECT id FROM client_accounts'))!
+    const mails: { to: string; subject: string; text: string }[] = []
+    const send = async (m: typeof mails[0]) => { mails.push(m) }
+
+    await expect(requestEmailCode(acc.id, 'gresit', send)).rejects.toMatchObject({ status: 400 })
+    await requestEmailCode(acc.id, 'Rezervari@Hanul.ro', send)
+    expect(mails[0].to).toBe('rezervari@hanul.ro')
+    const code = mails[0].subject.match(/\d{6}/)![0]
+    await expect(requestEmailCode(acc.id, 'rezervari@hanul.ro', send)).rejects.toMatchObject({ status: 429 }) // un cod pe minut
+    await expect(confirmEmailCode(acc.id, code === '111111' ? '222222' : '111111')).rejects.toMatchObject({ status: 401 })
+    expect(await confirmEmailCode(acc.id, code)).toBe('rezervari@hanul.ro')
+
+    const sent: { to: string }[] = []
+    await receiveSiteMessage('hanul-abc123', { name: 'Ana', message: 'Aveți loc?' }, '1.1.1.1', async m => { sent.push(m) })
+    expect(sent[0].to).toBe('rezervari@hanul.ro')
+
+    await disableEmail(acc.id)
+    const sent2: { to: string }[] = []
+    await receiveSiteMessage('hanul-abc123', { name: 'Ion', message: 'Bună' }, '2.2.2.2', async m => { sent2.push(m) })
+    expect(sent2).toHaveLength(0) // oprit: doar în aplicație
+  })
+})
