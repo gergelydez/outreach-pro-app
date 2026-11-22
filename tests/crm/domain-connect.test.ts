@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { connectDomain, cleanDomain } from '@/lib/crm/domain-connect'
+import { connectDomain, cleanDomain, resetTeamCache } from '@/lib/crm/domain-connect'
 
 type Call = { url: string; method: string; body?: unknown }
 
-function fakeFetch(opts: { zones?: unknown[]; records?: Record<string, unknown[]>; vercelErr?: { status: number; code: string } } = {}) {
+function fakeFetch(opts: { zones?: unknown[]; records?: Record<string, unknown[]>; vercelErr?: { status: number; code: string }; team?: string } = {}) {
   const calls: Call[] = []
   const f = (async (url: string, init: RequestInit = {}) => {
     const method = init.method || 'GET'
@@ -14,6 +14,8 @@ function fakeFetch(opts: { zones?: unknown[]; records?: Record<string, unknown[]
       if (method === 'GET' && url.includes('dns_records?name=')) return ok(opts.records?.[decodeURIComponent(url.split('name=')[1])] ?? [])
       return ok({})
     }
+    if (method === 'GET' && /\/v9\/projects\/[^/]+(\?teamId=team_b)?$/.test(url)) return new Response('{}', { status: opts.team && !url.includes(opts.team) ? 404 : 200 })
+    if (url.endsWith('/v2/teams')) return new Response(JSON.stringify({ teams: [{ id: 'team_a' }, { id: 'team_b' }] }))
     if (url.includes('/verify')) return new Response(JSON.stringify({ verified: true }))
     if (opts.vercelErr) return new Response(JSON.stringify({ error: { code: opts.vercelErr.code, message: opts.vercelErr.code } }), { status: opts.vercelErr.status })
     return new Response(JSON.stringify({ name: 'x' }))
@@ -22,7 +24,7 @@ function fakeFetch(opts: { zones?: unknown[]; records?: Record<string, unknown[]
 }
 
 describe('connectDomain', () => {
-  beforeEach(() => { process.env.VERCEL_TOKEN = 'v'; process.env.CLOUDFLARE_API_TOKEN = 'c' })
+  beforeEach(() => { resetTeamCache(); process.env.VERCEL_TOKEN = 'v'; process.env.CLOUDFLARE_API_TOKEN = 'c' })
   afterEach(() => { delete process.env.VERCEL_TOKEN; delete process.env.CLOUDFLARE_API_TOKEN })
 
   it('cleans user input', () => {
@@ -48,6 +50,12 @@ describe('connectDomain', () => {
   it('domain already in the project is fine; missing Cloudflare zone is a clear error', async () => {
     await expect(connectDomain('hanul.ro', fakeFetch({ vercelErr: { status: 409, code: 'domain_already_in_use' } }).f)).resolves.toBeTruthy()
     await expect(connectDomain('hanul.ro', fakeFetch({ zones: [] }).f)).rejects.toThrow(/nu e în contul tău Cloudflare/)
+  })
+
+  it('finds the team the project lives in', async () => {
+    const { f, calls } = fakeFetch({ team: 'team_b' })
+    await connectDomain('hanul.ro', f)
+    expect(calls.filter(c => c.method === 'POST' && c.url.includes('api.vercel.com')).every(c => c.url.includes('teamId=team_b'))).toBe(true)
   })
 
   it('without tokens asks for the one-time setup', async () => {
