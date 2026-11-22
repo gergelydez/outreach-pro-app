@@ -54,17 +54,17 @@ async function cf(f: F, path: string, init: RequestInit = {}) {
 export const resetTeamCache = () => { teamCache = undefined }
 // Domeniul era atașat unui proiect Cloudflare Pages (site-ul vechi din arhivă): îl scoatem de acolo
 async function detachFromPages(f: F, host: string) {
-  const fail = () => new DomainError(`Domeniul ${host} e încă legat de site-ul vechi din Cloudflare Pages. Scoate-l o dată: Cloudflare → Workers & Pages → proiectul site-ului → Custom domains → ⋯ → Remove domain, apoi apasă din nou „Pune pe domeniu”.`)
+  const fail = (why = '') => new DomainError(`Domeniul ${host} e încă legat de site-ul vechi din Cloudflare Pages. Scoate-l o dată: Cloudflare → Workers & Pages → proiectul site-ului → Custom domains → ⋯ → Remove domain, apoi apasă din nou „Pune pe domeniu”.${why ? ` (Motiv: ${why})` : ''}`)
   let account = process.env.CLOUDFLARE_ACCOUNT_ID
   try {
     if (!account) account = ((await cf(f, '/accounts')) as { id: string }[])[0]?.id
-    if (!account) throw fail()
+    if (!account) throw fail('nu găsesc contul Cloudflare')
     const projects = await cf(f, `/accounts/${account}/pages/projects`) as { name: string; domains?: string[] }[]
     const p = projects.find(x => (x.domains || []).includes(host))
-    if (!p) throw fail()
+    if (!p) throw fail(`niciun proiect Pages din ${projects.length} nu are domeniul`)
     await cf(f, `/accounts/${account}/pages/projects/${p.name}/domains/${host}`, { method: 'DELETE' })
   } catch (e) {
-    throw e instanceof DomainError && e.message.startsWith('Domeniul') ? e : fail()
+    throw e instanceof DomainError && e.message.startsWith('Domeniul') ? e : fail((e as Error).message)
   }
 }
 
