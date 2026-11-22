@@ -868,8 +868,7 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
                         <input className="flex-1 h-9 rounded-md border border-slate-300 bg-white px-2 text-[13px] text-slate-900" placeholder="Emailul firmei, unde ajung mesajele" value={formEmail} onChange={e => setFormEmail(e.target.value)} />
                         <Button size="sm" className="h-9" loading={busy === 'formEmail'} disabled={formEmail.trim() === forms.recipient} onClick={saveFormEmail}>Salvează</Button>
                       </div>}
-                  {!forms.recipient && <p className="text-[12px] text-amber-800">Fără email, mesajele se salvează doar aici și în panoul clientului.</p>}
-                  {!forms.emailReady && <p className="text-[12px] text-amber-800">Trimiterea pe email nu e pornită încă: lipsesc RESEND_API_KEY / FORM_FROM_EMAIL în Vercel. Mesajele se salvează oricum.</p>}
+                  <p className="text-[12px] text-slate-600">Mesajele ajung în aplicația clientului, cu notificare pe telefon{forms.emailReady && forms.recipient ? ', și pe email' : ''}. Le vezi și aici.</p>
                   {forms.messages.slice(0, 5).map(m => (
                     <div key={m.id} className="rounded-md bg-white border border-slate-200 p-2 text-[12px]">
                       <div className="flex justify-between gap-2"><b>{m.name || m.email || m.phone}</b><span className="text-slate-400">{new Date(m.created_at).toLocaleString('ro-RO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span></div>
