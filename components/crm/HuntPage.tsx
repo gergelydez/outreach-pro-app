@@ -938,13 +938,14 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
                     <input className="flex-1 h-9 rounded-md border border-slate-300 bg-white px-2 text-[13px] text-slate-900" placeholder="Adresa site-ului live (ex. hanulizvorulrece.ro)" value={liveUrl} onChange={e => setLiveUrl(e.target.value)} />
                     <Button size="sm" className="h-9" loading={busy === 'live'} disabled={liveUrl.trim() === (portal.live_url || '')} onClick={saveLive}>Salvează</Button>
                   </div>
+                  {portal.live_url && <details className="text-[12px] text-slate-700"><summary className="cursor-pointer font-medium text-slate-800">🌐 Domeniul se actualizează singur (setare o singură dată)</summary><ol className="list-decimal pl-4 mt-1 space-y-0.5"><li>Vercel → proiectul aplicației → Settings → Domains → adaugă <b>{portal.live_url.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '')}</b> și <b>www.</b> la fel.</li><li>La DNS-ul domeniului (Cloudflare): înregistrarea <b>A</b> pentru domeniu → <b>76.76.21.21</b>, iar <b>www</b> → CNAME <b>cname.vercel-dns.com</b>, ambele „DNS only” (norișor gri). Scoate domeniul din proiectul Cloudflare Pages vechi.</li><li>Gata: domeniul afișează mereu ultima versiune a site-ului, fără arhive.</li></ol></details>}
                   <Button size="sm" variant={portal.exists ? 'secondary' : 'primary'} className="h-9" loading={busy === 'portal'} disabled={demoRunning} onClick={activatePortal}>{portal.exists ? (portal.account ? '🔄 Cod nou (resetare parolă)' : '🔄 Cod nou pentru client') : '📱 Activează aplicația clientului'}</Button>
                 </div>
               )}
               {['won', 'interested', 'call_meeting', 'proposal_sent', 'negotiation', 'replied'].includes(r.stage) && (
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 space-y-2">
                   <div className="text-[12px] font-medium text-emerald-900">🚀 Site-ul final</div>
-                  <a href={`/api/crm/leads/${r.id}/export`} download className="h-10 px-3 inline-flex items-center gap-1.5 rounded-lg text-sm font-medium bg-white border border-emerald-300 text-emerald-800">⬇️ Descarcă site-ul final (.zip, fără banner)</a>
+                  <a href={`/api/crm/leads/${r.id}/export`} download className="h-10 px-3 inline-flex items-center gap-1.5 rounded-lg text-sm font-medium bg-white border border-emerald-300 text-emerald-800">⬇️ Descarcă site-ul (.zip, doar dacă îl găzduiești în altă parte)</a>
                   <details className="text-[12px] text-slate-700">
                     <summary className="cursor-pointer text-emerald-900">Cum îl pun live (Cloudflare Pages, gratuit)</summary>
                     <ol className="list-decimal pl-5 mt-1 space-y-0.5">

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { SESSION_COOKIE, verifySession } from '@/lib/crm/session'
+import { isAppHost } from '@/lib/live-host'
 
 // Modulul CRM (/crm, /api/crm). Restul aplicației rămâne neschimbat.
 // - parola e OPȚIONALĂ: fără CRM_PASSWORD, CRM-ul e deschis, ca restul aplicației
@@ -12,6 +13,15 @@ const TOKEN_API = ['/api/crm/worker/', '/api/crm/maintenance/', '/api/crm/hunt/c
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
+  // domeniul unui client (ex. hanulizvorulrece.ro): servim site-ul lui, mereu la zi
+  const reqHost = req.headers.get('host') || ''
+  if (!isAppHost(reqHost)) {
+    if (pathname === '/cms.js') return NextResponse.next()
+    const url = req.nextUrl.clone()
+    url.pathname = '/api/live-site'
+    url.search = `?host=${encodeURIComponent(reqHost.replace(/:\d+$/, ''))}&path=${encodeURIComponent(pathname)}`
+    return NextResponse.rewrite(url)
+  }
   // pe domeniul public pentru clienți (PUBLIC_APP_URL), pagina principală e aplicația lor
   if (pathname === '/') {
     let host = ''
@@ -19,6 +29,7 @@ export async function middleware(req: NextRequest) {
     if (host && req.headers.get('host') === host) return NextResponse.redirect(new URL('/client', req.url))
     return NextResponse.next()
   }
+  if (!pathname.startsWith('/crm') && !pathname.startsWith('/api/crm')) return NextResponse.next()
   const isApi = pathname.startsWith('/api/crm')
 
   if (isApi && TOKEN_API.some(p => pathname.startsWith(p))) return NextResponse.next()
@@ -45,4 +56,5 @@ export async function middleware(req: NextRequest) {
   return NextResponse.redirect(url)
 }
 
-export const config = { matcher: ['/', '/crm/:path*', '/api/crm/:path*'] }
+// toate paginile (pentru domeniile clienților); /api/* doar pentru CRM, ca /api/site și formularul să meargă și pe domeniul clientului
+export const config = { matcher: ['/((?!api/|_next/static|_next/image).*)', '/api/crm/:path*'] }
