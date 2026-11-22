@@ -52,6 +52,22 @@ async function cf(f: F, path: string, init: RequestInit = {}) {
 }
 
 export const resetTeamCache = () => { teamCache = undefined }
+// Domeniul era atașat unui proiect Cloudflare Pages (site-ul vechi din arhivă): îl scoatem de acolo
+async function detachFromPages(f: F, host: string) {
+  const fail = () => new DomainError(`Domeniul ${host} e încă legat de site-ul vechi din Cloudflare Pages. Scoate-l o dată: Cloudflare → Workers & Pages → proiectul site-ului → Custom domains → ⋯ → Remove domain, apoi apasă din nou „Pune pe domeniu”.`)
+  let account = process.env.CLOUDFLARE_ACCOUNT_ID
+  try {
+    if (!account) account = ((await cf(f, '/accounts')) as { id: string }[])[0]?.id
+    if (!account) throw fail()
+    const projects = await cf(f, `/accounts/${account}/pages/projects`) as { name: string; domains?: string[] }[]
+    const p = projects.find(x => (x.domains || []).includes(host))
+    if (!p) throw fail()
+    await cf(f, `/accounts/${account}/pages/projects/${p.name}/domains/${host}`, { method: 'DELETE' })
+  } catch (e) {
+    throw e instanceof DomainError && e.message.startsWith('Domeniul') ? e : fail()
+  }
+}
+
 const project = () => process.env.VERCEL_PROJECT_ID || process.env.VERCEL_PROJECT_NAME || 'outreach-pro-app'
 
 export async function connectDomain(input: string, f: F = fetch) {
@@ -77,7 +93,15 @@ export async function connectDomain(input: string, f: F = fetch) {
   for (const [name, type, content] of [[apex, 'A', VERCEL_IP], [www, 'CNAME', VERCEL_CNAME]] as const) {
     const existing = await cf(f, `/zones/${zone}/dns_records?name=${encodeURIComponent(name)}`) as { id: string; type: string; content: string; proxied?: boolean }[]
     const same = existing.find(x => x.type === type && x.content === content && !x.proxied)
-    for (const x of existing) if (x !== same && ['A', 'AAAA', 'CNAME'].includes(x.type)) await cf(f, `/zones/${zone}/dns_records/${x.id}`, { method: 'DELETE' })
+    for (const x of existing) {
+      if (x === same || !['A', 'AAAA', 'CNAME'].includes(x.type)) continue
+      try { await cf(f, `/zones/${zone}/dns_records/${x.id}`, { method: 'DELETE' }) } catch (e) {
+        // înregistrare blocată de un proiect Cloudflare Pages (domeniu atașat acolo): scoatem domeniul din Pages
+        if (!/read.?only/i.test((e as Error).message)) throw e
+        await detachFromPages(f, name)
+        try { await cf(f, `/zones/${zone}/dns_records/${x.id}`, { method: 'DELETE' }) } catch (e2) { if (!/not found|does not exist|81044/i.test((e2 as Error).message)) throw e2 }
+      }
+    }
     if (!same) await cf(f, `/zones/${zone}/dns_records`, { method: 'POST', body: JSON.stringify({ type, name, content, proxied: false, ttl: 1, comment: 'site servit de aplicație' }) })
   }
 
