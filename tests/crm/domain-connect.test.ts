@@ -3,7 +3,7 @@ import { connectDomain, cleanDomain, resetTeamCache } from '@/lib/crm/domain-con
 
 type Call = { url: string; method: string; body?: unknown }
 
-function fakeFetch(opts: { zones?: unknown[]; records?: Record<string, unknown[]>; vercelErr?: { status: number; code: string }; team?: string } = {}) {
+function fakeFetch(opts: { zones?: unknown[]; records?: Record<string, unknown[]>; vercelErr?: { status: number; code: string }; team?: string; locked?: { id: string }; pages?: unknown[] } = {}) {
   const calls: Call[] = []
   const f = (async (url: string, init: RequestInit = {}) => {
     const method = init.method || 'GET'
@@ -12,6 +12,8 @@ function fakeFetch(opts: { zones?: unknown[]; records?: Record<string, unknown[]
     if (url.includes('api.cloudflare.com')) {
       if (url.includes('/zones?name=')) return ok(opts.zones ?? [{ id: 'z1' }])
       if (method === 'GET' && url.includes('dns_records?name=')) return ok(opts.records?.[decodeURIComponent(url.split('name=')[1])] ?? [])
+      if (method === 'DELETE' && opts.locked && url.endsWith('/dns_records/' + opts.locked.id) && !calls.some(c => c.method === 'DELETE' && c.url.includes('/pages/projects/'))) return new Response(JSON.stringify({ success: false, errors: [{ message: 'Unable to edit this record as this has been configured as read only.' }] }), { status: 400 })
+      if (url.endsWith('/pages/projects')) return ok(opts.pages ?? [])
       return ok({})
     }
     if (method === 'GET' && /\/v9\/projects\/[^/]+(\?teamId=team_b)?$/.test(url)) return new Response('{}', { status: opts.team && !url.includes(opts.team) ? 404 : 200 })
@@ -50,6 +52,22 @@ describe('connectDomain', () => {
   it('domain already in the project is fine; missing Cloudflare zone is a clear error', async () => {
     await expect(connectDomain('hanul.ro', fakeFetch({ vercelErr: { status: 409, code: 'domain_already_in_use' } }).f)).resolves.toBeTruthy()
     await expect(connectDomain('hanul.ro', fakeFetch({ zones: [] }).f)).rejects.toThrow(/nu e în contul tău Cloudflare/)
+  })
+
+  it('detaches the domain from an old Cloudflare Pages project when the record is read-only', async () => {
+    process.env.CLOUDFLARE_ACCOUNT_ID = 'acc'
+    const { f, calls } = fakeFetch({ locked: { id: 'pg' }, records: { 'hanul.ro': [{ id: 'pg', type: 'CNAME', content: 'hanul.pages.dev' }] }, pages: [{ name: 'hanul', domains: ['hanul.ro', 'www.hanul.ro'] }] })
+    await connectDomain('hanul.ro', f)
+    expect(calls.some(c => c.method === 'DELETE' && c.url.endsWith('/accounts/acc/pages/projects/hanul/domains/hanul.ro'))).toBe(true)
+    expect(calls.some(c => c.method === 'POST' && (c.body as { content?: string })?.content === '76.76.21.21')).toBe(true)
+    delete process.env.CLOUDFLARE_ACCOUNT_ID
+  })
+
+  it('read-only record with no matching Pages project gives clear steps', async () => {
+    process.env.CLOUDFLARE_ACCOUNT_ID = 'acc'
+    const { f } = fakeFetch({ locked: { id: 'pg' }, records: { 'hanul.ro': [{ id: 'pg', type: 'CNAME', content: 'x' }] }, pages: [] })
+    await expect(connectDomain('hanul.ro', f)).rejects.toThrow(/Custom domains/)
+    delete process.env.CLOUDFLARE_ACCOUNT_ID
   })
 
   it('finds the team the project lives in', async () => {
