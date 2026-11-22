@@ -4,6 +4,7 @@ import { one } from '@/lib/crm/db'
 import { createPortal, startMarkup } from '@/lib/crm/portal'
 import { loadSiteHtml, slugOf } from '@/lib/crm/demo'
 import { hasCmsMarkers, hasCmsForm } from '@/lib/crm/cms-shared'
+import { publicOrigin } from '@/lib/public-url'
 
 export const maxDuration = 300
 export const dynamic = 'force-dynamic'
@@ -18,7 +19,7 @@ export const GET = route(async (req: Request, { params }: Ctx) => {
   const b = await one<{ preview_url: string | null; live_url: string | null }>('SELECT preview_url, live_url FROM businesses WHERE id = $1', [id])
   const slug = slugOf(b?.preview_url ?? null)
   const ready = slug ? await loadSiteHtml(slug).then(h => hasCmsMarkers(h) && hasCmsForm(h)).catch(() => false) : false
-  return json({ exists: !!p, link: p ? `${new URL(req.url).origin}/edit/${p.token}` : null, ready, account: acc, live_url: b?.live_url ?? null })
+  return json({ exists: !!p, link: p ? `${publicOrigin(req)}/edit/${p.token}` : null, ready, account: acc, live_url: b?.live_url ?? null })
 })
 
 // Activează panoul (sau un PIN nou, cu același link). Dacă site-ul nu are încă marcajele, Claude le adaugă în fundal.
@@ -37,5 +38,5 @@ export const POST = route(async (req: Request, { params }: Ctx) => {
       .catch(e => { throw new HttpError(400, e instanceof Error ? e.message : String(e)) })
     markup = r.status
   }
-  return json({ link: `${new URL(req.url).origin}/edit/${token}`, pin, markup })
+  return json({ link: `${publicOrigin(req)}/edit/${token}`, pin, markup })
 })

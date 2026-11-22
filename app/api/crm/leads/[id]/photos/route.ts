@@ -23,7 +23,7 @@ export const POST = route(async (req: Request, { params }: Ctx) => {
     request: req,
     body: b,
     onBeforeGenerateToken: async pathname => {
-      if (!pathname.startsWith(PHOTO_PREFIX(id))) throw new HttpError(400, 'Cale invalidă')
+      if (!pathname.startsWith(PHOTO_PREFIX(id)) && !pathname.startsWith(`edit-shots/${id}/`)) throw new HttpError(400, 'Cale invalidă')
       return { allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp'], maximumSizeInBytes: 8 * 1024 * 1024, addRandomSuffix: true }
     },
   })

@@ -462,11 +462,24 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
   const demoRunning = r.demo_status === 'running'
   const [editText, setEditText] = useState('')
   const [editing, setEditing] = useState(false)
-  async function applyEdits() {
+  const [shots, setShots] = useState<string[]>([])
+  const [shotBusy, setShotBusy] = useState(false)
+  async function addShots(files: FileList | null) {
+    if (!files?.length) return
+    setShotBusy(true)
+    const { upload } = await import('@vercel/blob/client')
+    const urls: string[] = []
+    for (const f of Array.from(files).slice(0, 4)) {
+      try { const b = await upload(`edit-shots/${r.id}/${Date.now()}.jpg`, await shrinkImage(f), { access: 'public', handleUploadUrl: `/api/crm/leads/${r.id}/photos`, contentType: 'image/jpeg' }); urls.push(b.url) } catch { /* */ }
+    }
+    setShots(s => [...s, ...urls].slice(0, 4)); setShotBusy(false)
+  }
+  const FIX_TEXT = 'Repară afișarea pe telefon: titlurile secțiunilor (de exemplu „Locație”) nu au voie să apară peste bara de navigație (antet opac, z-index peste tot conținutul, scroll-margin-top); scoate orice buton plutitor de tip „Cere ofertă” / „Cere disponibilitatea” din mijlocul ecranului (păstrează doar bara fixă de jos cu Sună / WhatsApp); niciun spațiu mare gol: tot conținutul trebuie să fie vizibil și fără animații (animațiile doar îl aduc, nu îl ascund); nimic suprapus la 360–430px. Restul site-ului rămâne neschimbat.'
+  async function applyEdits(text?: string) {
     setErr(''); setBusy('edit')
     try {
-      await api(`/api/crm/leads/${r.id}/demo/edit`, { json: { instructions: editText, anthropic_key: keys.anthropic || undefined, designer: templates.me } })
-      setEditing(true); setEditText('')
+      await api(`/api/crm/leads/${r.id}/demo/edit`, { json: { instructions: text || editText, images: shots, anthropic_key: keys.anthropic || undefined, designer: templates.me } })
+      setEditing(true); setEditText(''); setShots([])
       onChange({ demo_status: 'running', demo_error: null, demo_started_at: new Date().toISOString() })
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
     setBusy('')
@@ -856,7 +869,17 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
               <div className="rounded-lg border border-slate-200 p-2.5 space-y-2">
                 <div className="text-[12px] font-medium text-slate-700">✏️ Modificări cerute de client</div>
                 <textarea className="w-full min-h-[70px] rounded-md border border-slate-300 p-2 text-[13px]" placeholder="Ex.: schimbă telefonul în 0722 000 000, adaugă programul L–V 8–18, scoate secțiunea cu prețuri, culoarea principală verde…" value={editText} onChange={e => setEditText(e.target.value)} />
-                <Button size="sm" variant="primary" className="h-9" loading={busy === 'edit'} disabled={editText.trim().length < 3} onClick={applyEdits}>Aplică modificările (același link)</Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {shots.map(u => <img key={u} src={u} alt="" className="w-12 h-12 object-cover rounded-md border border-slate-200" />)}
+                  <label className="h-9 px-3 inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white text-[12px] text-slate-700 cursor-pointer">
+                    {shotBusy ? 'Se încarcă…' : '📷 Adaugă captură cu problema'}
+                    <input type="file" accept="image/*" multiple className="hidden" disabled={shotBusy} onChange={e => { addShots(e.target.files); e.target.value = '' }} />
+                  </label>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="primary" className="h-9" loading={busy === 'edit'} disabled={editText.trim().length < 3 && !shots.length} onClick={() => applyEdits(editText.trim() || 'Repară problemele care se văd în capturile de ecran.')}>Aplică modificările (același link)</Button>
+                  <Button size="sm" className="h-9" loading={busy === 'edit'} onClick={() => applyEdits(FIX_TEXT)}>🛠️ Repară afișarea pe telefon</Button>
+                </div>
                 <p className="text-[11px] text-slate-400">Claude modifică site-ul pe server; poți închide pagina. Clientul vede schimbările pe același link.</p>
               </div>
               {forms && (

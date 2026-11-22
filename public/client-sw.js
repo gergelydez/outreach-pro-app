@@ -1,8 +1,11 @@
 // Service worker pentru panoul clientului: notificări „mesaj nou” și instalare ca aplicație
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()))
-// necesar ca aplicația să poată fi instalată; cererile merg normal la rețea
-self.addEventListener('fetch', () => {})
+// navigarea merge la rețea; fără internet, o pagină simplă (Chrome cere asta ca să instaleze aplicația „adevărată”, fără eticheta browserului)
+self.addEventListener('fetch', e => {
+  if (e.request.mode !== 'navigate') return
+  e.respondWith(fetch(e.request).catch(() => new Response('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Panoul meu</title><body style="font-family:system-ui;background:#f4f5f7;color:#0f172a;display:grid;place-items:center;height:100vh;margin:0;text-align:center;padding:24px"><div><h1 style="font-size:20px">Fără conexiune la internet</h1><p style="color:#64748b">Reîncearcă după ce revine internetul.</p></div>', { headers: { 'Content-Type': 'text/html; charset=utf-8' } })))
+})
 
 self.addEventListener('push', e => {
   let d = {}

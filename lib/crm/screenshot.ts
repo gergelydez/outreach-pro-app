@@ -1,6 +1,7 @@
 // Poza (screenshot) cu prima parte a demo-ului, în format de telefon, ca s-o trimiți pe WhatsApp.
 // Pe Vercel rulează Chromium-ul din @sparticuz/chromium; local, Chromium-ul instalat (CHROME_PATH).
 import { stripConceptBanner } from '@/lib/preview'
+import { withSiteFixes } from '@/lib/site-fixes'
 
 export async function screenshotHtml(html: string): Promise<Buffer> {
   const puppeteer = (await import('puppeteer-core')).default
@@ -19,7 +20,7 @@ export async function screenshotHtml(html: string): Promise<Buffer> {
     const page = await browser.newPage()
     // iPhone obișnuit: 390×844, ecran retina
     await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
-    await page.setContent(stripConceptBanner(html), { waitUntil: 'networkidle2', timeout: 25_000 }).catch(() => { /* pozele lente: facem poza cu ce s-a încărcat */ })
+    await page.setContent(withSiteFixes(stripConceptBanner(html)), { waitUntil: 'networkidle2', timeout: 25_000 }).catch(() => { /* pozele lente: facem poza cu ce s-a încărcat */ })
     // animațiile de intrare (fade-in la scroll) ar lăsa secțiuni goale în poză
     await page.addStyleTag({ content: '*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;transition:none!important}[data-aos],.reveal,.fade-in,.animate{opacity:1!important;transform:none!important}' }).catch(() => {})
     await new Promise(r => setTimeout(r, 1200))

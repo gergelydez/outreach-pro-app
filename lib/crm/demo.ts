@@ -136,7 +136,7 @@ ${html}
 </site>`
 }
 
-export async function startEdit(id: string, opts: { instructions: string; anthropicKey?: string; designer?: string }, deps: EditDeps = {}) {
+export async function startEdit(id: string, opts: { instructions: string; anthropicKey?: string; designer?: string; images?: string[] }, deps: EditDeps = {}) {
   const b = await one<DemoLeadRow>(`SELECT id, name, category, city, address, phone, phone_e164, email, website_url, website_status, google_place_id,
       google_rating, google_review_count, preview_url, country, demo_status, demo_started_at FROM businesses WHERE id = $1`, [id])
   if (!b) throw new Error('Lead not found')
@@ -152,14 +152,19 @@ export async function startEdit(id: string, opts: { instructions: string; anthro
   return { status: 'running' as const, already: false, job }
 }
 
-async function runEdit(b: DemoLeadRow, slug: string, opts: { instructions: string; apiKey: string; designer?: string }, deps: EditDeps) {
+async function runEdit(b: DemoLeadRow, slug: string, opts: { instructions: string; apiKey: string; designer?: string; images?: string[] }, deps: EditDeps) {
   const country = asCountry(b.country)
   const lang = country === 'HU' ? 'hu' : country === 'UK' ? 'en' : 'ro'
   try {
     const current = stripConceptBanner(deps.load ? await deps.load(slug) : await loadSiteHtml(slug))
     const cms = hasCmsMarkers(current) ? await portalContent(b.id) : null
-    const prompt = buildEditPrompt(current, opts.instructions, lang === 'hu' ? 'maghiară' : lang === 'en' ? 'engleză' : 'română') + (cms ? cmsPromptAddon(cms) : '')
-    const raw = deps.generate ? await deps.generate(prompt) : await generateHtml(new Anthropic({ apiKey: opts.apiKey }), prompt)
+    const prompt = buildEditPrompt(current, opts.instructions, lang === 'hu' ? 'maghiară' : lang === 'en' ? 'engleză' : 'română') + `\n\nLa orice modificare, respectă și regulile pentru telefon de mai jos (dacă site-ul le încalcă acum, repară-le):\n${DEMO_LAYOUT_RULES}` + (cms ? cmsPromptAddon(cms) : '')
+    // capturi de ecran trimise de client: Claude vede exact problema
+    const imgs = (opts.images || []).filter(u => /^https:\/\//.test(u)).slice(0, 4)
+    const content: string | Anthropic.Beta.BetaContentBlockParam[] = imgs.length
+      ? [{ type: 'text', text: 'Capturile de ecran de mai jos arată problemele semnalate (de obicei pe telefon). Repară exact ce se vede în ele.' }, ...imgs.map(url => ({ type: 'image' as const, source: { type: 'url' as const, url } })), { type: 'text', text: prompt }]
+      : prompt
+    const raw = deps.generate ? await deps.generate(typeof content === 'string' ? content : JSON.stringify(content)) : await generateHtml(new Anthropic({ apiKey: opts.apiKey }), content)
     const html = cms ? await savePortalFromHtml(b.id, slug, raw, deps.put) : raw
     const finalHtml = withConceptBanner(html, b.name, opts.designer || '', lang)
     if (deps.publish) await deps.publish(slug, finalHtml)
