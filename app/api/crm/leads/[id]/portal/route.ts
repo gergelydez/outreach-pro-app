@@ -5,6 +5,7 @@ import { createPortal, startMarkup } from '@/lib/crm/portal'
 import { loadSiteHtml, slugOf } from '@/lib/crm/demo'
 import { hasCmsContent, hasCmsForm } from '@/lib/crm/cms-shared'
 import { publicOrigin } from '@/lib/public-url'
+import { domainAutoAvailable } from '@/lib/crm/domain-connect'
 
 export const maxDuration = 300
 export const dynamic = 'force-dynamic'
@@ -19,7 +20,7 @@ export const GET = route(async (req: Request, { params }: Ctx) => {
   const b = await one<{ preview_url: string | null; live_url: string | null }>('SELECT preview_url, live_url FROM businesses WHERE id = $1', [id])
   const slug = slugOf(b?.preview_url ?? null)
   const ready = slug ? await loadSiteHtml(slug).then(h => hasCmsContent(h) && hasCmsForm(h)).catch(() => false) : false
-  return json({ exists: !!p, link: p ? `${publicOrigin(req)}/edit/${p.token}` : null, ready, account: acc, live_url: b?.live_url ?? null })
+  return json({ exists: !!p, link: p ? `${publicOrigin(req)}/edit/${p.token}` : null, ready, account: acc, live_url: b?.live_url ?? null, domain_auto: domainAutoAvailable() })
 })
 
 // Activează panoul (sau un PIN nou, cu același link). Dacă site-ul nu are încă marcajele, Claude le adaugă în fundal.
