@@ -2,6 +2,7 @@ import { waitUntil } from '@vercel/functions'
 import { route, json, body, str, requireUuid, HttpError } from '@/lib/crm/api'
 import { one } from '@/lib/crm/db'
 import { startDemo, DEMO_STALE_MIN } from '@/lib/crm/demo'
+import { publicOrigin } from '@/lib/public-url'
 
 // Generarea durează 1–4 minute și continuă pe server după ce răspundem (waitUntil)
 export const maxDuration = 300
@@ -14,7 +15,7 @@ export const POST = route(async (req: Request, { params }: Ctx) => {
   const id = requireUuid(params.id)
   const b = await body<{ anthropic_key?: string; google_key?: string; designer?: string; style?: string }>(req)
   const r = await startDemo(id, {
-    origin: new URL(req.url).origin,
+    origin: publicOrigin(req),
     anthropicKey: str(b.anthropic_key, 300) || undefined,
     googleKey: str(b.google_key, 200) || undefined,
     designer: str(b.designer, 60) || undefined,

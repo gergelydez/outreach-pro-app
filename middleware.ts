@@ -12,6 +12,13 @@ const TOKEN_API = ['/api/crm/worker/', '/api/crm/maintenance/', '/api/crm/hunt/c
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
+  // pe domeniul public pentru clienți (PUBLIC_APP_URL), pagina principală e aplicația lor
+  if (pathname === '/') {
+    let host = ''
+    try { host = process.env.PUBLIC_APP_URL ? new URL(process.env.PUBLIC_APP_URL).host : '' } catch { /* */ }
+    if (host && req.headers.get('host') === host) return NextResponse.redirect(new URL('/client', req.url))
+    return NextResponse.next()
+  }
   const isApi = pathname.startsWith('/api/crm')
 
   if (isApi && TOKEN_API.some(p => pathname.startsWith(p))) return NextResponse.next()
@@ -38,4 +45,4 @@ export async function middleware(req: NextRequest) {
   return NextResponse.redirect(url)
 }
 
-export const config = { matcher: ['/crm/:path*', '/api/crm/:path*'] }
+export const config = { matcher: ['/', '/crm/:path*', '/api/crm/:path*'] }

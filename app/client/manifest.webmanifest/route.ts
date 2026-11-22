@@ -12,6 +12,8 @@ export function GET() {
     display: 'standalone',
     background_color: '#f4f5f7',
     theme_color: '#0f172a',
+    prefer_related_applications: false,
+    orientation: 'portrait',
     icons: [
       { src: '/icons/client-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
       { src: '/icons/client-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
