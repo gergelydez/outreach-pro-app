@@ -29,9 +29,9 @@ const T = {
     offerTitle: 'Titlu', offerText: 'Descriere', from: 'De la', to: 'Până la', active: 'Activă pe site', addOffer: 'Adaugă ofertă', offersHint: 'Ofertele expirate dispar singure de pe site.',
     addPhotos: 'Adaugă poze', uploading: 'Se încarcă…', galleryHint: 'Ordinea de aici este ordinea de pe site.', phone: 'Telefon', address: 'Adresă', hours: 'Program', contactEmail: 'Email (afișat pe site)',
     save: 'Salvează', saving: 'Se salvează…', saved: 'Salvat. Apare pe site în câteva secunde.', unsaved: 'Modificări nesalvate', remove: 'Șterge',
-    notif: 'Notificări pe telefon', notifOn: 'Activează notificările', notifOff: 'Oprește notificările', notifActive: 'Primești o notificare la fiecare mesaj nou.', notifBlocked: 'Notificările sunt blocate în setările browserului.',
+    notif: 'Notificări pe telefon', notifOn: 'Activează notificările', notifOff: 'Oprește notificările', notifActive: 'Primești o notificare la fiecare mesaj nou.', notifBlocked: 'Notificările sunt blocate pentru acest site.', notifUnblock: ['Apasă pe iconița din stânga adresei site-ului (🔒 sau ⚙️).', 'Alege „Permisiuni” sau „Setări site” → „Notificări” → „Permite”.', 'Revino aici și apasă din nou „Activează notificările”.'], notifUnblockApp: 'Dacă aplicația e instalată: Setări telefon → Aplicații → Panoul meu → Notificări → Permite.', notifUnsupported: 'Browserul acesta nu primește notificări. Deschide panoul în Chrome (Android) sau instalează-l pe ecranul principal (iPhone).',
     notifIos: 'Pe iPhone, notificările merg după ce instalezi aplicația pe ecranul principal.', install: 'Instalează aplicația', installBtn: 'Instalează pe telefon',
-    installIos: 'Pe iPhone: apasă Distribuie, apoi „Adaugă pe ecranul principal”.', installAndroid: 'Sau din meniul browserului ⋮: „Instalează aplicația” / „Adaugă pe ecranul de pornire”.', installed: 'Aplicația este instalată.',
+    installIos: 'Pe iPhone: apasă Distribuie, apoi „Adaugă pe ecranul principal”.', installAndroid: 'Sau din meniul browserului ⋮: „Instalează aplicația” / „Adaugă pe ecranul de pornire”.', installed: 'Aplicația este instalată.', installStepsAndroid: ['Apasă meniul ⋮ din dreapta sus a Chrome.', 'Alege „Instalează aplicația” sau „Adaugă pe ecranul de pornire”.', 'Confirmă: „Panoul meu” apare pe ecranul telefonului.'], installStepsIos: ['Deschide panoul în Safari.', 'Apasă butonul Distribuie (pătratul cu săgeată în sus).', 'Alege „Adaugă pe ecranul principal”, apoi „Adaugă”.'], installBanner: 'Instalează panoul pe telefon, ca o aplicație', installBannerSub: 'Îl deschizi dintr-o atingere și primești notificări la mesajele noi.', later: 'Mai târziu',
     changePw: 'Schimbă parola', currentPw: 'Parola actuală', newPw: 'Parola nouă (minim 8 caractere)', pwSaved: 'Parola a fost schimbată.', logout: 'Ieși din cont', signedAs: 'Conectat ca',
     today: 'azi', yesterday: 'ieri',
   },
@@ -47,9 +47,9 @@ const T = {
     offerTitle: 'Cím', offerText: 'Leírás', from: 'Kezdete', to: 'Vége', active: 'Aktív az oldalon', addOffer: 'Új ajánlat', offersHint: 'A lejárt ajánlatok automatikusan eltűnnek.',
     addPhotos: 'Képek hozzáadása', uploading: 'Feltöltés…', galleryHint: 'Az itteni sorrend az oldalon is ugyanaz.', phone: 'Telefon', address: 'Cím', hours: 'Nyitvatartás', contactEmail: 'E-mail (megjelenik az oldalon)',
     save: 'Mentés', saving: 'Mentés…', saved: 'Mentve. Néhány másodperc múlva megjelenik az oldalon.', unsaved: 'Nem mentett változások', remove: 'Törlés',
-    notif: 'Értesítések', notifOn: 'Értesítések bekapcsolása', notifOff: 'Értesítések kikapcsolása', notifActive: 'Minden új üzenetről értesítést kap.', notifBlocked: 'Az értesítések le vannak tiltva a böngészőben.',
+    notif: 'Értesítések', notifOn: 'Értesítések bekapcsolása', notifOff: 'Értesítések kikapcsolása', notifActive: 'Minden új üzenetről értesítést kap.', notifBlocked: 'Az értesítések le vannak tiltva ennél az oldalnál.', notifUnblock: ['Koppintson a címsor bal oldalán lévő ikonra (🔒 vagy ⚙️).', 'Válassza: „Engedélyek” vagy „Webhelybeállítások” → „Értesítések” → „Engedélyezés”.', 'Térjen vissza ide, és koppintson ismét az „Értesítések bekapcsolása” gombra.'], notifUnblockApp: 'Ha az alkalmazás telepítve van: Telefon beállításai → Alkalmazások → Panoul meu → Értesítések → Engedélyezés.', notifUnsupported: 'Ez a böngésző nem fogad értesítéseket. Nyissa meg Chrome-ban (Android), vagy adja hozzá a kezdőképernyőhöz (iPhone).',
     notifIos: 'iPhone-on az értesítések a kezdőképernyőre telepítés után működnek.', install: 'Alkalmazás telepítése', installBtn: 'Telepítés a telefonra',
-    installIos: 'iPhone-on: Megosztás, majd „Főképernyőhöz adás”.', installAndroid: 'Vagy a böngésző menüjéből ⋮: „Alkalmazás telepítése”.', installed: 'Az alkalmazás telepítve van.',
+    installIos: 'iPhone-on: Megosztás, majd „Főképernyőhöz adás”.', installAndroid: 'Vagy a böngésző menüjéből ⋮: „Alkalmazás telepítése”.', installed: 'Az alkalmazás telepítve van.', installStepsAndroid: ['Koppintson a Chrome jobb felső ⋮ menüjére.', 'Válassza: „Alkalmazás telepítése” vagy „Hozzáadás a kezdőképernyőhöz”.', 'Erősítse meg: a „Panoul meu” megjelenik a telefonon.'], installStepsIos: ['Nyissa meg Safariban.', 'Koppintson a Megosztás gombra (négyzet felfelé mutató nyíllal).', 'Válassza a „Főképernyőhöz adás”, majd a „Hozzáadás” lehetőséget.'], installBanner: 'Telepítse a telefonjára alkalmazásként', installBannerSub: 'Egy koppintással megnyitja, és értesítést kap az új üzenetekről.', later: 'Később',
     changePw: 'Jelszó módosítása', currentPw: 'Jelenlegi jelszó', newPw: 'Új jelszó (legalább 8 karakter)', pwSaved: 'A jelszó megváltozott.', logout: 'Kilépés', signedAs: 'Bejelentkezve:',
     today: 'ma', yesterday: 'tegnap',
   },
@@ -65,9 +65,9 @@ const T = {
     offerTitle: 'Title', offerText: 'Description', from: 'From', to: 'Until', active: 'Live on site', addOffer: 'Add offer', offersHint: 'Expired offers disappear automatically.',
     addPhotos: 'Add photos', uploading: 'Uploading…', galleryHint: 'The order here is the order on your site.', phone: 'Phone', address: 'Address', hours: 'Opening hours', contactEmail: 'Email (shown on your site)',
     save: 'Save', saving: 'Saving…', saved: 'Saved. It shows on your site in a few seconds.', unsaved: 'Unsaved changes', remove: 'Remove',
-    notif: 'Notifications', notifOn: 'Turn on notifications', notifOff: 'Turn off notifications', notifActive: 'You get a notification for every new message.', notifBlocked: 'Notifications are blocked in your browser settings.',
+    notif: 'Notifications', notifOn: 'Turn on notifications', notifOff: 'Turn off notifications', notifActive: 'You get a notification for every new message.', notifBlocked: 'Notifications are blocked for this site.', notifUnblock: ['Tap the icon left of the site address (🔒 or ⚙️).', 'Choose “Permissions” or “Site settings” → “Notifications” → “Allow”.', 'Come back and tap “Turn on notifications” again.'], notifUnblockApp: 'If the app is installed: phone Settings → Apps → Panoul meu → Notifications → Allow.', notifUnsupported: 'This browser cannot receive notifications. Open it in Chrome (Android) or add it to your home screen (iPhone).',
     notifIos: 'On iPhone, notifications work after you add the app to your home screen.', install: 'Install the app', installBtn: 'Install on phone',
-    installIos: 'On iPhone: tap Share, then “Add to Home Screen”.', installAndroid: 'Or from the browser menu ⋮: “Install app”.', installed: 'The app is installed.',
+    installIos: 'On iPhone: tap Share, then “Add to Home Screen”.', installAndroid: 'Or from the browser menu ⋮: “Install app”.', installed: 'The app is installed.', installStepsAndroid: ['Tap the ⋮ menu at the top right of Chrome.', 'Choose “Install app” or “Add to Home screen”.', 'Confirm: “Panoul meu” appears on your phone.'], installStepsIos: ['Open it in Safari.', 'Tap the Share button (square with an up arrow).', 'Choose “Add to Home Screen”, then “Add”.'], installBanner: 'Install the panel on your phone as an app', installBannerSub: 'Open it with one tap and get notified about new messages.', later: 'Later',
     changePw: 'Change password', currentPw: 'Current password', newPw: 'New password (at least 8 characters)', pwSaved: 'Password changed.', logout: 'Sign out', signedAs: 'Signed in as',
     today: 'today', yesterday: 'yesterday',
   },
@@ -91,6 +91,50 @@ const Icon = {
   trash: <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /></svg>,
   plus: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>,
   cal: <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>,
+}
+
+type InstallEvt = Event & { prompt: () => Promise<void>; userChoice?: Promise<{ outcome: string }> }
+let deferredInstall: InstallEvt | null = null
+const installListeners = new Set<() => void>()
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e as InstallEvt; installListeners.forEach(f => f()) })
+  window.addEventListener('appinstalled', () => { deferredInstall = null; installListeners.forEach(f => f()) })
+}
+function useInstall() {
+  const [, force] = useState(0)
+  const [standalone, setStandalone] = useState(false)
+  useEffect(() => {
+    const f = () => force(x => x + 1)
+    installListeners.add(f)
+    setStandalone(window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true)
+    return () => { installListeners.delete(f) }
+  }, [])
+  const ios = typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent)
+  return { standalone, ios, canPrompt: !!deferredInstall, prompt: async () => { const e = deferredInstall; if (!e) return false; await e.prompt(); deferredInstall = null; force(x => x + 1); return true } }
+}
+
+function InstallCard({ t, compact, onClose }: { t: typeof T.ro; compact?: boolean; onClose?: () => void }) {
+  const { standalone, ios, canPrompt, prompt } = useInstall()
+  const [steps, setSteps] = useState(false)
+  if (standalone) return compact ? null : <p className="text-[13px] text-emerald-700">{t.installed}</p>
+  const list = ios ? t.installStepsIos : t.installStepsAndroid
+  return (
+    <div className={compact ? `${card} p-4 flex gap-3 items-start` : ''}>
+      {compact && <img src="/icons/client-192.png" alt="" className="w-11 h-11 rounded-xl shrink-0" />}
+      <div className="flex-1 min-w-0">
+        {compact && <><div className="font-semibold leading-snug">{t.installBanner}</div><p className="text-[13px] text-slate-500 mt-0.5">{t.installBannerSub}</p></>}
+        <div className="flex flex-wrap gap-2 mt-2">
+          <button onClick={async () => { if (!(await prompt())) setSteps(v => !v) }} className="h-10 px-4 rounded-xl bg-teal-600 text-white font-medium">{t.installBtn}</button>
+          {compact && onClose && <button onClick={onClose} className="h-10 px-3 rounded-xl text-slate-500">{t.later}</button>}
+        </div>
+        {(steps || (!compact && !canPrompt)) && (
+          <ol className="mt-3 space-y-1.5 text-[13px] text-slate-700">
+            {list.map((x, i) => <li key={i} className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] grid place-items-center">{i + 1}</span>{x}</li>)}
+          </ol>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function move<X>(list: X[], i: number, d: number): X[] { const j = i + d; if (j < 0 || j >= list.length) return list; const c = list.slice(); [c[i], c[j]] = [c[j], c[i]]; return c }
@@ -232,8 +276,12 @@ function Inbox({ me, t, lang, setMe }: { me: Me; t: typeof T.ro; lang: Lang; set
   function open(m: Msg) { setOpenId(openId === m.id ? null : m.id); if (m.status === 'new') patch(m.id, 'read') }
 
   const counts = { new: me.messages.filter(m => m.status === 'new').length, replied: me.messages.filter(m => m.status === 'replied').length }
+  const [banner, setBanner] = useState(false)
+  useEffect(() => { try { setBanner(Number(localStorage.getItem('client_install_later') || 0) < Date.now()) } catch { setBanner(true) } }, [])
+  const later = () => { setBanner(false); try { localStorage.setItem('client_install_later', String(Date.now() + 3 * 864e5)) } catch { /* */ } }
   return (
     <div className="space-y-3">
+      {banner && <InstallCard t={t} compact onClose={later} />}
       <div className="grid grid-cols-3 p-1 rounded-xl bg-slate-200/70 text-[13px] font-medium">
         {([['new', `${t.fNew}${counts.new ? ` · ${counts.new}` : ''}`], ['all', t.fAll], ['replied', t.fReplied]] as const).map(([k, l]) => (
           <button key={k} onClick={() => setFilter(k)} className={`h-9 rounded-lg ${filter === k ? 'bg-white shadow-sm text-slate-900' : 'text-slate-600'}`}>{l}</button>
@@ -408,8 +456,6 @@ function SiteEditor({ me, t, setMe }: { me: Me; t: typeof T.ro; setMe: (m: Me) =
 function Account({ me, t }: { me: Me; t: typeof T.ro }) {
   const [perm, setPerm] = useState<string>('default')
   const [subscribed, setSubscribed] = useState(false)
-  const [installEvt, setInstallEvt] = useState<(Event & { prompt: () => Promise<void> }) | null>(null)
-  const [standalone, setStandalone] = useState(false)
   const [pw, setPw] = useState({ current: '', next: '' })
   const [pwMsg, setPwMsg] = useState('')
   const ios = useMemo(() => typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent), [])
@@ -417,11 +463,7 @@ function Account({ me, t }: { me: Me; t: typeof T.ro }) {
 
   useEffect(() => {
     if (typeof Notification !== 'undefined') setPerm(Notification.permission)
-    setStandalone(window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true)
     navigator.serviceWorker?.ready.then(r => r.pushManager.getSubscription()).then(s => setSubscribed(!!s)).catch(() => {})
-    const onPrompt = (e: Event) => { e.preventDefault(); setInstallEvt(e as Event & { prompt: () => Promise<void> }) }
-    window.addEventListener('beforeinstallprompt', onPrompt)
-    return () => window.removeEventListener('beforeinstallprompt', onPrompt)
   }, [])
 
   async function toggleNotif() {
@@ -457,8 +499,13 @@ function Account({ me, t }: { me: Me; t: typeof T.ro }) {
       <section className={card}>
         <div className={row}>
           <div className="font-semibold mb-1">{t.notif}</div>
-          {!pushSupported ? <p className="text-[13px] text-slate-500">{ios ? t.notifIos : t.notifBlocked}</p>
-            : perm === 'denied' ? <p className="text-[13px] text-rose-600">{t.notifBlocked}</p>
+          {!pushSupported ? <p className="text-[13px] text-slate-500">{ios ? t.notifIos : t.notifUnsupported}</p>
+            : perm === 'denied' ? <>
+                <p className="text-[13px] text-rose-600 mb-2">{t.notifBlocked}</p>
+                <ol className="space-y-1.5 text-[13px] text-slate-700">{t.notifUnblock.map((x, i) => <li key={i} className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] grid place-items-center">{i + 1}</span>{x}</li>)}</ol>
+                <p className="text-[12px] text-slate-500 mt-2">{t.notifUnblockApp}</p>
+                <button onClick={() => { setPerm(Notification.permission); if (Notification.permission !== 'denied') toggleNotif() }} className="mt-2 h-10 px-4 rounded-xl bg-slate-900 text-white font-medium">{t.notifOn}</button>
+              </>
             : <>
                 {subscribed && <p className="text-[13px] text-emerald-700 mb-2">{t.notifActive}</p>}
                 <button onClick={toggleNotif} className={`h-11 px-4 rounded-xl font-medium ${subscribed ? 'border border-slate-200 text-slate-700' : 'bg-slate-900 text-white'}`}>{subscribed ? t.notifOff : t.notifOn}</button>
@@ -466,10 +513,7 @@ function Account({ me, t }: { me: Me; t: typeof T.ro }) {
         </div>
         <div className={row}>
           <div className="font-semibold mb-1">{t.install}</div>
-          {standalone ? <p className="text-[13px] text-emerald-700">{t.installed}</p> : <>
-            {installEvt && <button onClick={() => installEvt.prompt()} className="h-11 px-4 rounded-xl bg-teal-600 text-white font-medium mb-2">{t.installBtn}</button>}
-            <p className="text-[13px] text-slate-500">{ios ? t.installIos : t.installAndroid}</p>
-          </>}
+          <InstallCard t={t} />
         </div>
       </section>
 
