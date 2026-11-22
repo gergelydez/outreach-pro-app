@@ -552,11 +552,11 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
     setPhotoCount(0); setUploadMsg('')
   }
   // panoul clientului: link + PIN, de unde își schimbă singur tarifele, ofertele, pozele și contactul
-  const [portal, setPortal] = useState<{ exists: boolean; link: string | null; ready: boolean; pin?: string; account?: { email: string; last_login_at: string | null } | null; live_url?: string | null } | null>(null)
+  const [portal, setPortal] = useState<{ exists: boolean; link: string | null; ready: boolean; pin?: string; account?: { email: string; last_login_at: string | null } | null; live_url?: string | null; domain_auto?: boolean } | null>(null)
   const [liveUrl, setLiveUrl] = useState('')
   useEffect(() => {
     if (!open || !r.preview_url || !['won', 'interested', 'negotiation', 'proposal_sent', 'call_meeting', 'replied'].includes(r.stage)) return
-    api<{ exists: boolean; link: string | null; ready: boolean; account: { email: string; last_login_at: string | null } | null; live_url: string | null }>(`/api/crm/leads/${r.id}/portal`).then(d => { setPortal(d); setLiveUrl(d.live_url || '') }).catch(() => {})
+    api<{ exists: boolean; link: string | null; ready: boolean; account: { email: string; last_login_at: string | null } | null; live_url: string | null; domain_auto: boolean }>(`/api/crm/leads/${r.id}/portal`).then(d => { setPortal(d); setLiveUrl(d.live_url || '') }).catch(() => {})
   }, [open, r.preview_url, r.stage, r.id, demoRunning])
   async function activatePortal() {
     setErr(''); setBusy('portal')
@@ -582,9 +582,15 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
     : country === 'UK'
     ? (reset ? `Hi! You can set a new password for your website panel here:\n${portal.link}\nCode: ${portal.pin}` : `Hi! Create your account for your website panel here (customer messages, prices, offers, photos):\n${portal.link}\nActivation code: ${portal.pin}\nOnce in, you can install it on your phone as an app and get a notification for every new message. 🙂`)
     : (reset ? `Bună ziua! Aici vă puteți seta o parolă nouă pentru panoul site-ului:\n${portal.link}\nCod: ${portal.pin}` : `Bună ziua! Aici vă creați contul pentru panoul site-ului (mesajele de la clienți, tarife, oferte, poze):\n${portal.link}\nCod de activare: ${portal.pin}\nDupă ce intrați, îl puteți instala pe telefon ca aplicație și primiți notificare la fiecare mesaj nou. 🙂`)) : ''
+  const [domainSetup, setDomainSetup] = useState(false)
   async function saveLive() {
-    setBusy('live'); setErr('')
-    try { await api(`/api/crm/leads/${r.id}`, { method: 'PATCH', json: { live_url: liveUrl.trim() } }); setInfoMsg('Adresa site-ului a fost salvată.') } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+    setBusy('live'); setErr(''); setDomainSetup(false)
+    try {
+      const d = await api<{ ok: boolean; domain: string; verified?: boolean; setup?: boolean }>(`/api/crm/leads/${r.id}/domain`, { json: { domain: liveUrl.trim() } })
+      setLiveUrl(d.domain); setPortal(x => (x ? { ...x, live_url: `https://${d.domain}` } : x))
+      if (d.setup) setDomainSetup(true)
+      else setInfoMsg(`✓ ${d.domain} e legat de aplicație. În 2–10 minute site-ul apare pe domeniu (cu HTTPS) și de acum se actualizează singur.`)
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
     setBusy('')
   }
   // formularul de pe site: unde ajung mesajele + ce a venit deja
@@ -935,10 +941,10 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
                     </div>
                   )}
                   <div className="flex gap-2">
-                    <input className="flex-1 h-9 rounded-md border border-slate-300 bg-white px-2 text-[13px] text-slate-900" placeholder="Adresa site-ului live (ex. hanulizvorulrece.ro)" value={liveUrl} onChange={e => setLiveUrl(e.target.value)} />
-                    <Button size="sm" className="h-9" loading={busy === 'live'} disabled={liveUrl.trim() === (portal.live_url || '')} onClick={saveLive}>Salvează</Button>
+                    <input className="flex-1 h-9 rounded-md border border-slate-300 bg-white px-2 text-[13px] text-slate-900" placeholder="Domeniul clientului (ex. hanulizvorulrece.ro)" value={liveUrl} onChange={e => setLiveUrl(e.target.value)} />
+                    <Button size="sm" className="h-9" loading={busy === 'live'} disabled={!liveUrl.trim()} onClick={saveLive}>🌐 Pune pe domeniu</Button>
                   </div>
-                  {portal.live_url && <details className="text-[12px] text-slate-700"><summary className="cursor-pointer font-medium text-slate-800">🌐 Domeniul se actualizează singur (setare o singură dată)</summary><ol className="list-decimal pl-4 mt-1 space-y-0.5"><li>Vercel → proiectul aplicației → Settings → Domains → adaugă <b>{portal.live_url.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '')}</b> și <b>www.</b> la fel.</li><li>La DNS-ul domeniului (Cloudflare): înregistrarea <b>A</b> pentru domeniu → <b>76.76.21.21</b>, iar <b>www</b> → CNAME <b>cname.vercel-dns.com</b>, ambele „DNS only” (norișor gri). Scoate domeniul din proiectul Cloudflare Pages vechi.</li><li>Gata: domeniul afișează mereu ultima versiune a site-ului, fără arhive.</li></ol></details>}
+                  {(domainSetup || portal.domain_auto === false) && <details open={domainSetup} className="text-[12px] text-slate-700 rounded-md bg-white border border-slate-200 p-2"><summary className="cursor-pointer font-medium text-slate-800">🔑 Activează butonul „Pune pe domeniu” (o singură dată, pentru toți clienții)</summary><ol className="list-decimal pl-4 mt-1 space-y-1"><li>vercel.com → Account Settings → <b>Tokens</b> → Create → copiază tokenul.</li><li>dash.cloudflare.com → My Profile → <b>API Tokens</b> → Create Token → șablonul <b>„Edit zone DNS”</b>, Zone Resources: <b>All zones</b> → copiază tokenul.</li><li>Vercel → proiectul aplicației → Settings → Environment Variables: <b>VERCEL_TOKEN</b> și <b>CLOUDFLARE_API_TOKEN</b> → Redeploy.</li></ol><p className="mt-1 text-slate-500">După asta, pentru fiecare client: scrii domeniul și apeși butonul. Atât.</p></details>}
                   <Button size="sm" variant={portal.exists ? 'secondary' : 'primary'} className="h-9" loading={busy === 'portal'} disabled={demoRunning} onClick={activatePortal}>{portal.exists ? (portal.account ? '🔄 Cod nou (resetare parolă)' : '🔄 Cod nou pentru client') : '📱 Activează aplicația clientului'}</Button>
                 </div>
               )}
