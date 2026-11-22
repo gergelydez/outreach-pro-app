@@ -19,8 +19,26 @@ export class DomainError extends Error {}
 
 type F = typeof fetch
 
+let teamCache: string | null | undefined
+// Echipa în care e proiectul: VERCEL_TEAM_ID dacă e setat; altfel o caută singură (contul personal sau fiecare echipă)
+async function findTeam(f: F): Promise<string | null> {
+  if (process.env.VERCEL_TEAM_ID) return process.env.VERCEL_TEAM_ID
+  if (teamCache !== undefined) return teamCache
+  const h = { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` }
+  const p = encodeURIComponent(project())
+  const direct = await f(`https://api.vercel.com/v9/projects/${p}`, { headers: h })
+  if (direct.ok) return (teamCache = null)
+  const teams = await f('https://api.vercel.com/v2/teams', { headers: h }).then(r => r.json()).catch(() => ({})) as { teams?: { id: string }[] }
+  for (const t of teams.teams || []) {
+    const r = await f(`https://api.vercel.com/v9/projects/${p}?teamId=${t.id}`, { headers: h })
+    if (r.ok) return (teamCache = t.id)
+  }
+  throw new DomainError(`Vercel: nu găsesc proiectul „${project()}” cu acest token. Verifică la token ca „Scope” să fie echipa proiectului.`)
+}
+
 async function vercel(f: F, path: string, init: RequestInit = {}) {
-  const team = process.env.VERCEL_TEAM_ID ? `${path.includes('?') ? '&' : '?'}teamId=${process.env.VERCEL_TEAM_ID}` : ''
+  const teamId = await findTeam(f)
+  const team = teamId ? `${path.includes('?') ? '&' : '?'}teamId=${teamId}` : ''
   const res = await f(`https://api.vercel.com${path}${team}`, { ...init, headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}`, 'Content-Type': 'application/json' } })
   const data = await res.json().catch(() => ({})) as { error?: { code?: string; message?: string } } & Record<string, unknown>
   return { ok: res.ok, status: res.status, data }
@@ -33,6 +51,7 @@ async function cf(f: F, path: string, init: RequestInit = {}) {
   return data.result
 }
 
+export const resetTeamCache = () => { teamCache = undefined }
 const project = () => process.env.VERCEL_PROJECT_ID || process.env.VERCEL_PROJECT_NAME || 'outreach-pro-app'
 
 export async function connectDomain(input: string, f: F = fetch) {
