@@ -385,4 +385,14 @@ ALTER TABLE site_messages ADD COLUMN IF NOT EXISTS replied_via text;
 ALTER TABLE site_messages ADD COLUMN IF NOT EXISTS replied_at timestamptz;
 ALTER TABLE businesses ADD COLUMN IF NOT EXISTS live_url text;`,
   },
+  {
+    // Emailul la care clientul vrea notificări de la formular, confirmat cu un cod trimis pe acel email
+    id: '011_notify_email',
+    sql: `ALTER TABLE client_accounts ADD COLUMN IF NOT EXISTS notify_email text;
+ALTER TABLE client_accounts ADD COLUMN IF NOT EXISTS notify_pending_email text;
+ALTER TABLE client_accounts ADD COLUMN IF NOT EXISTS notify_code_hash text;
+ALTER TABLE client_accounts ADD COLUMN IF NOT EXISTS notify_code_expires timestamptz;
+ALTER TABLE client_accounts ADD COLUMN IF NOT EXISTS notify_code_sent_at timestamptz;
+ALTER TABLE client_accounts ADD COLUMN IF NOT EXISTS notify_code_attempts int NOT NULL DEFAULT 0;`,
+  },
 ]

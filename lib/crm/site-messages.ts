@@ -2,7 +2,6 @@
 // Emailul pleacă de la FORM_FROM_EMAIL (domeniul tău, verificat în Resend), cu Reply-To = vizitatorul.
 import { createHash } from 'crypto'
 import { q, one } from './db'
-import { sanitizeContent } from './cms-shared'
 import { sendPush } from './push'
 
 export interface SiteMessageInput { name?: unknown; email?: unknown; phone?: unknown; message?: unknown; checkin?: unknown; checkout?: unknown; guests?: unknown; website?: unknown }
@@ -26,7 +25,7 @@ export async function resendSend(mail: { to: string; replyTo?: string; subject: 
 }
 
 const L = {
-  ro: { subject: 'Mesaj nou de pe site', name: 'Nume', phone: 'Telefon', email: 'Email', checkin: 'Sosire', checkout: 'Plecare', guests: 'Persoane', message: 'Mesaj', foot: 'Răspundeți direct la acest email ca să-i scrieți vizitatorului. Mesajul se găsește și în panoul de administrare al site-ului.' },
+  ro: { subject: 'Mesaj nou de pe site', name: 'Nume', phone: 'Telefon', email: 'Email', checkin: 'Sosire', checkout: 'Plecare', guests: 'Persoane', message: 'Mesaj', foot: 'Răspundeți direct la acest email ca să-i scrieți vizitatorului. Mesajul îl găsiți și în aplicația „Panoul meu”.' },
   hu: { subject: 'Új üzenet a weboldalról', name: 'Név', phone: 'Telefon', email: 'E-mail', checkin: 'Érkezés', checkout: 'Távozás', guests: 'Fő', message: 'Üzenet', foot: 'Erre az e-mailre válaszolva közvetlenül a látogatónak ír. Az üzenet a weboldal kezelőfelületén is megtalálható.' },
   en: { subject: 'New message from your website', name: 'Name', phone: 'Phone', email: 'Email', checkin: 'Check-in', checkout: 'Check-out', guests: 'Guests', message: 'Message', foot: 'Reply to this email to answer the visitor directly. The message is also in your website admin panel.' },
 }
@@ -46,9 +45,9 @@ export async function receiveSiteMessage(slug: string, input: SiteMessageInput, 
 
   const row = await one<{ id: string }>(`INSERT INTO site_messages (business_id, name, email, phone, message, extra, ip_hash) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
     [b.id, m.name, m.email, m.phone, m.message, JSON.stringify(extra), ipHash])
-  // destinatarul: emailul din panoul clientului (îl poate schimba singur), altfel cel din CRM
-  const portal = await one<{ content: unknown }>('SELECT content FROM client_portals WHERE business_id = $1', [b.id])
-  const to = sanitizeContent(portal?.content).contact.email || b.email || ''
+  // destinatarul: emailul de notificare confirmat de client în aplicație, altfel cel pus de designer în CRM
+  const acc = await one<{ notify_email: string | null }>('SELECT notify_email FROM client_accounts WHERE business_id = $1', [b.id])
+  const to = acc?.notify_email || b.email || ''
   const t = L[b.country === 'HU' ? 'hu' : b.country === 'UK' ? 'en' : 'ro']
   const lines = [
     m.name && `${t.name}: ${m.name}`, m.phone && `${t.phone}: ${m.phone}`, m.email && `${t.email}: ${m.email}`,

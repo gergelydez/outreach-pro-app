@@ -886,7 +886,7 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
                 <div className="rounded-lg border border-sky-200 bg-sky-50 p-2.5 space-y-2">
                   <div className="text-[12px] font-medium text-sky-900">📩 Formularul de pe site{forms.messages.length ? ` · ${forms.messages.length} mesaje` : ''}</div>
                   {forms.fromPanel
-                    ? <p className="text-[12px] text-slate-700">Mesajele ajung la <b>{forms.recipient}</b> (setat de client în panou).</p>
+                    ? <p className="text-[12px] text-slate-700">Emailul de notificare: <b>{forms.recipient}</b> (confirmat de client în aplicație).</p>
                     : <div className="flex gap-2">
                         <input className="flex-1 h-9 rounded-md border border-slate-300 bg-white px-2 text-[13px] text-slate-900" placeholder="Emailul firmei, unde ajung mesajele" value={formEmail} onChange={e => setFormEmail(e.target.value)} />
                         <Button size="sm" className="h-9" loading={busy === 'formEmail'} disabled={formEmail.trim() === forms.recipient} onClick={saveFormEmail}>Salvează</Button>
