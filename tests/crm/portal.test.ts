@@ -205,3 +205,13 @@ describe('contact form messages', () => {
     expect(await listSiteMessages(id)).toHaveLength(1)
   })
 })
+
+describe('hasCmsContent', () => {
+  it('a site with only the contact form is not ready for editing', async () => {
+    const { hasCmsContent, hasCmsMarkers } = await import('@/lib/crm/cms-shared')
+    const formOnly = '<form data-cms-form><input name="name"></form>'
+    expect(hasCmsMarkers(formOnly)).toBe(true)
+    expect(hasCmsContent(formOnly)).toBe(false)
+    expect(hasCmsContent('<div data-cms="prices"><div data-cms-item></div></div>')).toBe(true)
+  })
+})

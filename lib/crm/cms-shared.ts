@@ -34,6 +34,8 @@ export async function publishContent(slug: string, content: CmsContent, put?: (p
 
 // Scriptul care aduce datele la zi pe site: doar dacă HTML-ul are marcaje
 export const hasCmsMarkers = (html: string) => /data-cms(?:-text|-tel|-mailto|-form)?[=\s>]/.test(html)
+// Site pregătit pentru aplicație: are listele editabile (tarife/oferte), nu doar formularul
+export const hasCmsContent = (html: string) => /data-cms=["'](?:prices|offers)["']/.test(html)
 export const hasCmsForm = (html: string) => /data-cms-form/.test(html)
 export function injectCmsScript(html: string, origin: string, slug: string) {
   if (!hasCmsMarkers(html) || html.includes('/cms.js')) return html

@@ -11,7 +11,7 @@ import { loadSiteHtml, slugOf, takeShot, DEMO_STALE_MIN } from './demo'
 import { generateHtml } from '@/lib/redesign'
 import { withConceptBanner, stripConceptBanner } from '@/lib/preview'
 import { friendlyAnthropicError } from '@/lib/anthropic-error'
-import { sanitizeContent, publishContent, hasCmsMarkers, extractInitial, EMPTY_CONTENT, FORM_RULES, type CmsContent } from './cms-shared'
+import { sanitizeContent, publishContent, hasCmsContent, extractInitial, EMPTY_CONTENT, FORM_RULES, type CmsContent } from './cms-shared'
 export * from './cms-shared'
 
 export function hashPin(pin: string) {
@@ -116,7 +116,7 @@ export async function startMarkup(id: string, opts: { anthropicKey?: string; des
       const prompt = buildMarkupPrompt(current, lang === 'hu' ? 'maghiară' : lang === 'en' ? 'engleză' : 'română')
       const raw = deps.generate ? await deps.generate(prompt) : await generateHtml(new Anthropic({ apiKey: apiKey || '' }), prompt)
       const { html, content } = extractInitial(raw)
-      if (!hasCmsMarkers(html)) throw new Error('Site-ul n-a putut fi făcut editabil — încearcă din nou.')
+      if (!hasCmsContent(html)) throw new Error('Site-ul n-a putut fi făcut editabil — încearcă din nou.')
       const finalHtml = withConceptBanner(html, b.name, opts.designer || '', lang)
       if (deps.publish) await deps.publish(slug, finalHtml)
       else {

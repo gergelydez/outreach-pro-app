@@ -567,6 +567,15 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
     setBusy('')
   }
+  async function prepareSite() {
+    setErr(''); setBusy('prepare')
+    try {
+      const d = await api<{ markup: string }>(`/api/crm/leads/${r.id}/portal`, { json: { anthropic_key: keys.anthropic || undefined, designer: templates.me, prepare_only: true } })
+      if (d.markup === 'running') { setEditing(true); onChange({ demo_status: 'running', demo_error: null, demo_started_at: new Date().toISOString() }) }
+      else setPortal(x => (x ? { ...x, ready: true } : x))
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+    setBusy('')
+  }
   const reset = !!portal?.account
   const portalMsg = portal?.link && portal.pin ? (country === 'HU'
     ? (reset ? `Jó napot! Itt tud új jelszót beállítani a weboldal kezelőfelületéhez:\n${portal.link}\nKód: ${portal.pin}` : `Jó napot! Itt hozhatja létre a fiókját a weboldal kezelőfelületéhez (üzenetek az ügyfelektől, árak, ajánlatok, képek):\n${portal.link}\nAktiváló kód: ${portal.pin}\nBelépés után alkalmazásként telepítheti a telefonjára, és értesítést kap minden új üzenetről. 🙂`)
@@ -909,15 +918,22 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
                     <>
                       <div className="text-[13px] text-slate-800 break-all">Link: <a className="underline" href={portal.link || '#'} target="_blank" rel="noreferrer">{portal.link}</a></div>
                       <div className="text-[13px] text-slate-800">Cod (PIN): <b className="tracking-widest">{portal.pin}</b> <span className="text-[11px] text-slate-500">— notează-l, nu mai apare a doua oară</span></div>
-                      {!portal.ready && <p className="text-[12px] text-amber-900">Claude pregătește site-ul pentru panou (1–4 minute). Poți trimite deja linkul.</p>}
+                      
                       <div className="flex flex-wrap gap-2">
                         {mobile && !noWa && <Btn green href={waLink(portalMsg)}>📱 Trimite clientului</Btn>}
                         <Btn onClick={() => copy('p', portalMsg)}>{copied === 'p' ? 'Copiat ✓' : 'Copiază mesajul'}</Btn>
                       </div>
                     </>
                   ) : portal.exists ? (
-                    <p className="text-[12px] text-slate-700">{portal.account ? 'Clientul intră în aplicație cu emailul și parola lui, la adresa /client.' : 'Linkul de activare e trimis; clientul încă nu și-a creat contul.'}{portal.ready ? '' : ' Site-ul se pregătește.'} Dacă a uitat parola sau codul, fă un cod nou: cu același link își setează o parolă nouă.</p>
+                    <p className="text-[12px] text-slate-700">{portal.account ? 'Clientul intră în aplicație cu emailul și parola lui, la adresa /client.' : 'Linkul de activare e trimis; clientul încă nu și-a creat contul.'} Dacă a uitat parola sau codul, fă un cod nou: cu același link își setează o parolă nouă.</p>
                   ) : <p className="text-[12px] text-slate-700">Clientul primește un link și un cod de 6 cifre, își face cont (email + parolă) și are o aplicație pe telefon: primește mesajele de pe site cu notificare, răspunde dintr-o atingere (telefon, WhatsApp, email) și își schimbă tarifele, ofertele, pozele și contactul. Site-ul se actualizează singur.</p>}
+                  {portal.exists && !portal.ready && (
+                    <div className="rounded-md bg-white border border-amber-300 p-2 space-y-1.5">
+                      <p className="text-[12px] text-amber-900">{demoRunning ? 'Claude pregătește site-ul pentru editare (1–4 minute)…' : '⚠️ Site-ul nu are încă secțiunile editabile (tarife, oferte, galerie): clientul nu le poate schimba din aplicație.'}</p>
+                      {!demoRunning && <Button size="sm" className="h-9" loading={busy === 'prepare'} onClick={prepareSite}>🧩 Pregătește site-ul pentru editare</Button>}
+                      <p className="text-[11px] text-slate-500">După ce e gata: descarcă din nou arhiva site-ului și pune-o pe Cloudflare (New deployment), ca site-ul live să afișeze ce schimbă clientul.</p>
+                    </div>
+                  )}
                   <div className="flex gap-2">
                     <input className="flex-1 h-9 rounded-md border border-slate-300 bg-white px-2 text-[13px] text-slate-900" placeholder="Adresa site-ului live (ex. hanulizvorulrece.ro)" value={liveUrl} onChange={e => setLiveUrl(e.target.value)} />
                     <Button size="sm" className="h-9" loading={busy === 'live'} disabled={liveUrl.trim() === (portal.live_url || '')} onClick={saveLive}>Salvează</Button>
