@@ -14,6 +14,7 @@
     var fields = [].slice.call(node.querySelectorAll('[data-cms-field]'))
     if (node.hasAttribute('data-cms-field')) fields.push(node)
     fields.forEach(function (f) {
+      if (f.closest('[data-cms-photos]') && !node.hasAttribute('data-cms-photos')) return
       var k = f.getAttribute('data-cms-field')
       if (k === 'src') {
         var img = f.tagName === 'IMG' ? f : f.querySelector('img')
@@ -30,6 +31,76 @@
     var sec = box.closest('[data-cms-section]') || box
     sec.style.display = items.length ? '' : 'none'
   }
+  // camere / spații: textele + caruselul de poze (copilul-model din data-cms-photos se repetă pentru fiecare poză)
+  function rooms(box, items) {
+    if (!box.__tpl) { var t = box.querySelector('[data-cms-item]'); if (!t) return; box.__tpl = t.cloneNode(true) }
+    [].slice.call(box.children).forEach(function (n) { if (n.hasAttribute('data-cms-item')) box.removeChild(n) })
+    items.forEach(function (it) {
+      var n = box.__tpl.cloneNode(true); n.style.display = ''
+      fill(n, { title: it.title, text: it.text, price: it.price });
+      [].forEach.call(n.querySelectorAll('[data-cms-photos]'), function (ph) {
+        var model = ph.firstElementChild; if (!model) return
+        model = model.cloneNode(true)
+        while (ph.firstChild) ph.removeChild(ph.firstChild)
+        var photos = it.photos || []
+        ph.style.display = photos.length ? '' : 'none'
+        photos.forEach(function (src, i) {
+          var m = model.cloneNode(true)
+          var img = m.tagName === 'IMG' ? m : m.querySelector('img')
+          if (img) { img.src = src; img.removeAttribute('srcset'); img.alt = (it.title || '') + ' ' + (i + 1); img.loading = i ? 'lazy' : 'eager' }
+          ph.appendChild(m)
+        })
+        ph.setAttribute('data-count', photos.length)
+        ph.__photos = photos; ph.__title = it.title || ''
+        if (photos.length > 1) ph.classList.add('cms-slider')
+      })
+      box.appendChild(n)
+    })
+    var sec = box.closest('[data-cms-section]') || box
+    sec.style.display = items.length ? '' : 'none'
+    sliders()
+  }
+  var sliderCss = false
+  function sliders() {
+    if (!sliderCss) {
+      sliderCss = true
+      var st = document.createElement('style')
+      st.textContent = '[data-cms-photos].cms-slider{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;position:relative}[data-cms-photos].cms-slider::-webkit-scrollbar{display:none}[data-cms-photos].cms-slider>*{flex:0 0 100%;scroll-snap-align:start}[data-cms-photos] img{cursor:zoom-in}' +
+        '.cms-count{position:absolute;right:10px;bottom:10px;z-index:3;background:rgba(0,0,0,.6);color:#fff;font:600 12px/1 system-ui,sans-serif;padding:6px 9px;border-radius:999px;pointer-events:none}' +
+        '.cms-lb{position:fixed;inset:0;z-index:2147483600;background:rgba(0,0,0,.94);display:flex;flex-direction:column}.cms-lb-row{flex:1;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}.cms-lb-row::-webkit-scrollbar{display:none}.cms-lb-row img{flex:0 0 100%;width:100%;height:100%;object-fit:contain;scroll-snap-align:center}' +
+        '.cms-lb-top{display:flex;justify-content:space-between;align-items:center;color:#fff;font:500 15px/1.3 system-ui,sans-serif;padding:14px 16px}.cms-lb-x{background:rgba(255,255,255,.15);color:#fff;border:0;border-radius:999px;width:42px;height:42px;font-size:22px;cursor:pointer}'
+      document.head.appendChild(st)
+    }
+    all('[data-cms-photos].cms-slider', function (ph) {
+      var wrap = ph.parentNode
+      if (!wrap || wrap.querySelector(':scope > .cms-count')) return
+      if (getComputedStyle(wrap).position === 'static') wrap.style.position = 'relative'
+      var c = document.createElement('span'); c.className = 'cms-count'; c.textContent = '1 / ' + ph.getAttribute('data-count'); wrap.appendChild(c)
+      // pe colțul pozei (nu al cardului): poziția se calculează față de container
+      var place = function () { c.style.top = (ph.offsetTop + ph.offsetHeight - c.offsetHeight - 10) + 'px'; c.style.bottom = 'auto'; c.style.right = (wrap.clientWidth - ph.offsetLeft - ph.offsetWidth + 10) + 'px' }
+      place(); window.addEventListener('resize', place); window.addEventListener('load', place)
+      ph.addEventListener('scroll', function () { c.textContent = (Math.round(ph.scrollLeft / Math.max(1, ph.clientWidth)) + 1) + ' / ' + ph.getAttribute('data-count') }, { passive: true })
+    })
+  }
+  // atingere pe o poză de cameră → toate pozele ei pe tot ecranul
+  document.addEventListener('click', function (e) {
+    if (editor || !e.target.closest) return
+    var ph = e.target.closest('[data-cms-photos]'); if (!ph || !ph.__photos || !ph.__photos.length) return
+    var idx = Math.round(ph.scrollLeft / Math.max(1, ph.clientWidth))
+    var lb = document.createElement('div'); lb.className = 'cms-lb'
+    var top = document.createElement('div'); top.className = 'cms-lb-top'
+    var ttl = document.createElement('span'); ttl.textContent = ph.__title
+    var x = document.createElement('button'); x.className = 'cms-lb-x'; x.textContent = '\u00d7'; x.setAttribute('aria-label', 'Închide')
+    top.appendChild(ttl); top.appendChild(x); lb.appendChild(top)
+    var row = document.createElement('div'); row.className = 'cms-lb-row'
+    ph.__photos.forEach(function (src) { var im = document.createElement('img'); im.src = src; im.alt = ph.__title; row.appendChild(im) })
+    lb.appendChild(row); document.body.appendChild(lb)
+    var ov = document.body.style.overflow; document.body.style.overflow = 'hidden'
+    row.scrollLeft = idx * row.clientWidth
+    function close() { document.body.style.overflow = ov; if (lb.parentNode) lb.parentNode.removeChild(lb); document.removeEventListener('keydown', key) }
+    function key(ev) { if (ev.key === 'Escape') close() }
+    x.addEventListener('click', close); document.addEventListener('keydown', key)
+  })
   function all(sel, fn) { [].forEach.call(document.querySelectorAll(sel), fn) }
   function setupEditor() {
     var edit = true
@@ -83,6 +154,7 @@
     all('[data-cms="prices"]', function (b) { list(b, d.prices || []) })
     all('[data-cms="offers"]', function (b) { list(b, offers) })
     all('[data-cms="gallery"]', function (b) { if ((d.gallery || []).length) list(b, d.gallery) })
+    all('[data-cms="rooms"]', function (b) { if ((d.rooms || []).length || d.updated_at === 'draft') rooms(b, d.rooms || []) })
   }
   // Formularul de contact: trimis la aplicație (email către client + panoul lui)
   var lang = (document.documentElement.lang || 'ro').slice(0, 2)

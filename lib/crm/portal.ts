@@ -77,14 +77,25 @@ export function buildMarkupPrompt(html: string, lang: string) {
 3. GALERIE: secțiunea cu poze primește data-cms-section="gallery"; containerul data-cms="gallery", iar fiecare poză este un copil direct cu data-cms-item care conține un <img data-cms-field="src">. Păstrează pozele existente.
 4. CONTACT: orice afișare a telefonului primește data-cms-text="phone", iar orice link tel: primește data-cms-tel; emailul afișat data-cms-text="email", linkurile mailto: data-cms-mailto; adresa data-cms-text="address"; programul data-cms-text="hours".
 5. ${FORM_RULES}
-6. Chiar înainte de </body>, adaugă:
-<script type="application/json" id="cms-initial">{"contact":{"phone":"","email":"","address":"","hours":""},"prices":[{"name":"","price":"","note":""}],"offers":[{"title":"","text":"","from":"","to":"","active":true}],"gallery":[{"src":"","alt":""}]}</script>
+6. CAMERE / SPAȚII (doar dacă site-ul prezintă camere, apartamente, căsuțe sau spații de închiriat, ex. piscină, salon de evenimente, terasă): secțiunea primește data-cms-section="rooms"; în ea un container data-cms="rooms" ai cărui COPII DIRECȚI sunt cardurile; fiecare card are data-cms-item și conține data-cms-field="title" (ex. „Cameră dublă cu baie”), data-cms-field="text" (descrierea, dotările), data-cms-field="price" (poate fi gol) și un container de poze cu atributul data-cms-photos care are UN SINGUR copil-model ce conține un <img>. Containerul de poze e un carusel orizontal: display:flex; overflow-x:auto; scroll-snap-type:x mandatory; copiii au flex:0 0 100% și scroll-snap-align:start, aceeași înălțime și același colț rotunjit ca poza de acum. Păstrează cardurile și pozele existente. Dacă site-ul nu are așa ceva, nu adăuga secțiunea.
+7. Păstrează toate marcajele data-cms-* care există deja.
+8. Chiar înainte de </body>, adaugă:
+<script type="application/json" id="cms-initial">{"contact":{"phone":"","email":"","address":"","hours":""},"prices":[{"name":"","price":"","note":""}],"offers":[{"title":"","text":"","from":"","to":"","active":true}],"gallery":[{"src":"","alt":""}],"rooms":[{"title":"","text":"","price":"","photos":[""]}]}</script>
 completat cu valorile EXACTE de acum de pe site (listele goale [] dacă nu există; datele from/to în format AAAA-LL-ZZ sau ""). Nu inventa nimic.
 Nu adăuga alte scripturi pentru asta. Textele noi, dacă e nevoie, în ${lang}. Răspunde DOAR cu codul HTML complet, începând cu <!DOCTYPE html>.
 
 <site>
 ${html}
 </site>`
+}
+
+// Datele clientului au prioritate; o listă nouă de pe site (ex. camerele, la prima pregătire) completează ce lipsește
+export function mergeContent(current: CmsContent, fromSite: CmsContent | null): CmsContent {
+  if (!fromSite) return current
+  const c = { ...current }
+  for (const k of ['prices', 'offers', 'gallery', 'rooms'] as const) if (!c[k]?.length && fromSite[k]?.length) (c as Record<string, unknown>)[k] = fromSite[k]
+  c.contact = { ...fromSite.contact, ...Object.fromEntries(Object.entries(current.contact).filter(([, v]) => v)) } as CmsContent['contact']
+  return c
 }
 
 interface MarkupDeps {
@@ -127,8 +138,8 @@ export async function startMarkup(id: string, opts: { anthropicKey?: string; des
       await withDbSession(async () => {
         const p = await one<{ content: CmsContent }>('SELECT content FROM client_portals WHERE business_id = $1', [b.id])
         const empty = !p || !p.content || !Object.keys(p.content).length
-        const initial = { ...(empty ? content || EMPTY_CONTENT : sanitizeContent(p!.content)), updated_at: new Date().toISOString() }
-        if (empty) await q('UPDATE client_portals SET content = $2, updated_at = now() WHERE business_id = $1', [b.id, JSON.stringify(initial)])
+        const initial = { ...(empty ? content || EMPTY_CONTENT : mergeContent(sanitizeContent(p!.content), content)), updated_at: new Date().toISOString() }
+        if (p) await q('UPDATE client_portals SET content = $2, updated_at = now() WHERE business_id = $1', [b.id, JSON.stringify(initial)])
         await publishContent(slug, initial, deps.put)
         await q(`UPDATE businesses SET demo_at = now(), demo_status = 'done', demo_error = NULL, updated_at = now() WHERE id = $1`, [b.id])
         await logActivity(b.id, 'demo_published', 'Site made editable for the client panel')

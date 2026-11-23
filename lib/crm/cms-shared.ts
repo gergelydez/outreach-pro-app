@@ -4,10 +4,12 @@ export interface CmsContent {
   prices: { name: string; price: string; note: string }[]
   offers: { title: string; text: string; from: string; to: string; active: boolean }[]
   gallery: { src: string; alt: string }[]
+  // camere / spații (ca la Booking): titlu, descriere, preț opțional, mai multe poze
+  rooms: { title: string; text: string; price: string; photos: string[] }[]
   updated_at?: string
 }
 
-export const EMPTY_CONTENT: CmsContent = { contact: { phone: '', email: '', address: '', hours: '' }, prices: [], offers: [], gallery: [] }
+export const EMPTY_CONTENT: CmsContent = { contact: { phone: '', email: '', address: '', hours: '' }, prices: [], offers: [], gallery: [], rooms: [] }
 
 const s = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
 const date = (v: unknown) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '')
@@ -22,6 +24,10 @@ export function sanitizeContent(v: unknown): CmsContent {
     prices: arr(o.prices).slice(0, 80).map(p => ({ name: s(p.name, 120), price: s(p.price, 60), note: s(p.note, 200) })).filter(p => p.name || p.price),
     offers: arr(o.offers).slice(0, 30).map(p => ({ title: s(p.title, 120), text: s(p.text, 600), from: date(p.from), to: date(p.to), active: p.active !== false })).filter(p => p.title || p.text),
     gallery: arr(o.gallery).slice(0, 60).map(p => ({ src: s(p.src, 500), alt: s(p.alt, 160) })).filter(p => /^https:\/\/[^\s"'<>]+$/.test(p.src)),
+    rooms: arr(o.rooms).slice(0, 40).map(r => ({
+      title: s(r.title, 120), text: s(r.text, 1200), price: s(r.price, 80),
+      photos: (Array.isArray(r.photos) ? r.photos : []).map(x => s(x, 500)).filter(x => /^https:\/\/[^\s"'<>]+$/.test(x)).slice(0, 20),
+    })).filter(r => r.title || r.text || r.photos.length),
   }
 }
 

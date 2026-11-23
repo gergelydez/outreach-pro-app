@@ -5,9 +5,20 @@ import { guard } from '@/lib/crm/client-http'
 import { sanitizeContent } from '@/lib/crm/cms-shared'
 import { listSiteMessages } from '@/lib/crm/site-messages'
 import { emailAvailable } from '@/lib/crm/notify-email'
+import { loadSiteHtml, slugOf } from '@/lib/crm/demo'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
+
+// Fila „Camere” apare doar dacă site-ul are secțiunea (max. 3 secunde de așteptare)
+function hasRooms(previewUrl: string | null): Promise<boolean> {
+  const slug = slugOf(previewUrl)
+  if (!slug) return Promise.resolve(false)
+  return Promise.race([
+    loadSiteHtml(slug).then(h => /data-cms=["']rooms["']/.test(h)).catch(() => false),
+    new Promise<boolean>(r => setTimeout(() => r(false), 3000)),
+  ])
+}
 
 // Tot ce afișează aplicația clientului
 export const GET = route(async (req: Request) => {
@@ -19,6 +30,7 @@ export const GET = route(async (req: Request) => {
     notify: { email: n?.notify_email || null, pending: n?.notify_pending_email && n.notify_code_expires && new Date(n.notify_code_expires).getTime() > Date.now() ? n.notify_pending_email : null, available: emailAvailable() },
     business: { id: a.business_id, name: a.name, country: a.country, preview_url: a.preview_url, live_url: a.live_url },
     content: sanitizeContent(p?.content),
+    has_rooms: await hasRooms(a.preview_url),
     messages: await listSiteMessages(a.business_id, 100),
     vapidPublicKey: (await getSecrets()).vapidPublic,
   })

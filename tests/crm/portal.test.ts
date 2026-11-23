@@ -215,3 +215,21 @@ describe('hasCmsContent', () => {
     expect(hasCmsContent('<div data-cms="prices"><div data-cms-item></div></div>')).toBe(true)
   })
 })
+
+describe('rooms', () => {
+  it('sanitizes rooms with several https photos', async () => {
+    const { sanitizeContent } = await import('@/lib/crm/cms-shared')
+    const c = sanitizeContent({ rooms: [{ title: 'Cameră dublă', text: 'baie', price: '250 lei', photos: ['https://a/1.jpg', 'javascript:x', 'https://a/2.jpg'] }, { title: '', text: '', photos: [] }] })
+    expect(c.rooms).toEqual([{ title: 'Cameră dublă', text: 'baie', price: '250 lei', photos: ['https://a/1.jpg', 'https://a/2.jpg'] }])
+  })
+  it('keeps the client data and fills missing lists from the site', async () => {
+    const { mergeContent } = await import('@/lib/crm/portal')
+    const { EMPTY_CONTENT } = await import('@/lib/crm/cms-shared')
+    const current = { ...EMPTY_CONTENT, prices: [{ name: 'A', price: '1', note: '' }], contact: { phone: '0722', email: '', address: '', hours: '' } }
+    const site = { ...EMPTY_CONTENT, prices: [{ name: 'X', price: '9', note: '' }], rooms: [{ title: 'Dublă', text: '', price: '', photos: ['https://a/1.jpg'] }], contact: { phone: '0000', email: 'a@b.ro', address: '', hours: '' } }
+    const m = mergeContent(current, site)
+    expect(m.prices[0].name).toBe('A')
+    expect(m.rooms).toHaveLength(1)
+    expect(m.contact).toEqual({ phone: '0722', email: 'a@b.ro', address: '', hours: '' })
+  })
+})
