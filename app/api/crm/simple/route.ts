@@ -1,6 +1,7 @@
 import { route, json, str } from '@/lib/crm/api'
 import { q, one } from '@/lib/crm/db'
-import { poolWhere } from '@/lib/crm/hunt'
+import { poolWhere, NO_SITE_STATUSES } from '@/lib/crm/hunt'
+import { areaPlan } from '@/lib/crm/area-hunt'
 import { asCountry } from '@/lib/crm/countries'
 
 export const maxDuration = 60
@@ -28,6 +29,13 @@ export const GET = route(async (req: Request) => {
     where.push(or.length ? `(${or.join(' OR ')})` : 'false')
   }
   else if (show === 'pool') where.push(poolWhere(country))
+  // firmele fără site dintr-o zonă (județ / oraș), încă necontactate
+  else if (show === 'area') {
+    const plan = areaPlan(country, str(sp.get('region'), 80) || '', str(sp.get('city'), 80), category || 'all')
+    P.push(plan.cities.map(c => c.city)); where.push(`b.country = '${country}' AND b.city = ANY($${P.length}::text[])`)
+    if (category && category !== 'all') { P.push(category); where.push(`b.category = $${P.length}`) }
+    where.push(`b.website_status = ANY('{${NO_SITE_STATUSES.join(',')}}'::text[]) AND b.stage IN ('new_lead','reviewed','ready_to_contact') AND NOT (b.whatsapp_status = 'NOT_FOUND' AND coalesce(b.whatsapp_source, '') = 'manual')`)
+  }
   // contactați / interesați: toată țara, ultimii contactați primii
   else if (show === 'followup') where.push(`b.country = '${country}' AND b.stage IN ('contacted','follow_up_1','follow_up_2','replied','interested','call_meeting','proposal_sent','negotiation','won')`)
   // de revenit: contactați care n-au răspuns încă
@@ -51,7 +59,7 @@ export const GET = route(async (req: Request) => {
       LEFT JOIN LATERAL (SELECT output FROM ai_analyses x WHERE x.business_id = b.id AND x.kind = 'quick' ORDER BY created_at DESC LIMIT 1) m ON true
      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
      ORDER BY ${show === 'search' ? `b.last_contacted_at DESC NULLS LAST, ` : ''}${show === 'waiting' ? `(b.next_follow_up_at IS NOT NULL AND b.next_follow_up_at <= now()) DESC, b.last_contacted_at ASC NULLS LAST, ` : ''}${show === 'followup' ? `(b.stage = 'interested') DESC, b.last_contacted_at DESC NULLS LAST, ` : ''}${show === 'pool' ? `(b.whatsapp_source = 'manual' AND b.whatsapp_status = 'FOUND') DESC NULLS LAST, ` : ''}b.opportunity_score DESC NULLS LAST, b.google_review_count DESC NULLS LAST
-     LIMIT 150`, P)
+     LIMIT ${show === 'area' ? 500 : 150}`, P)
   const pending = await one<{ n: string }>(`SELECT count(*)::text AS n FROM audit_jobs WHERE status IN ('pending','running') AND run_after <= now()`)
   return json({ rows, pendingAudits: Number(pending?.n || 0) })
 })

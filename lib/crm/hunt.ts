@@ -7,7 +7,6 @@ import { q, one } from './db'
 import { getSettings } from './settings'
 import { runDiscovery } from './discovery'
 import { runPendingAudits } from './audit-runner'
-import { DEMO_STATUSES } from './uk-templates'
 import { logActivity } from './activity'
 import { categoriesFor, citiesFor, huntOrder, type Country } from './countries'
 
@@ -35,10 +34,13 @@ const MOBILE_SQL: Record<Country, string> = {
   RO: `b.phone_e164 ~ '^\\+407[0-9]{8}$'`,
 }
 
+// Firme fără site propriu: acestora le oferim demo-ul gratuit (site-urile slabe nu mai intră în liste)
+export const NO_SITE_STATUSES = ['NO_WEBSITE', 'SOCIAL_ONLY', 'DIRECTORY_ONLY']
+
 // „Lista zilei”: firmele bune de contactat acum, într-o țară
 export function poolWhere(country: Country = 'UK'): string {
   return `b.country = '${country}'
-  AND b.website_status = ANY('{${DEMO_STATUSES.join(',')}}'::text[])
+  AND b.website_status = ANY('{${NO_SITE_STATUSES.join(',')}}'::text[])
   AND ${MOBILE_SQL[country]}
   AND NOT (b.whatsapp_status = 'NOT_FOUND' AND coalesce(b.whatsapp_source, '') = 'manual')
   AND b.stage IN ('new_lead', 'reviewed', 'ready_to_contact')`
@@ -107,7 +109,7 @@ export async function huntStep(opts: { country?: Country; apiKey?: string | null
 
   // 2) o căutare nouă: următorul oraș × meserie din rotație
   const { city, region, category } = rotation(state.cursor, country)
-  const res = await runDiscovery({ city, region, category, limit: 60, ...HUNT_FILTERS, mobileOnly: true, country }, opts.fetchImpl, { apiKey: opts.apiKey })
+  const res = await runDiscovery({ city, region, category, limit: 60, ...HUNT_FILTERS, mobileOnly: true, websiteFilter: 'no_real_website', country }, opts.fetchImpl, { apiKey: opts.apiKey })
   state.cursor++
   state.steps_today++
   state.new_today += res.newCount

@@ -76,9 +76,9 @@ describe('"has a website" button + ticked problems', () => {
     const m = buildMessages(TEMPLATES.UK, { name: 'Moseley Plumbing', trades: 'plumbers', website_status: row.website_status, findingCodes: row.manual_problems })
     expect(m.first).toBe("Hi, is this Moseley Plumbing? I'm Geri. I had a look at your website and noticed it isn't set up for phones, so the text is tiny on mobile and it looks a bit dated, so I've put together a free concept for a new, modern version. Can I send you a screenshot?")
     expect(m.second).toBe('')
-    // în lista zilei (are mobil, site de refăcut)
+    // site-urile slabe nu mai intră în lista zilei (doar firmele fără site)
     const pool = await (await simpleGet(req('/api/crm/simple?show=pool'))).json()
-    expect(pool.rows.map((x: { id: string }) => x.id)).toContain(b!.id)
+    expect(pool.rows.map((x: { id: string }) => x.id)).not.toContain(b!.id)
   })
 
   it('rejects invalid links', async () => {

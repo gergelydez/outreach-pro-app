@@ -33,7 +33,8 @@ const ago = (iso: string) => {
 }
 const catRo = (country: Country, key: string) => country === 'UK' ? (CATEGORY_RO[key] || key) : (categoriesFor(country).find(c => c.key === key)?.ro || key)
 interface ReplyHelp { translation_ro: string; intent: string; intent_explained_ro: string; objection_type: string; suggested_reply_en: string; suggested_reply_ro: string; next_step: string }
-type Show = 'pool' | 'waiting' | 'interested' | 'won' | 'followup' | 'todo' | 'all'
+type Show = 'pool' | 'waiting' | 'interested' | 'won' | 'followup' | 'todo' | 'all' | 'area'
+interface AreaRun { region: string; city: string; category: string; cursor: number; total: number; added: number }
 interface Stats { contacted: number; replied: number; interested: number; won: number; followups_due: number; contacted_today: number }
 const COUNTRY_TITLE: Record<Country, string> = { UK: 'UK 🇬🇧', HU: 'Ungaria 🇭🇺', RO: 'România 🇷🇴' }
 const LANG_RO: Record<Country, string> = { UK: 'engleză', HU: 'maghiară', RO: 'română' }
@@ -65,6 +66,21 @@ export default function HuntPage({ country }: { country: Country }) {
   useEffect(() => { const t = setTimeout(() => setSearchQ(query.trim()), 300); return () => clearTimeout(t) }, [query])
   const searching = searchQ.length >= 2
   const [stats, setStats] = useState<Stats | null>(null)
+  const regions = Array.from(new Set(cities.map(c => c.region)))
+  const [region, setRegion] = useState(regions[0])
+  const [areaCity, setAreaCity] = useState('')
+  const [areaCat, setAreaCat] = useState('all')
+  const [areaTotal, setAreaTotal] = useState<number | null>(null)
+  const [area, setArea] = useState<AreaRun | null>(null)
+  const [areaRunning, setAreaRunning] = useState(false)
+  const stopArea = useRef(false)
+  const AREA_KEY = `area_${country}`
+  useEffect(() => { try { const v = JSON.parse(localStorage.getItem(AREA_KEY) || 'null'); if (v && typeof v.cursor === 'number') setArea(v) } catch { /* ignore */ } }, [AREA_KEY])
+  useEffect(() => {
+    setAreaTotal(null)
+    api<{ total: number }>(`/api/crm/area?country=${country}&region=${encodeURIComponent(region)}&city=${encodeURIComponent(areaCity)}&category=${areaCat}`).then(d => setAreaTotal(d.total)).catch(() => {})
+  }, [country, region, areaCity, areaCat])
+  const areaView = area || { region, city: areaCity, category: areaCat }
   const [manualOpen, setManualOpen] = useState(false)
   const [sentNote, setSentNote] = useState('')
   const [rows, setRows] = useState<Lead[] | null>(null)
@@ -95,11 +111,13 @@ export default function HuntPage({ country }: { country: Country }) {
     try {
       const d = await api<{ rows: Lead[]; pendingAudits: number }>(searching
         ? `/api/crm/simple?country=${country}&show=search&q=${encodeURIComponent(searchQ)}`
+        : show === 'area'
+        ? `/api/crm/simple?country=${country}&show=area&region=${encodeURIComponent(areaView.region)}&city=${encodeURIComponent(areaView.city)}&category=${areaView.category}`
         : `/api/crm/simple?country=${country}&city=${encodeURIComponent(city)}&category=${category}&show=${show}`)
       setErr('')
       setRows(d.rows); setPending(d.pendingAudits)
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
-  }, [country, city, category, show, searching, searchQ])
+  }, [country, city, category, show, searching, searchQ, areaView.region, areaView.city, areaView.category])
   useEffect(() => { load() }, [load])
 
   async function auditAll() {
@@ -118,21 +136,26 @@ export default function HuntPage({ country }: { country: Country }) {
     setBusy('')
   }
 
-  async function search() {
-    setBusy('search'); setErr(''); setInfo('Caut firme pe Google…')
-    try {
-      const r = await api<{ found: number; newCount: number; duplicates: number }>('/api/crm/discovery', {
-        json: { country, city, region: regionOf(city), category, limit: 20, min_reviews: 3, google_api_key: keys.google || undefined },
-      })
-      setShow('todo')
-      setInfo(`Google a dat ${r.found} firme: ${r.newCount} noi${r.duplicates ? `, ${r.duplicates} le aveai deja` : ''}. Acum le verific site-urile…`)
-      await load()
-      setBusy('')
-      await auditAll()
-    } catch (e) {
-      setErr(e instanceof ApiError || e instanceof Error ? e.message : String(e))
-      setBusy('')
+  // Caută pe o zonă întreagă: pas cu pas (oraș × meserie), doar firme fără site, cu mobil
+  async function runArea(resume: boolean) {
+    let st: AreaRun = resume && area && area.cursor < area.total ? area : { region, city: areaCity, category: areaCat, cursor: 0, total: areaTotal || 0, added: 0 }
+    if (!st.total) return
+    setArea(st); setAreaRunning(true); stopArea.current = false; setShow('area'); setErr(''); setInfo('Caut pe Google…')
+    while (!stopArea.current && st.cursor < st.total) {
+      try {
+        const r = await api<{ cursor: number; total: number; done: boolean; ran?: { city: string; category: string; found: number; newCount: number }; stoppedReason?: string; error?: string }>('/api/crm/area', {
+          json: { country, region: st.region, city: st.city || null, category: st.category, cursor: st.cursor, google_api_key: keys.google || undefined },
+        })
+        st = { ...st, cursor: r.cursor, total: r.total, added: st.added + (r.ran?.newCount || 0) }
+        setArea(st); try { localStorage.setItem(AREA_KEY, JSON.stringify(st)) } catch { /* ignore */ }
+        if (r.ran) setInfo(`${catRo(country, r.ran.category)} · ${r.ran.city}: ${r.ran.newCount} noi fără site`)
+        if (r.stoppedReason === 'daily_limit') { setErr('Ai atins limita zilnică de firme noi (Setări → limite). Apasă „Continuă” mâine, de unde ai rămas.'); break }
+        if (r.stoppedReason === 'error' && /key|REQUEST_DENIED|403|billing/i.test(r.error || '')) { setErr(`Google: ${r.error}`); break }
+        await load()
+      } catch (e) { setErr(e instanceof ApiError || e instanceof Error ? e.message : String(e)); break }
     }
+    if (st.cursor >= st.total) setInfo(`Gata: am căutat în toată zona — ${st.added} firme noi fără site.`)
+    setAreaRunning(false)
   }
 
   const patchRow = (id: string, p: Partial<Lead>) => setRows(rs => rs && rs.map(r => (r.id === id ? { ...r, ...p } : r)))
@@ -153,18 +176,31 @@ export default function HuntPage({ country }: { country: Country }) {
 
       <HuntPanel country={country} googleKey={keys.google} onInfo={i => setStats(i.stats)} onProgress={() => { if (show === 'pool') load() }} />
 
-      <button className="mt-3 text-sm text-slate-600 underline" onClick={() => setManualOpen(v => !v)}>{manualOpen ? 'Ascunde căutarea manuală' : 'Sau caută manual într-un oraș / o meserie anume'}</button>
+      <button className="mt-3 text-sm text-slate-600 underline" onClick={() => setManualOpen(v => !v)}>{manualOpen ? 'Ascunde căutarea pe zonă' : '🗺️ Caută într-un oraș sau într-un județ întreg'}</button>
       {manualOpen && <section className="mt-2 bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+        <p className="text-[13px] text-slate-600">Alege zona: aplicația caută <b>toate firmele fără site</b> (inclusiv cele doar cu Facebook), cu număr de mobil, oraș cu oraș și meserie cu meserie.</p>
         <div className="grid grid-cols-2 gap-2">
-          <label className="block"><span className="block text-xs text-slate-500 mb-1">Oraș</span>
-            <Select value={city} onChange={e => setCity(e.target.value)}>{cities.map(c => <option key={c.city} value={c.city}>{c.city}</option>)}</Select></label>
-          <label className="block"><span className="block text-xs text-slate-500 mb-1">Meserie</span>
-            <Select value={category} onChange={e => setCategory(e.target.value)}>{cats.map(c => <option key={c.key} value={c.key}>{catRo(country, c.key)}</option>)}</Select></label>
+          <label className="block col-span-2 sm:col-span-1"><span className="block text-xs text-slate-500 mb-1">{country === 'RO' ? 'Județ / zonă' : 'Zonă'}</span>
+            <Select value={region} disabled={areaRunning} onChange={e => { setRegion(e.target.value); setAreaCity('') }}>{regions.map(r => <option key={r} value={r}>{r}</option>)}</Select></label>
+          <label className="block col-span-2 sm:col-span-1"><span className="block text-xs text-slate-500 mb-1">Oraș</span>
+            <Select value={areaCity} disabled={areaRunning} onChange={e => setAreaCity(e.target.value)}><option value="">Toată zona ({cities.filter(c => c.region === region).length} orașe)</option>{cities.filter(c => c.region === region).map(c => <option key={c.city} value={c.city}>{c.city}</option>)}</Select></label>
+          <label className="block col-span-2"><span className="block text-xs text-slate-500 mb-1">Meserie</span>
+            <Select value={areaCat} disabled={areaRunning} onChange={e => setAreaCat(e.target.value)}><option value="all">Toate meseriile ({cats.length})</option>{cats.map(c => <option key={c.key} value={c.key}>{catRo(country, c.key)}</option>)}</Select></label>
         </div>
+        {areaTotal != null && !areaRunning && <p className="text-[12px] text-slate-500">{areaTotal} căutări pe Google · aproximativ {Math.max(1, Math.round(areaTotal * 12 / 60))} minute (lasă pagina deschisă; poți opri și continua oricând).</p>}
         <div className="flex flex-wrap gap-2">
-          <Button variant="primary" className="flex-1 h-11 text-base" loading={busy === 'search'} disabled={!!busy} onClick={search}>🔎 Caută firme</Button>
-          {pending > 0 && <Button className="h-11" loading={busy === 'audit'} disabled={!!busy} onClick={auditAll}>Verifică site-urile ({pending})</Button>}
+          {areaRunning
+            ? <Button className="flex-1 h-11 text-base" onClick={() => { stopArea.current = true }}>⏸ Oprește</Button>
+            : <Button variant="primary" className="flex-1 h-11 text-base" disabled={!areaTotal || !!busy} onClick={() => runArea(false)}>🔎 Caută toate firmele fără site</Button>}
+          {!areaRunning && area && area.cursor > 0 && area.cursor < area.total && <Button className="h-11" onClick={() => runArea(true)}>▶ Continuă {area.city || area.region} ({area.cursor}/{area.total})</Button>}
+          {!areaRunning && area && <Button className="h-11" onClick={() => setShow('area')}>📋 Vezi rezultatele</Button>}
         </div>
+        {area && (areaRunning || area.cursor > 0) && (
+          <div>
+            <div className="h-2 rounded-full bg-slate-100 overflow-hidden"><div className="h-full bg-teal-600 transition-all" style={{ width: `${Math.round((area.cursor / Math.max(1, area.total)) * 100)}%` }} /></div>
+            <p className="mt-1 text-[12px] text-slate-600">{area.city || `tot județul ${area.region}`} · {area.cursor}/{area.total} căutări · <b>{area.added} firme noi fără site</b></p>
+          </div>
+        )}
         {info && <p className="text-sm text-teal-800">{info}</p>}
         {err && <p className="text-sm text-rose-700">{err}{/Google Places key/i.test(err) && <> — <Link href="/settings" className="underline">pune cheia Google în Setări</Link></>}</p>}
       </section>}
@@ -200,6 +236,7 @@ export default function HuntPage({ country }: { country: Country }) {
         {waApp === 'auto' && <span className="w-full text-[11px] text-slate-500">Pentru WhatsApp-ul din Secure Folder: deschide aplicația din browserul din Secure Folder — atunci butoanele deschid WhatsApp-ul de acolo.</span>}
       </div>
       {show === 'waiting' && stats && stats.followups_due > 0 && <p className="mb-2 text-[13px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">⏰ {stats.followups_due} firme așteaptă reamintirea azi — sunt primele în listă.</p>}
+      {show === 'area' && !searching && <div className="mb-2 text-sm text-slate-600">Firme fără site · {areaView.city || `tot județul ${areaView.region}`} · {areaView.category === 'all' ? 'toate meseriile' : catRo(country, areaView.category)}{rows ? ` · ${rows.length}` : ''} <button className="underline ml-1" onClick={() => setShow('pool')}>înapoi la lista zilei</button></div>}
       {(show === 'todo' || show === 'all') && <div className="mb-2 text-sm text-slate-600">Rezultatele căutării manuale · {catRo(country, category)} în {city} <button className="underline ml-1" onClick={() => setShow('pool')}>înapoi la lista zilei</button></div>}
 
       {sentNote && (
@@ -211,7 +248,7 @@ export default function HuntPage({ country }: { country: Country }) {
 
       {rows && rows.length === 0 && (
         <p className="text-sm text-slate-500 bg-white border border-slate-200 rounded-xl p-4">
-          {searching ? `Nicio firmă găsită pentru „${searchQ}”. Încearcă doar o parte din nume sau ultimele cifre ale telefonului.` : show === 'waiting' ? 'Nimeni de revenit acum. După ce trimiți mesaje, firmele apar aici până răspund.' : show === 'interested' ? 'Încă niciun interesat. Când cineva răspunde, apasă „🙋 Interesat” pe cardul lui.' : show === 'won' ? 'Încă niciun client — urmează 🙂' : show === 'followup' ? 'Nu ai încă firme contactate.' : show === 'pool' ? 'Lista zilei e goală. Apasă „Completează”.' : show === 'todo' ? 'Nicio firmă de contactat aici. Apasă „Caută firme” sau alege alt oraș / altă meserie.' : 'Nicio firmă salvată încă pentru acest oraș și această meserie.'}
+          {searching ? `Nicio firmă găsită pentru „${searchQ}”. Încearcă doar o parte din nume sau ultimele cifre ale telefonului.` : show === 'waiting' ? 'Nimeni de revenit acum. După ce trimiți mesaje, firmele apar aici până răspund.' : show === 'interested' ? 'Încă niciun interesat. Când cineva răspunde, apasă „🙋 Interesat” pe cardul lui.' : show === 'won' ? 'Încă niciun client — urmează 🙂' : show === 'followup' ? 'Nu ai încă firme contactate.' : show === 'area' ? 'Încă nicio firmă fără site în zona asta. Apasă „Caută toate firmele fără site”.' : show === 'pool' ? 'Lista zilei e goală. Apasă „Completează”.' : show === 'todo' ? 'Nicio firmă de contactat aici. Apasă „Caută firme” sau alege alt oraș / altă meserie.' : 'Nicio firmă salvată încă pentru acest oraș și această meserie.'}
         </p>
       )}
 

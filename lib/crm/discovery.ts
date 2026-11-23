@@ -8,6 +8,7 @@ import { enqueueJob } from './jobs'
 import { logActivity, logUsage } from './activity'
 import { searchText, searchTextNew, placeDetails, textSearchCost, detailsCost, newSearchCost, ApiNotEnabled, type DiscoveredBusiness, type SearchPage } from './providers/google-places'
 import { UK_CATEGORIES } from './constants'
+import { urlKind } from './classify'
 
 export interface DiscoveryRequest {
   city: string
@@ -16,7 +17,8 @@ export interface DiscoveryRequest {
   limit: number                 // câte lead-uri NOI vrem din această rulare
   minRating?: number | null
   minReviews?: number | null
-  websiteFilter?: 'any' | 'no_website' | 'has_website'
+  // no_real_website: fără site propriu (fără site, doar Facebook/Instagram sau doar în directoare)
+  websiteFilter?: 'any' | 'no_website' | 'has_website' | 'no_real_website'
   // doar numere de mobil (UK 07…, HU 20/30/31/50/70), adică firme care pot avea WhatsApp
   mobileOnly?: boolean
   country?: Country
@@ -57,6 +59,7 @@ function passesWebsiteFilter(b: DiscoveredBusiness, r: DiscoveryRequest): boolea
   if (b.businessStatus && b.businessStatus !== 'OPERATIONAL') return false
   if (r.websiteFilter === 'no_website' && b.websiteUrl) return false
   if (r.websiteFilter === 'has_website' && !b.websiteUrl) return false
+  if (r.websiteFilter === 'no_real_website' && b.websiteUrl && !['social', 'directory'].includes(urlKind(b.websiteUrl))) return false
   return true
 }
 
