@@ -11,9 +11,11 @@ interface Content {
   prices: { name: string; price: string; note: string }[]
   offers: { title: string; text: string; from: string; to: string; active: boolean }[]
   gallery: { src: string; alt: string }[]
+  rooms: { title: string; text: string; price: string; photos: string[] }[]
 }
+type Sec = 'prices' | 'offers' | 'gallery' | 'rooms' | 'contact'
 interface Msg { id: string; name: string; email: string; phone: string; message: string; extra: Record<string, string> | null; status: string; replied_via: string | null; created_at: string }
-interface Me { account: { email: string }; notify: { email: string | null; pending: string | null; available: boolean }; business: { id: string; name: string; country: string; preview_url: string | null; live_url: string | null }; content: Content; messages: Msg[]; vapidPublicKey: string }
+interface Me { account: { email: string }; notify: { email: string | null; pending: string | null; available: boolean }; business: { id: string; name: string; country: string; preview_url: string | null; live_url: string | null }; content: Content; has_rooms?: boolean; messages: Msg[]; vapidPublicKey: string }
 type Lang = 'ro' | 'hu' | 'en'
 
 const T = {
@@ -33,6 +35,7 @@ const T = {
     notifIos: 'Pe iPhone, notificările merg după ce instalezi aplicația pe ecranul principal.', install: 'Instalează aplicația', installBtn: 'Instalează pe telefon',
     installIos: 'Pe iPhone: apasă Distribuie, apoi „Adaugă pe ecranul principal”.', installAndroid: 'Sau din meniul browserului ⋮: „Instalează aplicația” / „Adaugă pe ecranul de pornire”.', installed: 'Aplicația este instalată.', installStepsAndroid: ['Deschide panoul în Google Chrome (nu Opera / Samsung Internet).', 'Apasă meniul ⋮ din dreapta sus și alege „Instalează aplicația” (nu „Adaugă pe ecranul de pornire”, care pune o scurtătură cu eticheta Chrome).', 'Confirmă: „Panoul meu” apare ca aplicație, cu iconița lui.'], installStepsIos: ['Deschide panoul în Safari.', 'Apasă butonul Distribuie (pătratul cu săgeată în sus).', 'Alege „Adaugă pe ecranul principal”, apoi „Adaugă”.'], installBanner: 'Instalează panoul pe telefon, ca o aplicație', installBannerSub: 'Îl deschizi dintr-o atingere și primești notificări la mesajele noi.', later: 'Mai târziu',
     mailNotif: 'Notificări pe email', mailNotifSub: 'Primești pe email fiecare mesaj trimis din formularul site-ului.', mailAddr: 'Emailul la care vrei notificările', sendCode: 'Trimite codul', codeSentTo: 'Ți-am trimis un cod de 6 cifre la', codeLabel: 'Codul din email', confirm: 'Confirmă', resend: 'Retrimite codul', change: 'Schimbă emailul', stopMail: 'Oprește notificările pe email', mailOn: 'Primești notificările la', wrongCode: 'Cod greșit.', expiredCode: 'Codul a expirat. Cere unul nou.', waitCode: 'Așteaptă un minut înainte de un cod nou.', mailBad: 'Emailul nu pare corect.', mailSoon: 'Notificările pe email vor fi disponibile în curând.', checkSpam: 'Nu găsești emailul? Uită-te și în Spam.',
+    rooms: 'Camere', roomsHint: 'Fiecare card apare pe site cu pozele lui; prima poză e coperta. Pe telefon vizitatorii glisează printre poze.', roomTitle: 'Nume (ex. Cameră dublă cu baie)', roomPrice: 'Preț (opțional, ex. 250 lei / noapte)', roomText: 'Descriere și dotări (pat dublu, baie proprie, TV, Wi-Fi…)', addRoom: 'Adaugă cameră sau spațiu', roomRemove: 'Șterge cardul', roomDelete: 'Ștergi cardul cu toate pozele lui?', cover: 'Copertă',
     sheetDone: 'Gata', visualEdit: 'Editează direct pe site', visualEditSub: 'Vezi site-ul tău și atinge secțiunea pe care vrei s-o schimbi.', preview: 'Previzualizare', publishLive: 'Publică live', backToEdit: 'Editare', editing: 'Editezi site-ul', editHint: 'Atinge o secțiune conturată sau alege mai jos', unsavedDraft: 'nepublicat încă', notReady: 'Secțiunile editabile nu sunt încă pregătite pe acest site. Cere-i designerului să activeze aplicația pentru site-ul tău.', leaveConfirm: 'Ai modificări nepublicate. Ieși oricum?',
     changePw: 'Schimbă parola', currentPw: 'Parola actuală', newPw: 'Parola nouă (minim 8 caractere)', pwSaved: 'Parola a fost schimbată.', logout: 'Ieși din cont', signedAs: 'Conectat ca',
     today: 'azi', yesterday: 'ieri',
@@ -53,6 +56,7 @@ const T = {
     notifIos: 'iPhone-on az értesítések a kezdőképernyőre telepítés után működnek.', install: 'Alkalmazás telepítése', installBtn: 'Telepítés a telefonra',
     installIos: 'iPhone-on: Megosztás, majd „Főképernyőhöz adás”.', installAndroid: 'Vagy a böngésző menüjéből ⋮: „Alkalmazás telepítése”.', installed: 'Az alkalmazás telepítve van.', installStepsAndroid: ['Nyissa meg a Google Chrome-ban (nem Operában / Samsung Internetben).', 'Koppintson a ⋮ menüre, és válassza az „Alkalmazás telepítése” lehetőséget (nem a „Hozzáadás a kezdőképernyőhöz”, az csak parancsikon Chrome-jelzéssel).', 'Erősítse meg: a „Panoul meu” alkalmazásként jelenik meg, saját ikonnal.'], installStepsIos: ['Nyissa meg Safariban.', 'Koppintson a Megosztás gombra (négyzet felfelé mutató nyíllal).', 'Válassza a „Főképernyőhöz adás”, majd a „Hozzáadás” lehetőséget.'], installBanner: 'Telepítse a telefonjára alkalmazásként', installBannerSub: 'Egy koppintással megnyitja, és értesítést kap az új üzenetekről.', later: 'Később',
     mailNotif: 'E-mail értesítések', mailNotifSub: 'Minden űrlapüzenetet megkap e-mailben is.', mailAddr: 'E-mail cím az értesítésekhez', sendCode: 'Kód küldése', codeSentTo: '6 jegyű kódot küldtünk ide:', codeLabel: 'Az e-mailben kapott kód', confirm: 'Megerősítés', resend: 'Kód újraküldése', change: 'E-mail módosítása', stopMail: 'E-mail értesítések kikapcsolása', mailOn: 'Az értesítések ide érkeznek:', wrongCode: 'Hibás kód.', expiredCode: 'A kód lejárt. Kérjen újat.', waitCode: 'Várjon egy percet az új kód előtt.', mailBad: 'Az e-mail cím nem tűnik helyesnek.', mailSoon: 'Az e-mail értesítések hamarosan elérhetők lesznek.', checkSpam: 'Nem találja? Nézze meg a Spam mappát is.',
+    rooms: 'Szobák', roomsHint: 'Minden kártya a saját képeivel jelenik meg; az első kép a borítókép. Telefonon a látogatók lapozhatnak a képek között.', roomTitle: 'Név (pl. Franciaágyas szoba fürdővel)', roomPrice: 'Ár (nem kötelező, pl. 25 000 Ft / éj)', roomText: 'Leírás és felszereltség (franciaágy, saját fürdő, TV, Wi-Fi…)', addRoom: 'Szoba vagy helyiség hozzáadása', roomRemove: 'Kártya törlése', roomDelete: 'Törli a kártyát az összes képével?', cover: 'Borító',
     sheetDone: 'Kész', visualEdit: 'Szerkesztés közvetlenül az oldalon', visualEditSub: 'Látja a weboldalát, és arra a részre koppint, amelyet módosítani szeretne.', preview: 'Előnézet', publishLive: 'Közzététel', backToEdit: 'Szerkesztés', editing: 'Szerkesztés', editHint: 'Koppintson egy keretes részre, vagy válasszon lent', unsavedDraft: 'még nincs közzétéve', notReady: 'A szerkeszthető részek még nincsenek előkészítve ezen az oldalon. Kérje meg a weboldal készítőjét.', leaveConfirm: 'Vannak közzé nem tett módosításai. Biztosan kilép?',
     changePw: 'Jelszó módosítása', currentPw: 'Jelenlegi jelszó', newPw: 'Új jelszó (legalább 8 karakter)', pwSaved: 'A jelszó megváltozott.', logout: 'Kilépés', signedAs: 'Bejelentkezve:',
     today: 'ma', yesterday: 'tegnap',
@@ -73,6 +77,7 @@ const T = {
     notifIos: 'On iPhone, notifications work after you add the app to your home screen.', install: 'Install the app', installBtn: 'Install on phone',
     installIos: 'On iPhone: tap Share, then “Add to Home Screen”.', installAndroid: 'Or from the browser menu ⋮: “Install app”.', installed: 'The app is installed.', installStepsAndroid: ['Open it in Google Chrome (not Opera / Samsung Internet).', 'Tap the ⋮ menu and choose “Install app” (not “Add to Home screen”, which adds a shortcut with the Chrome badge).', 'Confirm: “Panoul meu” appears as an app with its own icon.'], installStepsIos: ['Open it in Safari.', 'Tap the Share button (square with an up arrow).', 'Choose “Add to Home Screen”, then “Add”.'], installBanner: 'Install the panel on your phone as an app', installBannerSub: 'Open it with one tap and get notified about new messages.', later: 'Later',
     mailNotif: 'Email notifications', mailNotifSub: 'Get every message from your website form by email too.', mailAddr: 'Email for notifications', sendCode: 'Send code', codeSentTo: 'We sent a 6-digit code to', codeLabel: 'Code from the email', confirm: 'Confirm', resend: 'Resend code', change: 'Change email', stopMail: 'Turn off email notifications', mailOn: 'Notifications go to', wrongCode: 'Wrong code.', expiredCode: 'The code has expired. Ask for a new one.', waitCode: 'Wait a minute before asking for a new code.', mailBad: 'That email does not look right.', mailSoon: 'Email notifications will be available soon.', checkSpam: 'Can’t find it? Check your Spam folder.',
+    rooms: 'Rooms', roomsHint: 'Each card shows on your site with its own photos; the first photo is the cover. On phones, visitors swipe through the photos.', roomTitle: 'Name (e.g. Double room with bathroom)', roomPrice: 'Price (optional, e.g. £90 / night)', roomText: 'Description and amenities (double bed, private bathroom, TV, Wi-Fi…)', addRoom: 'Add a room or space', roomRemove: 'Delete card', roomDelete: 'Delete this card and all its photos?', cover: 'Cover',
     sheetDone: 'Done', visualEdit: 'Edit right on your site', visualEditSub: 'See your website and tap the section you want to change.', preview: 'Preview', publishLive: 'Publish', backToEdit: 'Edit', editing: 'Editing your site', editHint: 'Tap an outlined section or choose below', unsavedDraft: 'not published yet', notReady: 'The editable sections are not ready on this site yet. Ask your website designer to enable the app.', leaveConfirm: 'You have unpublished changes. Leave anyway?',
     changePw: 'Change password', currentPw: 'Current password', newPw: 'New password (at least 8 characters)', pwSaved: 'Password changed.', logout: 'Sign out', signedAs: 'Signed in as',
     today: 'today', yesterday: 'yesterday',
@@ -351,7 +356,7 @@ function Inbox({ me, t, lang, setMe }: { me: Me; t: typeof T.ro; lang: Lang; set
   )
 }
 
-export function SectionFields({ sec, data, update, t, busy, addPhotos }: { sec: 'prices' | 'offers' | 'gallery' | 'contact'; data: Content; update: (fn: (c: Content) => Content) => void; t: typeof T.ro; busy: string; addPhotos: (f: FileList | null) => void }) {
+export function SectionFields({ sec, data, update, t, busy, addPhotos }: { sec: Sec; data: Content; update: (fn: (c: Content) => Content) => void; t: typeof T.ro; busy: string; addPhotos: (f: FileList | null, room?: number) => void }) {
   const small = 'h-9 w-9 shrink-0 rounded-lg border border-slate-200 bg-white text-slate-600 grid place-items-center'
   return (
     <div className="space-y-3">
@@ -417,6 +422,44 @@ export function SectionFields({ sec, data, update, t, busy, addPhotos }: { sec: 
         </div>
       </>}
 
+      {sec === 'rooms' && <>
+        <p className="text-[13px] text-slate-500 px-1">{t.roomsHint}</p>
+        {data.rooms.map((r, i) => {
+          const setRoom = (fn: (x: Content['rooms'][number]) => Content['rooms'][number]) => update(c => ({ ...c, rooms: c.rooms.map((x, j) => (j === i ? fn(x) : x)) }))
+          return (
+            <div key={i} className={`${card} p-3 space-y-2`}>
+              <div className="flex gap-2">
+                <input className={input} placeholder={t.roomTitle} value={r.title} onChange={e => setRoom(x => ({ ...x, title: e.target.value }))} />
+                <button className={small} aria-label="sus" onClick={() => update(c => ({ ...c, rooms: move(c.rooms, i, -1) }))}>{Icon.up}</button>
+                <button className={small} aria-label="jos" onClick={() => update(c => ({ ...c, rooms: move(c.rooms, i, 1) }))}>{Icon.down}</button>
+              </div>
+              <input className={input} placeholder={t.roomPrice} value={r.price} onChange={e => setRoom(x => ({ ...x, price: e.target.value }))} />
+              <textarea className={`${input} h-24 py-3`} placeholder={t.roomText} value={r.text} onChange={e => setRoom(x => ({ ...x, text: e.target.value }))} />
+              <div className="grid grid-cols-3 gap-2">
+                {r.photos.map((src, k) => (
+                  <div key={src + k} className="relative">
+                    <img src={src} alt="" className="w-full aspect-square object-cover rounded-xl border border-slate-200" />
+                    {k === 0 && <span className="absolute left-1 top-1 rounded-md bg-slate-900/80 text-white text-[10px] px-1.5 py-0.5">{t.cover}</span>}
+                    <div className="absolute inset-x-1 bottom-1 flex justify-between">
+                      <button className="h-7 w-7 rounded-lg bg-white/95 grid place-items-center -rotate-90" onClick={() => setRoom(x => ({ ...x, photos: move(x.photos, k, -1) }))}>{Icon.up}</button>
+                      <button className="h-7 w-7 rounded-lg bg-white/95 text-rose-600 grid place-items-center" aria-label={t.remove} onClick={() => setRoom(x => ({ ...x, photos: x.photos.filter((_, j) => j !== k) }))}>{Icon.trash}</button>
+                      <button className="h-7 w-7 rounded-lg bg-white/95 grid place-items-center rotate-90" onClick={() => setRoom(x => ({ ...x, photos: move(x.photos, k, 1) }))}>{Icon.up}</button>
+                    </div>
+                  </div>
+                ))}
+                <label className="aspect-square rounded-xl border-2 border-dashed border-slate-300 text-slate-500 flex flex-col items-center justify-center gap-1 text-[12px] cursor-pointer text-center px-1">
+                  {busy === 'upload' ? <span className="w-6 h-6 rounded-full border-2 border-slate-300 border-t-slate-700 animate-spin" /> : Icon.plus}
+                  {busy === 'upload' ? t.uploading : t.addPhotos}
+                  <input type="file" accept="image/*" multiple className="hidden" disabled={busy === 'upload'} onChange={e => { addPhotos(e.target.files, i); e.target.value = '' }} />
+                </label>
+              </div>
+              <button className="w-full h-10 rounded-xl text-rose-600 text-[14px] font-medium flex items-center justify-center gap-1.5" onClick={() => { if (confirm(t.roomDelete)) update(c => ({ ...c, rooms: c.rooms.filter((_, j) => j !== i) })) }}>{Icon.trash}{t.roomRemove}</button>
+            </div>
+          )
+        })}
+        <button className="w-full h-12 rounded-2xl border-2 border-dashed border-slate-300 text-slate-600 font-medium flex items-center justify-center gap-2" onClick={() => update(c => ({ ...c, rooms: [...c.rooms, { title: '', text: '', price: '', photos: [] }] }))}>{Icon.plus}{t.addRoom}</button>
+      </>}
+
       {sec === 'contact' && (
         <div className={`${card} p-4 space-y-3`}>
           {([['phone', t.phone, 'tel'], ['email', t.contactEmail, 'email'], ['address', t.address, 'text']] as const).map(([k, l, type]) => (
@@ -473,7 +516,7 @@ export function VisualEditor() {
   const [data, setData] = useState<Content | null>(null)
   const [lang, setLang] = useState<Lang>('ro')
   const [mode, setMode] = useState<'edit' | 'preview'>('edit')
-  const [sheet, setSheet] = useState<null | 'prices' | 'offers' | 'gallery' | 'contact'>(null)
+  const [sheet, setSheet] = useState<null | Sec>(null)
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState('')
   const [toast, setToast] = useState('')
@@ -496,7 +539,7 @@ export function VisualEditor() {
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty])
   const update = (fn: (c: Content) => Content) => { setData(c => (c ? fn(c) : c)); setDirty(true) }
-  async function addPhotos(files: FileList | null) {
+  async function addPhotos(files: FileList | null, room?: number) {
     if (!files?.length || !me) return
     setBusy('upload')
     const { upload } = await import('@vercel/blob/client')
@@ -505,7 +548,7 @@ export function VisualEditor() {
       try { const b = await upload(`cms/${me.business.id}/${Date.now()}.jpg`, await shrinkImage(f), { access: 'public', handleUploadUrl: '/api/client/upload', contentType: 'image/jpeg' }); added.push({ src: b.url, alt: '' }) } catch { /* */ }
     }
     setBusy('')
-    if (added.length) update(c => ({ ...c, gallery: [...c.gallery, ...added] }))
+    if (added.length) update(c => (room === undefined ? { ...c, gallery: [...c.gallery, ...added] } : { ...c, rooms: c.rooms.map((r, j) => (j === room ? { ...r, photos: [...r.photos, ...added.map(a => a.src)] } : r)) }))
   }
   async function publish() {
     if (!data) return
@@ -516,7 +559,7 @@ export function VisualEditor() {
     else setToast(t.error)
   }
   if (!me || !data) return <div className="min-h-[100dvh] grid place-items-center bg-slate-900"><div className="w-8 h-8 rounded-full border-2 border-slate-600 border-t-white animate-spin" /></div>
-  const sections = [['prices', t.prices], ['offers', t.offers], ['gallery', t.gallery], ['contact', t.contact]] as const
+  const sections: [Sec, string][] = [['prices', t.prices], ['offers', t.offers], ['gallery', t.gallery], ...(me.has_rooms ? [['rooms', t.rooms] as [Sec, string]] : []), ['contact', t.contact]]
   return (
     <div className="fixed inset-0 bg-slate-950 flex flex-col text-slate-900">
       <div className="pt-[env(safe-area-inset-top)] bg-slate-900 text-white">
@@ -561,10 +604,10 @@ export function VisualEditor() {
   )
 }
 
-const EMPTY: Content = { contact: { phone: '', email: '', address: '', hours: '' }, prices: [], offers: [], gallery: [] }
+const EMPTY: Content = { contact: { phone: '', email: '', address: '', hours: '' }, prices: [], offers: [], gallery: [], rooms: [] }
 
 function SiteEditor({ me, t, setMe }: { me: Me; t: typeof T.ro; setMe: (m: Me) => void }) {
-  const [sec, setSec] = useState<'prices' | 'offers' | 'gallery' | 'contact'>('prices')
+  const [sec, setSec] = useState<Sec>('prices')
   const [data, setData] = useState<Content>(me.content)
   const [dirty, setDirty] = useState(false)
   const [msg, setMsg] = useState('')
@@ -580,7 +623,7 @@ function SiteEditor({ me, t, setMe }: { me: Me; t: typeof T.ro; setMe: (m: Me) =
     if (r.ok) { setData(r.data.content); savedRef.current = r.data.content; setDirty(false); setMsg(t.saved); setMe({ ...me, content: r.data.content }); setPreview(false) }
     else setMsg(t.error)
   }
-  async function addPhotos(files: FileList | null) {
+  async function addPhotos(files: FileList | null, room?: number) {
     if (!files?.length) return
     setBusy('upload')
     const { upload } = await import('@vercel/blob/client')
@@ -592,10 +635,10 @@ function SiteEditor({ me, t, setMe }: { me: Me; t: typeof T.ro; setMe: (m: Me) =
       } catch { /* o poză stricată nu oprește restul */ }
     }
     setBusy('')
-    if (added.length) update(c => ({ ...c, gallery: [...c.gallery, ...added] }))
+    if (added.length) update(c => (room === undefined ? { ...c, gallery: [...c.gallery, ...added] } : { ...c, rooms: c.rooms.map((r, j) => (j === room ? { ...r, photos: [...r.photos, ...added.map(a => a.src)] } : r)) }))
   }
 
-  const sections = [['prices', t.prices], ['offers', t.offers], ['gallery', t.gallery], ['contact', t.contact]] as const
+  const sections: [Sec, string][] = [['prices', t.prices], ['offers', t.offers], ['gallery', t.gallery], ...(me.has_rooms ? [['rooms', t.rooms] as [Sec, string]] : []), ['contact', t.contact]]
   return (
     <div className="space-y-3">
       <a href="/client/editor" className={`${card} p-4 flex items-center gap-3`}>

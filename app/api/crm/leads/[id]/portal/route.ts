@@ -26,7 +26,7 @@ export const GET = route(async (req: Request, { params }: Ctx) => {
 // Activează panoul (sau un PIN nou, cu același link). Dacă site-ul nu are încă marcajele, Claude le adaugă în fundal.
 export const POST = route(async (req: Request, { params }: Ctx) => {
   const id = requireUuid(params.id)
-  const b = await body<{ anthropic_key?: string; designer?: string; prepare_only?: boolean }>(req)
+  const b = await body<{ anthropic_key?: string; designer?: string; prepare_only?: boolean; force?: boolean }>(req)
   const biz = await one<{ preview_url: string | null }>('SELECT preview_url FROM businesses WHERE id = $1', [id])
   if (!biz) throw new HttpError(404, 'Lead not found')
   const slug = slugOf(biz.preview_url)
@@ -35,7 +35,7 @@ export const POST = route(async (req: Request, { params }: Ctx) => {
   const portal = b.prepare_only ? null : await createPortal(id)
   const ready = await loadSiteHtml(slug).then(h => hasCmsContent(h) && hasCmsForm(h)).catch(() => false)
   let markup = 'ready'
-  if (!ready) {
+  if (!ready || (b.prepare_only && b.force)) {
     const r = await startMarkup(id, { anthropicKey: str(b.anthropic_key, 300) || undefined, designer: str(b.designer, 60) || undefined }, { schedule: p => waitUntil(p) })
       .catch(e => { throw new HttpError(400, e instanceof Error ? e.message : String(e)) })
     markup = r.status

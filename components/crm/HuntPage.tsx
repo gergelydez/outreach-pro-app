@@ -567,10 +567,10 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
     setBusy('')
   }
-  async function prepareSite() {
+  async function prepareSite(force = false) {
     setErr(''); setBusy('prepare')
     try {
-      const d = await api<{ markup: string }>(`/api/crm/leads/${r.id}/portal`, { json: { anthropic_key: keys.anthropic || undefined, designer: templates.me, prepare_only: true } })
+      const d = await api<{ markup: string }>(`/api/crm/leads/${r.id}/portal`, { json: { anthropic_key: keys.anthropic || undefined, designer: templates.me, prepare_only: true, force } })
       if (d.markup === 'running') { setEditing(true); onChange({ demo_status: 'running', demo_error: null, demo_started_at: new Date().toISOString() }) }
       else setPortal(x => (x ? { ...x, ready: true } : x))
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
@@ -936,8 +936,14 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
                   {portal.exists && !portal.ready && (
                     <div className="rounded-md bg-white border border-amber-300 p-2 space-y-1.5">
                       <p className="text-[12px] text-amber-900">{demoRunning ? 'Claude pregătește site-ul pentru editare (1–4 minute)…' : '⚠️ Site-ul nu are încă secțiunile editabile (tarife, oferte, galerie): clientul nu le poate schimba din aplicație.'}</p>
-                      {!demoRunning && <Button size="sm" className="h-9" loading={busy === 'prepare'} onClick={prepareSite}>🧩 Pregătește site-ul pentru editare</Button>}
+                      {!demoRunning && <Button size="sm" className="h-9" loading={busy === 'prepare'} onClick={() => prepareSite()}>🧩 Pregătește site-ul pentru editare</Button>}
                       <p className="text-[11px] text-slate-500">După ce e gata: descarcă din nou arhiva site-ului și pune-o pe Cloudflare (New deployment), ca site-ul live să afișeze ce schimbă clientul.</p>
+                    </div>
+                  )}
+                  {portal.exists && portal.ready && !demoRunning && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button size="sm" variant="secondary" className="h-9" loading={busy === 'prepare'} onClick={() => { if (confirm('Claude verifică site-ul și adaugă secțiunile editabile care lipsesc (ex. camerele cu poze). Ce a pus clientul rămâne. Continui?')) prepareSite(true) }}>🧩 Actualizează secțiunile editabile</Button>
+                      <span className="text-[11px] text-slate-500">ex. camere / spații cu mai multe poze, ca la Booking</span>
                     </div>
                   )}
                   <div className="flex gap-2">
