@@ -36,7 +36,7 @@ async function findTeam(f: F): Promise<string | null> {
   throw new DomainError(`Vercel: nu găsesc proiectul „${project()}” cu acest token. Verifică la token ca „Scope” să fie echipa proiectului.`)
 }
 
-async function vercel(f: F, path: string, init: RequestInit = {}) {
+export async function vercel(f: F, path: string, init: RequestInit = {}) {
   const teamId = await findTeam(f)
   const team = teamId ? `${path.includes('?') ? '&' : '?'}teamId=${teamId}` : ''
   const res = await f(`https://api.vercel.com${path}${team}`, { ...init, headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}`, 'Content-Type': 'application/json' } })
@@ -68,7 +68,7 @@ async function detachFromPages(f: F, host: string) {
   }
 }
 
-const project = () => process.env.VERCEL_PROJECT_ID || process.env.VERCEL_PROJECT_NAME || 'outreach-pro-app'
+export const project = () => process.env.VERCEL_PROJECT_ID || process.env.VERCEL_PROJECT_NAME || 'outreach-pro-app'
 
 export async function connectDomain(input: string, f: F = fetch) {
   if (!domainAutoAvailable()) throw new DomainError('setup')
