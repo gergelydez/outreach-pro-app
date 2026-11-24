@@ -1137,6 +1137,15 @@ function HuntPanel({ country, googleKey, onProgress, onInfo }: { country: Countr
   }
 
   const pct = info ? Math.min(100, Math.round((info.pool / info.target) * 100)) : 0
+  const [adoptMsg, setAdoptMsg] = useState('')
+  async function adoptR2() {
+    if (!confirm('Copiez setările Cloudflare R2 din proiectul dashboard în această aplicație și o republic (~2 minute). Continui?')) return
+    setAdoptMsg('☁️ Copiez setările…')
+    try {
+      const r: { from: string; keys: string[]; redeployed: boolean } = await api('/api/crm/storage/adopt', { json: {} })
+      setAdoptMsg(`✓ Setările R2 luate din „${r.from}”. ${r.redeployed ? 'Aplicația se republică: peste ~2 minute reîncarcă pagina și apasă Pasul 2.' : 'Fă Redeploy în Vercel, apoi apasă Pasul 2.'}`)
+    } catch (e) { setAdoptMsg(''); alert(e instanceof Error ? e.message : String(e)) }
+  }
   const [moveMsg, setMoveMsg] = useState('')
   async function moveToR2() {
     if (!confirm('Copiez toate demo-urile, pozele și datele site-urilor din Vercel Blob în Cloudflare R2 (baza de date se mută singură). Durează câteva minute; lasă pagina deschisă. Continui?')) return
@@ -1192,7 +1201,8 @@ function HuntPanel({ country, googleKey, onProgress, onInfo }: { country: Countr
         <div className="mt-3 text-[12px] text-slate-400 space-y-0.5">
           <div>Azi: {info.state.steps_today} căutări · {info.newToday} firme noi salvate</div>
           <div>💰 Google (estimat de aplicație, toate țările): azi <b className="text-slate-200">${info.googleCostToday.toFixed(2)}</b> · luna asta <b className="text-slate-200">${(info.googleCostMonth || 0).toFixed(2)}</b> · <a className="underline text-teal-300" href="https://console.cloud.google.com/billing" target="_blank" rel="noreferrer">costul real în Google Cloud</a> · <a className="underline text-teal-300" href="https://console.cloud.google.com/apis/dashboard" target="_blank" rel="noreferrer">nr. de apeluri</a></div>
-          <div><button className="underline text-sky-300" onClick={moveToR2}>{moveMsg || '📦 Mută fișierele din Vercel Blob în Cloudflare R2'}</button></div>
+          <div><button className="underline text-sky-300" onClick={adoptR2}>{adoptMsg || '☁️ Pasul 1: Activează Cloudflare R2 (preia setările din dashboard)'}</button></div>
+          <div><button className="underline text-sky-300" onClick={moveToR2}>{moveMsg || '📦 Pasul 2: Mută fișierele din Vercel Blob în Cloudflare R2'}</button></div>
           <div><button className="underline text-amber-300" onClick={cleanupDb}>🧹 Curăță baza de date (rămân doar firmele contactate și clienții)</button></div>
           <div>{info.placesMode === 'legacy'
             ? <>API Google vechi (~$0.40 la 20 de firme). Activează „Places API (New)” în Google Cloud și costă de ~10 ori mai puțin — aplicația trece singură pe el.</>
