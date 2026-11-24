@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { put, head as blobHead } from '@vercel/blob'
+import { putFile, getText, r2Configured } from '@/lib/object-store'
 import { waitUntil } from '@vercel/functions'
 import { randomBytes } from 'crypto'
 import Anthropic from '@anthropic-ai/sdk'
@@ -68,8 +68,9 @@ export async function GET(req: NextRequest) {
   if (!/^[a-f0-9]{16}$/.test(jobId)) return Response.json({ error: 'job invalid' }, { status: 400 })
   for (const status of ['done', 'error'] as const) {
     try {
-      const meta = await blobHead(`jobs/${jobId}/${status}.json`)
-      const data = await (await fetch(meta.url, { cache: 'no-store' })).json()
+      const text = await getText(`jobs/${jobId}/${status}.json`)
+      if (text == null) continue
+      const data = JSON.parse(text)
       return Response.json({ status, ...data }, { headers: { 'Cache-Control': 'no-store' } })
     } catch {}
   }
@@ -77,15 +78,11 @@ export async function GET(req: NextRequest) {
 }
 
 function blobConfigured() {
-  return !!(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID)
+  return !!(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID) || r2Configured()
 }
 
 // Fiecare rezultat e scris o singură dată, la o cale proprie — fără suprascrieri,
 // deci nu citim niciodată o versiune veche din cache-ul CDN al Blob.
 async function putJob(jobId: string, status: 'done' | 'error', data: object) {
-  await put(`jobs/${jobId}/${status}.json`, JSON.stringify(data), {
-    access: 'public',
-    contentType: 'application/json',
-    addRandomSuffix: false,
-  })
+  await putFile(`jobs/${jobId}/${status}.json`, JSON.stringify(data), { contentType: 'application/json' })
 }

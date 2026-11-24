@@ -36,7 +36,7 @@ export async function runCleanup(deps: { deleteFiles?: (paths: string[]) => Prom
   const slugs = gone.map(g => g.preview_url?.match(/\/p\/([a-z0-9-]+)/)?.[1]).filter(Boolean) as string[]
   const paths = slugs.flatMap(s => [`previews/${s}.html`, `previews/${s}.png`, `site-data/${s}.json`])
   if (paths.length) {
-    const del = deps.deleteFiles || (async (p: string[]) => { const { del } = await import('@vercel/blob'); for (let i = 0; i < p.length; i += 500) await del(p.slice(i, i + 500)) })
+    const del = deps.deleteFiles || (async (p: string[]) => { const { deleteFiles } = await import('@/lib/object-store'); await deleteFiles(p) })
     await del(paths).catch(() => {})
   }
   return { removed: gone.length, files: paths.length }

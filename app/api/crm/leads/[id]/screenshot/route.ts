@@ -18,12 +18,10 @@ async function slugFor(id: string) {
 // Poza demo-ului (PNG). 404 dacă încă nu există → pagina cere POST ca s-o facă.
 export const GET = route(async (_req: Request, { params }: Ctx) => {
   const slug = await slugFor(params.id)
-  const { head } = await import('@vercel/blob')
-  const meta = await head(`previews/${slug}.png`).catch(() => null)
-  if (!meta) throw new HttpError(404, 'Poza nu e făcută încă.')
-  const res = await fetch(meta.url, { cache: 'no-store' })
-  if (!res.ok) throw new HttpError(404, 'Poza nu e făcută încă.')
-  return new Response(new Uint8Array(await res.arrayBuffer()), { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'no-store', 'Content-Disposition': `inline; filename="${slug}.png"` } })
+  const { getFile } = await import('@/lib/object-store')
+  const f = await getFile(`previews/${slug}.png`).catch(() => null)
+  if (!f) throw new HttpError(404, 'Poza nu e făcută încă.')
+  return new Response(new Uint8Array(f.body), { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'no-store', 'Content-Disposition': `inline; filename="${slug}.png"` } })
 })
 
 // Face poza acum (pentru demo-urile făcute înainte de această funcție, sau după modificări)

@@ -16,7 +16,7 @@ export async function middleware(req: NextRequest) {
   // domeniul unui client (ex. hanulizvorulrece.ro): servim site-ul lui, mereu la zi
   const reqHost = req.headers.get('host') || ''
   if (!isAppHost(reqHost)) {
-    if (pathname === '/cms.js') return NextResponse.next()
+    if (pathname === '/cms.js' || pathname.startsWith('/media/')) return NextResponse.next()
     const url = req.nextUrl.clone()
     url.pathname = '/api/live-site'
     url.search = `?host=${encodeURIComponent(reqHost.replace(/:\d+$/, ''))}&path=${encodeURIComponent(pathname)}`

@@ -9,11 +9,10 @@ export async function OPTIONS() { return new Response(null, { status: 204, heade
 export async function GET(_req: Request, { params }: { params: { slug: string } }) {
   if (!/^[a-z0-9-]{3,60}$/.test(params.slug)) return new Response('Not found', { status: 404, headers: CORS })
   try {
-    const { head } = await import('@vercel/blob')
-    const meta = await head(`site-data/${params.slug}.json`)
-    const res = await fetch(meta.url, { cache: 'no-store' })
-    if (!res.ok) throw new Error(String(res.status))
-    return new Response(await res.text(), { headers: { ...CORS, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=0, s-maxage=10, stale-while-revalidate=60' } })
+    const { getText } = await import('@/lib/object-store')
+    const text = await getText(`site-data/${params.slug}.json`)
+    if (text == null) throw new Error('not found')
+    return new Response(text, { headers: { ...CORS, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=0, s-maxage=10, stale-while-revalidate=60' } })
   } catch {
     return new Response('{}', { status: 404, headers: { ...CORS, 'Content-Type': 'application/json' } })
   }

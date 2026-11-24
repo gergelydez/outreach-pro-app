@@ -1,6 +1,7 @@
 import { Pool } from 'pg'
 import { MIGRATIONS } from './migrations'
-import { SnapshotDatabase, vercelBlobStore } from './blob-db'
+import { SnapshotDatabase, vercelBlobStore, r2Store } from './blob-db'
+import { r2Configured } from '@/lib/object-store'
 
 // Acces la Postgres printr-o interfață minimă (query + tranzacție). Două variante:
 // 1) implicit: baza de date ținută în Vercel Blob-ul existent (BLOB_READ_WRITE_TOKEN), vezi blob-db.ts
@@ -38,8 +39,8 @@ export function db(): Database {
   if (current) return current
   const url = process.env.DATABASE_URL
   if (!url) {
-    if (!process.env.BLOB_READ_WRITE_TOKEN) throw new CrmSetupError('BLOB_READ_WRITE_TOKEN', 'No storage configured: connect the Vercel Blob store to this project (Vercel → Storage → Blob → Connect), then redeploy.')
-    current = new SnapshotDatabase(vercelBlobStore(), runMigrations)
+    if (!process.env.BLOB_READ_WRITE_TOKEN && !r2Configured()) throw new CrmSetupError('BLOB_READ_WRITE_TOKEN', 'No storage configured: connect the Vercel Blob store to this project (Vercel → Storage → Blob → Connect), then redeploy.')
+    current = new SnapshotDatabase(r2Configured() ? r2Store() : vercelBlobStore(), runMigrations)
     return current
   }
   // Pool mic: pe serverless fiecare instanță are propriul pool

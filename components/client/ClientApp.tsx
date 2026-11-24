@@ -542,10 +542,10 @@ export function VisualEditor() {
   async function addPhotos(files: FileList | null, room?: number) {
     if (!files?.length || !me) return
     setBusy('upload')
-    const { upload } = await import('@vercel/blob/client')
+    const { uploadImage } = await import('@/lib/upload-client')
     const added: { src: string; alt: string }[] = []
     for (const f of Array.from(files).slice(0, 30)) {
-      try { const b = await upload(`cms/${me.business.id}/${Date.now()}.jpg`, await shrinkImage(f), { access: 'public', handleUploadUrl: '/api/client/upload', contentType: 'image/jpeg' }); added.push({ src: b.url, alt: '' }) } catch { /* */ }
+      try { const b = await uploadImage(`cms/${me.business.id}/${Date.now()}.jpg`, await shrinkImage(f), '/api/client/upload'); added.push({ src: b.url, alt: '' }) } catch { /* */ }
     }
     setBusy('')
     if (added.length) update(c => (room === undefined ? { ...c, gallery: [...c.gallery, ...added] } : { ...c, rooms: c.rooms.map((r, j) => (j === room ? { ...r, photos: [...r.photos, ...added.map(a => a.src)] } : r)) }))
@@ -626,11 +626,11 @@ function SiteEditor({ me, t, setMe }: { me: Me; t: typeof T.ro; setMe: (m: Me) =
   async function addPhotos(files: FileList | null, room?: number) {
     if (!files?.length) return
     setBusy('upload')
-    const { upload } = await import('@vercel/blob/client')
+    const { uploadImage } = await import('@/lib/upload-client')
     const added: { src: string; alt: string }[] = []
     for (const f of Array.from(files).slice(0, 30)) {
       try {
-        const b = await upload(`cms/${me.business.id}/${Date.now()}.jpg`, await shrinkImage(f), { access: 'public', handleUploadUrl: '/api/client/upload', contentType: 'image/jpeg' })
+        const b = await uploadImage(`cms/${me.business.id}/${Date.now()}.jpg`, await shrinkImage(f), '/api/client/upload')
         added.push({ src: b.url, alt: '' })
       } catch { /* o poză stricată nu oprește restul */ }
     }
