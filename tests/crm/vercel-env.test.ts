@@ -22,6 +22,7 @@ function fakeVercel(opts: { sensitive?: boolean } = {}) {
     const j = (d: unknown, status = 200) => new Response(JSON.stringify(d), { status })
     const u = new URL(url)
     if (u.pathname === '/v9/projects/outreach-pro-app') return j({ id: 'p_own', name: 'outreach-pro-app' })
+    if (u.pathname === '/v2/teams') return j({ teams: [] })
     if (u.pathname === '/v9/projects') return j({ projects: [{ id: 'p_own', name: 'outreach-pro-app' }, { id: 'p_other', name: 'blog' }, { id: 'p_dash', name: 'dashbord-profit' }] })
     const list = u.pathname.match(/^\/v9\/projects\/(\w+)\/env$/)
     if (list) return j({ envs: (envs[list[1]] || []).map(({ value, ...e }) => e) })
@@ -45,6 +46,28 @@ describe('adopt R2 settings from the dashboard project', () => {
     const saved = calls.find(c => c.url.includes('/v10/projects/p_own/env'))!.body as { key: string; value: string }[]
     expect(Object.fromEntries(saved.map(x => [x.key, x.value]))).toEqual({ S3_BUCKET: 'shared-bucket', S3_ACCESS_KEY_ID: 'AKID', S3_SECRET_ACCESS_KEY: 'SECRET', S3_ENDPOINT: 'https://acc.r2.cloudflarestorage.com', CRM_DB_SECRET: 'vercel_blob_rw_abc' })
     expect((calls.find(c => c.url.includes('/v13/deployments'))!.body as { deploymentId: string }).deploymentId).toBe('dpl_old')
+  })
+
+  it('finds R2_* names in another team and builds the endpoint from the account id', async () => {
+    const calls: string[] = []
+    const f = (async (url: string, init: RequestInit = {}) => {
+      calls.push(`${init.method || 'GET'} ${url}`)
+      const u = new URL(url); const team = u.searchParams.get('teamId')
+      const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s })
+      if (u.pathname === '/v9/projects/outreach-pro-app') return j({ id: 'p_own', name: 'outreach-pro-app' })
+      if (u.pathname === '/v2/teams') return j({ teams: [{ id: 'team_x' }] })
+      if (u.pathname === '/v9/projects') return j({ projects: team === 'team_x' ? [{ id: 'p_dash', name: 'dashboard' }] : [{ id: 'p_own', name: 'outreach-pro-app' }] })
+      if (u.pathname === '/v9/projects/p_dash/env') return j({ envs: [{ id: 'a', key: 'R2_BUCKET', type: 'encrypted' }, { id: 'b', key: 'R2_ACCESS_KEY_ID', type: 'encrypted' }, { id: 'c', key: 'R2_SECRET_ACCESS_KEY', type: 'encrypted' }, { id: 'd', key: 'R2_ACCOUNT_ID', type: 'encrypted' }] })
+      const one = u.pathname.match(/^\/v1\/projects\/p_dash\/env\/(\w)$/)
+      if (one) return j({ value: { a: 'bkt', b: 'AK', c: 'SK', d: 'acc123' }[one[1]] })
+      if (u.pathname === '/v10/projects/p_own/env') return j({})
+      if (u.pathname === '/v13/deployments') return j({ id: 'x' })
+      return j({}, 404)
+    }) as unknown as typeof fetch
+    const r = await adoptR2FromOtherProject(f)
+    expect(r.from).toBe('dashboard')
+    const saveCall = calls.find(c => c.includes('/v10/projects/p_own/env'))!
+    expect(saveCall).toBeTruthy()
   })
 
   it('a "Sensitive" value that cannot be read gives a clear message', async () => {
