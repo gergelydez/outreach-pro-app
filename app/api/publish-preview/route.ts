@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { put } from '@vercel/blob'
+import { putFile, r2Configured } from '@/lib/object-store'
 import { randomBytes } from 'crypto'
 import { slugify, withConceptBanner } from '@/lib/preview'
 
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   const { html, businessName, designer = '', existingUrl = '', lang = 'ro' } = await req.json()
   if (!html || !businessName) return NextResponse.json({ error: 'Lipsă html / businessName' }, { status: 400 })
 
-  if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID && !r2Configured()) {
     return NextResponse.json({
       error: 'Hostingul de preview nu e configurat',
       code: 'no_blob',
@@ -25,13 +25,7 @@ export async function POST(req: NextRequest) {
   const slug = prevSlug || `${slugify(businessName)}-${randomBytes(3).toString('hex')}`
 
   try {
-    await put(`previews/${slug}.html`, withConceptBanner(html, businessName, designer, lang === 'en' ? 'en' : lang === 'hu' ? 'hu' : 'ro'), {
-      access: 'public',
-      contentType: 'text/html; charset=utf-8',
-      addRandomSuffix: false,
-      allowOverwrite: true,
-      cacheControlMaxAge: 60,
-    })
+    await putFile(`previews/${slug}.html`, withConceptBanner(html, businessName, designer, lang === 'en' ? 'en' : lang === 'hu' ? 'hu' : 'ro'), { contentType: 'text/html; charset=utf-8' })
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 })
   }

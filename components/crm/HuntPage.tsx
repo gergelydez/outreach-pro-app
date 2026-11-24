@@ -504,10 +504,10 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
   async function addShots(files: FileList | null) {
     if (!files?.length) return
     setShotBusy(true)
-    const { upload } = await import('@vercel/blob/client')
+    const { uploadImage } = await import('@/lib/upload-client')
     const urls: string[] = []
     for (const f of Array.from(files).slice(0, 4)) {
-      try { const b = await upload(`edit-shots/${r.id}/${Date.now()}.jpg`, await shrinkImage(f), { access: 'public', handleUploadUrl: `/api/crm/leads/${r.id}/photos`, contentType: 'image/jpeg' }); urls.push(b.url) } catch { /* */ }
+      try { const b = await uploadImage(`edit-shots/${r.id}/${Date.now()}.jpg`, await shrinkImage(f), `/api/crm/leads/${r.id}/photos`); urls.push(b.url) } catch { /* */ }
     }
     setShots(s => [...s, ...urls].slice(0, 4)); setShotBusy(false)
   }
@@ -561,13 +561,13 @@ function LeadCard({ r, country, templates, keys, waApp, onChange, onDone, onSent
     if (!files?.length) return
     setErr('')
     const list = Array.from(files).slice(0, 100)
-    const { upload } = await import('@vercel/blob/client')
+    const { uploadImage } = await import('@/lib/upload-client')
     let ok = 0
     for (let k = 0; k < list.length; k++) {
       setUploadMsg(`Încarc pozele… ${k + 1} din ${list.length}`)
       try {
         const small = await shrinkImage(list[k])
-        await upload(`client-photos/${r.id}/${k + 1}.jpg`, small, { access: 'public', handleUploadUrl: `/api/crm/leads/${r.id}/photos`, contentType: 'image/jpeg' })
+        await uploadImage(`client-photos/${r.id}/${k + 1}.jpg`, small, `/api/crm/leads/${r.id}/photos`)
         ok++
       } catch { /* o poză stricată nu oprește restul */ }
     }
@@ -1137,6 +1137,19 @@ function HuntPanel({ country, googleKey, onProgress, onInfo }: { country: Countr
   }
 
   const pct = info ? Math.min(100, Math.round((info.pool / info.target) * 100)) : 0
+  const [moveMsg, setMoveMsg] = useState('')
+  async function moveToR2() {
+    if (!confirm('Copiez toate demo-urile, pozele și datele site-urilor din Vercel Blob în Cloudflare R2 (baza de date se mută singură). Durează câteva minute; lasă pagina deschisă. Continui?')) return
+    let cursor: string | null = null, total = 0, bad = 0
+    try {
+      do {
+        const r: { copied: number; failed: number; cursor: string | null; done: boolean } = await api('/api/crm/storage', { json: { cursor } })
+        total += r.copied; bad += r.failed; cursor = r.cursor
+        setMoveMsg(`📦 Copiez… ${total} fișiere${bad ? ` (${bad} cu eroare)` : ''}`)
+      } while (cursor)
+      setMoveMsg(`✓ Gata: ${total} fișiere copiate în R2${bad ? `, ${bad} nu au putut fi copiate` : ''}.`)
+    } catch (e) { setMoveMsg(''); alert(e instanceof Error ? e.message : String(e)) }
+  }
   async function cleanupDb() {
     try {
       const p = await api<{ keep: number; remove: number }>('/api/crm/cleanup')
@@ -1179,6 +1192,7 @@ function HuntPanel({ country, googleKey, onProgress, onInfo }: { country: Countr
         <div className="mt-3 text-[12px] text-slate-400 space-y-0.5">
           <div>Azi: {info.state.steps_today} căutări · {info.newToday} firme noi salvate</div>
           <div>💰 Google (estimat de aplicație, toate țările): azi <b className="text-slate-200">${info.googleCostToday.toFixed(2)}</b> · luna asta <b className="text-slate-200">${(info.googleCostMonth || 0).toFixed(2)}</b> · <a className="underline text-teal-300" href="https://console.cloud.google.com/billing" target="_blank" rel="noreferrer">costul real în Google Cloud</a> · <a className="underline text-teal-300" href="https://console.cloud.google.com/apis/dashboard" target="_blank" rel="noreferrer">nr. de apeluri</a></div>
+          <div><button className="underline text-sky-300" onClick={moveToR2}>{moveMsg || '📦 Mută fișierele din Vercel Blob în Cloudflare R2'}</button></div>
           <div><button className="underline text-amber-300" onClick={cleanupDb}>🧹 Curăță baza de date (rămân doar firmele contactate și clienții)</button></div>
           <div>{info.placesMode === 'legacy'
             ? <>API Google vechi (~$0.40 la 20 de firme). Activează „Places API (New)” în Google Cloud și costă de ~10 ori mai puțin — aplicația trece singură pe el.</>

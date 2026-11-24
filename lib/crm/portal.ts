@@ -12,6 +12,7 @@ import { generateHtml } from '@/lib/redesign'
 import { withConceptBanner, stripConceptBanner } from '@/lib/preview'
 import { friendlyAnthropicError } from '@/lib/anthropic-error'
 import { sanitizeContent, publishContent, hasCmsContent, extractInitial, EMPTY_CONTENT, FORM_RULES, type CmsContent } from './cms-shared'
+import { putFile } from '@/lib/object-store'
 export * from './cms-shared'
 
 export function hashPin(pin: string) {
@@ -131,8 +132,7 @@ export async function startMarkup(id: string, opts: { anthropicKey?: string; des
       const finalHtml = withConceptBanner(html, b.name, opts.designer || '', lang)
       if (deps.publish) await deps.publish(slug, finalHtml)
       else {
-        const { put } = await import('@vercel/blob')
-        await put(`previews/${slug}.html`, finalHtml, { access: 'public', contentType: 'text/html; charset=utf-8', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 })
+        await putFile(`previews/${slug}.html`, finalHtml, { contentType: 'text/html; charset=utf-8' })
       }
       await takeShot(slug, finalHtml, deps.screenshot)
       await withDbSession(async () => {

@@ -13,6 +13,7 @@ import { pickDirection, directionById, directionPrompt } from './design-directio
 import { hasCmsMarkers, cmsPromptAddon, extractInitial, sanitizeContent, publishContent, FORM_RULES, DEMO_LAYOUT_RULES, type CmsContent } from './cms-shared'
 import { friendlyAnthropicError } from '@/lib/anthropic-error'
 import type { RebuildLead } from '@/lib/rebuild'
+import { putFile, getText, listFiles } from '@/lib/object-store'
 
 export const DEMO_STALE_MIN = 6 // funcția Vercel trăiește max. 5 minute: după 6 minute un demo „în lucru” e sigur blocat (se poate reporni)
 
@@ -76,8 +77,7 @@ async function runDemo(b: DemoLeadRow, opts: { origin: string; apiKey: string; g
     const finalHtml = withConceptBanner(html, b.name, opts.designer || '', country === 'HU' ? 'hu' : country === 'UK' ? 'en' : 'ro')
     if (deps.publish) await deps.publish(slug, finalHtml)
     else {
-      const { put } = await import('@vercel/blob')
-      await put(`previews/${slug}.html`, finalHtml, { access: 'public', contentType: 'text/html; charset=utf-8', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 })
+      await putFile(`previews/${slug}.html`, finalHtml, { contentType: 'text/html; charset=utf-8' })
     }
     await takeShot(slug, finalHtml, deps.screenshot)
     const url = `${opts.origin}/p/${slug}`
@@ -114,11 +114,9 @@ export interface EditDeps {
 export const slugOf = (previewUrl: string | null) => previewUrl?.match(/\/p\/([a-z0-9-]+)$/)?.[1] || null
 
 export async function loadSiteHtml(slug: string): Promise<string> {
-  const { head } = await import('@vercel/blob')
-  const meta = await head(`previews/${slug}.html`)
-  const res = await fetch(meta.url, { cache: 'no-store' })
-  if (!res.ok) throw new Error(`Nu am găsit site-ul (${res.status})`)
-  return res.text()
+  const html = await getText(`previews/${slug}.html`)
+  if (html == null) throw new Error('Nu am găsit site-ul')
+  return html
 }
 
 export function buildEditPrompt(html: string, instructions: string, lang: string) {
@@ -169,8 +167,7 @@ async function runEdit(b: DemoLeadRow, slug: string, opts: { instructions: strin
     const finalHtml = withConceptBanner(html, b.name, opts.designer || '', lang)
     if (deps.publish) await deps.publish(slug, finalHtml)
     else {
-      const { put } = await import('@vercel/blob')
-      await put(`previews/${slug}.html`, finalHtml, { access: 'public', contentType: 'text/html; charset=utf-8', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 })
+      await putFile(`previews/${slug}.html`, finalHtml, { contentType: 'text/html; charset=utf-8' })
     }
     await takeShot(slug, finalHtml, deps.screenshot)
     await withDbSession(async () => {
@@ -195,15 +192,7 @@ export const PHOTO_PREFIX = (id: string) => `client-photos/${id}/`
 export const MAX_PHOTOS = 100
 
 export async function listClientPhotos(id: string): Promise<string[]> {
-  const { list } = await import('@vercel/blob')
-  const out: string[] = []
-  let cursor: string | undefined
-  do {
-    const r = await list({ prefix: PHOTO_PREFIX(id), cursor, limit: 1000 })
-    out.push(...r.blobs.map(b => b.url))
-    cursor = r.hasMore ? r.cursor : undefined
-  } while (cursor)
-  return out
+  return listFiles(PHOTO_PREFIX(id))
 }
 
 export function buildPhotosPrompt(html: string, photoUrls: string[], name: string, lang: string, note?: string): Anthropic.Beta.BetaContentBlockParam[] {
@@ -255,8 +244,7 @@ export async function startPhotos(id: string, opts: { note?: string; anthropicKe
       const finalHtml = withConceptBanner(html, b.name, opts.designer || '', lang)
       if (deps.publish) await deps.publish(slug, finalHtml)
       else {
-        const { put } = await import('@vercel/blob')
-        await put(`previews/${slug}.html`, finalHtml, { access: 'public', contentType: 'text/html; charset=utf-8', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 })
+        await putFile(`previews/${slug}.html`, finalHtml, { contentType: 'text/html; charset=utf-8' })
       }
       await takeShot(slug, finalHtml, deps.screenshot)
       await withDbSession(async () => {

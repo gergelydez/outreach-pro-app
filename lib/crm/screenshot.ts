@@ -34,6 +34,6 @@ export async function screenshotHtml(html: string): Promise<Buffer> {
 export async function publishScreenshot(slug: string, html: string, deps: { shot?: (html: string) => Promise<Buffer>; put?: (path: string, data: Buffer) => Promise<void> } = {}) {
   const png = await (deps.shot || screenshotHtml)(html)
   if (deps.put) return deps.put(`previews/${slug}.png`, png)
-  const { put } = await import('@vercel/blob')
-  await put(`previews/${slug}.png`, png, { access: 'public', contentType: 'image/png', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 })
+  const { putFile } = await import('@/lib/object-store')
+  await putFile(`previews/${slug}.png`, png, { contentType: 'image/png' })
 }

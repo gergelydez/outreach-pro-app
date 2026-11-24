@@ -27,6 +27,7 @@ export interface SnapshotStore {
 }
 
 function secret(): string {
+  // CRM_DB_SECRET = aceeași valoare ca vechiul BLOB_READ_WRITE_TOKEN, ca baza să rămână lizibilă și fără Blob
   return process.env.CRM_DB_SECRET || process.env.BLOB_READ_WRITE_TOKEN || ''
 }
 
@@ -97,6 +98,32 @@ export function vercelBlobStore(): SnapshotStore {
         }
         throw e
       }
+    },
+  }
+}
+
+// Baza de date în Cloudflare R2. La prima pornire, dacă în R2 nu e încă nimic, o copiază din Vercel Blob
+// (aceeași criptare, aceeași cale), apoi lucrează doar cu R2.
+export function r2Store(): SnapshotStore {
+  return {
+    async load(etag) {
+      const { r2GetIfChanged, r2PutIfMatch } = await import('@/lib/object-store')
+      const r = await r2GetIfChanged(snapshotPath(), etag)
+      if (r.status === 304) return { notModified: true }
+      if (r.status === 200) return { notModified: false, data: r.body, etag: r.etag }
+      // nu există în R2: mutarea din Blob (o eroare a Blob-ului oprește cererea, ca să nu pornim o bază goală)
+      if (!process.env.BLOB_READ_WRITE_TOKEN) return null
+      const old = await vercelBlobStore().load(null)
+      if (!old || old.notModified) return null
+      const saved = await r2PutIfMatch(snapshotPath(), old.data, null)
+      if (!saved.ok) return this.load(null)
+      return { notModified: false, data: old.data, etag: saved.etag }
+    },
+    async save(data, etag) {
+      const { r2PutIfMatch } = await import('@/lib/object-store')
+      const r = await r2PutIfMatch(snapshotPath(), data, etag)
+      if (!r.ok) throw new SnapshotConflict('snapshot changed')
+      return r.etag
     },
   }
 }

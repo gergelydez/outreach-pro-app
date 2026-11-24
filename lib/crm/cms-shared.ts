@@ -1,3 +1,4 @@
+import { fixBlobUrls } from '@/lib/object-store'
 // Părțile comune ale panoului clientului (folosite și de demo.ts, fără import circular)
 export interface CmsContent {
   contact: { phone: string; email: string; address: string; hours: string }
@@ -17,6 +18,7 @@ const arr = (v: unknown): Record<string, unknown>[] => (Array.isArray(v) ? v.fil
 
 // Curăță tot ce vine din browser sau de la Claude: lungimi limitate, doar poze https
 export function sanitizeContent(v: unknown): CmsContent {
+  if (v && typeof v === 'object' && JSON.stringify(v).includes('.blob.vercel-storage.com')) v = JSON.parse(fixBlobUrls(JSON.stringify(v)))
   const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>
   const c = (o.contact && typeof o.contact === 'object' ? o.contact : {}) as Record<string, unknown>
   return {
@@ -34,8 +36,8 @@ export function sanitizeContent(v: unknown): CmsContent {
 export async function publishContent(slug: string, content: CmsContent, put?: (path: string, body: string) => Promise<void>) {
   const body = JSON.stringify(content)
   if (put) return put(`site-data/${slug}.json`, body)
-  const blob = await import('@vercel/blob')
-  await blob.put(`site-data/${slug}.json`, body, { access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 })
+  const { putFile } = await import('@/lib/object-store')
+  await putFile(`site-data/${slug}.json`, body, { contentType: 'application/json' })
 }
 
 // Scriptul care aduce datele la zi pe site: doar dacă HTML-ul are marcaje
