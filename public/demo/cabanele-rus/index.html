@@ -150,6 +150,22 @@ section{scroll-margin-top:84px}
 .t-wide{grid-column:span 2}
 .t-tall{grid-row:span 2}
 
+
+/* iarna */
+.winter{padding:120px 0;background:radial-gradient(900px 500px at 10% 10%,rgba(200,68,46,.25),transparent 60%),radial-gradient(800px 500px at 90% 90%,rgba(233,169,75,.18),transparent 60%),#12201a;color:var(--cream);position:relative;overflow:hidden}
+.winter .eyebrow{color:#ffcf91}
+.winter::before{content:"";position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(2px 2px at 20% 30%,rgba(255,255,255,.7),transparent),radial-gradient(1.5px 1.5px at 70% 20%,rgba(255,255,255,.6),transparent),radial-gradient(2px 2px at 40% 80%,rgba(255,255,255,.5),transparent),radial-gradient(1.5px 1.5px at 85% 60%,rgba(255,255,255,.6),transparent),radial-gradient(1px 1px at 10% 70%,rgba(255,255,255,.6),transparent);background-size:340px 340px;animation:snow 18s linear infinite;opacity:.7}
+@keyframes snow{to{background-position:60px 340px,-40px 340px,30px 340px,-20px 340px,50px 340px}}
+.wgrid{display:grid;grid-template-columns:1.3fr 1fr 1fr;grid-template-rows:290px 290px;gap:16px;position:relative}
+.wgrid a{position:relative;border-radius:var(--radius);overflow:hidden;cursor:zoom-in;box-shadow:0 30px 60px -30px rgba(0,0,0,.7)}
+.wgrid img{width:100%;height:100%;object-fit:cover;transition:transform 1.2s var(--ease)}
+.wgrid a:hover img{transform:scale(1.06)}
+.w1{grid-row:span 2}.w4{grid-column:span 2}
+.w4 img{object-position:center 55%}
+.wtag{position:absolute;left:14px;bottom:14px;padding:9px 14px;border-radius:14px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);font-size:14px;font-weight:600;color:#fff}
+@media (max-width:980px){.wgrid{grid-template-columns:1fr 1fr;grid-template-rows:380px 240px 260px}.w1{grid-column:span 2;grid-row:auto}.w4{grid-column:span 2}}
+@media (max-width:640px){.winter{padding:84px 0}.wgrid{grid-template-rows:420px 200px 240px;gap:10px}}
+
 /* galerie */
 .gallery{padding:120px 0;background:var(--paper)}
 .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:28px}
@@ -268,12 +284,12 @@ footer .logo{font-size:19px}
       <svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M20 3 4 36h32L20 3Z" stroke="url(#g)" stroke-width="3" stroke-linejoin="round"/><path d="M20 17 13 33h14l-7-16Z" fill="url(#g)"/><defs><linearGradient id="g" x1="4" y1="3" x2="36" y2="36"><stop stop-color="#f2b65a"/><stop offset="1" stop-color="#c8442e"/></linearGradient></defs></svg>
       Cabanele Rus
     </a>
-    <nav class="nav-links"><a href="#cabane">Cabane</a><a href="#experiente">Experiențe</a><a href="#galerie">Galerie</a><a href="#contact">Contact</a></nav>
+    <nav class="nav-links"><a href="#cabane">Cabane</a><a href="#experiente">Experiențe</a><a href="#iarna">Iarna</a><a href="#galerie">Galerie</a><a href="#contact">Contact</a></nav>
     <a href="#contact" class="btn btn-primary">Cere disponibilitatea</a>
     <button class="burger" id="burger" aria-label="Meniu">☰</button>
   </div>
 </header>
-<div class="mnav" id="mnav"><button class="x" id="mx" aria-label="Închide">×</button><a href="#cabane">Cabane</a><a href="#experiente">Experiențe</a><a href="#galerie">Galerie</a><a href="#contact">Contact</a></div>
+<div class="mnav" id="mnav"><button class="x" id="mx" aria-label="Închide">×</button><a href="#cabane">Cabane</a><a href="#experiente">Experiențe</a><a href="#iarna">Iarna</a><a href="#galerie">Galerie</a><a href="#contact">Contact</a></div>
 
 <main id="top">
   <!-- HERO -->
@@ -283,6 +299,7 @@ footer .logo{font-size:19px}
       <div class="slide"><img src="img/09.jpg" alt="Cabana A-frame la apus, cu ghirlande de brad" loading="lazy"></div>
       <div class="slide"><img src="img/07.jpg" alt="Dormitor la mansardă cu fereastră triunghiulară spre pădure" loading="lazy"></div>
       <div class="slide"><img src="img/15.jpg" alt="Sufrageria tradițională cu șemineu aprins" loading="lazy"></div>
+      <div class="slide"><img src="img/20.jpg" alt="Cabana A-frame iarna, cu luminițe și om de zăpadă" loading="lazy"></div>
     </div>
     <div class="dots" id="dots"></div>
     <div class="wrap hero-in">
@@ -346,8 +363,10 @@ footer .logo{font-size:19px}
             <img src="img/14.jpg" alt="Fereastra triunghiulară spre balcon și pădure" loading="lazy">
             <img src="img/01.jpg" alt="Colțul de dormit din vârful cabanei" loading="lazy">
             <img src="img/11.jpg" alt="Intrarea în cabana A-frame" loading="lazy">
+            <img src="img/20.jpg" alt="Cabana A-frame iarna, cu luminițe" loading="lazy">
+            <img src="img/18.jpg" alt="Iarna în fața cabanei A-frame" loading="lazy">
           </div>
-          <div class="car-ui"><span class="car-count">1 / 8</span><div class="car-btns"><button data-prev aria-label="Poza anterioară">‹</button><button data-next aria-label="Poza următoare">›</button></div></div>
+          <div class="car-ui"><span class="car-count">1 / 10</span><div class="car-btns"><button data-prev aria-label="Poza anterioară">‹</button><button data-next aria-label="Poza următoare">›</button></div></div>
         </div>
         <div class="cabin-body">
           <span class="tag">Modern · A-frame</span>
@@ -407,6 +426,23 @@ footer .logo{font-size:19px}
     </div>
   </section>
 
+
+  <!-- IARNA -->
+  <section class="winter" id="iarna">
+    <div class="wrap">
+      <div class="sec-head">
+        <div><span class="eyebrow rv">Iarna la cabane</span><h2 class="rv d1">Zăpadă, luminițe și <span class="grad-text">oameni de zăpadă</span></h2></div>
+        <p class="rv d2">Iarna, cabanele se îmbracă în brad și luminițe roșii. Copiii fac oameni de zăpadă în fața ușii, iar seara vă așteaptă căldura lemnului.</p>
+      </div>
+      <div class="wgrid">
+        <a href="img/20.jpg" class="w1 rv" data-lb="winter"><img src="img/20.jpg" alt="Cabana A-frame iarna, cu luminițe și om de zăpadă" loading="lazy"><span class="wtag">❄ Decembrie la Cabanele Rus</span></a>
+        <a href="img/18.jpg" class="w2 rv d1" data-lb="winter"><img src="t/18.jpg" alt="Mamă și copil lângă omul de zăpadă" loading="lazy"></a>
+        <a href="img/19.jpg" class="w3 rv d2" data-lb="winter"><img src="t/19.jpg" alt="Joacă în zăpadă în fața cabanei" loading="lazy"></a>
+        <a href="img/17.jpg" class="w4 rv d3" data-lb="winter"><img src="t/17.jpg" alt="Familie fericită lângă omul de zăpadă" loading="lazy"><span class="wtag">Vacanțe în familie</span></a>
+      </div>
+    </div>
+  </section>
+
   <!-- GALERIE -->
   <section class="gallery" id="galerie">
     <div class="wrap">
@@ -415,7 +451,7 @@ footer .logo{font-size:19px}
         <p class="rv d2">Atinge orice fotografie ca s-o vezi pe tot ecranul. Pe telefon, glisează stânga-dreapta.</p>
       </div>
       <div class="filters rv" id="filters">
-        <button class="on" data-f="all">Toate</button><button data-f="a">Cabane A-frame</button><button data-f="t">Casa tradițională</button><button data-f="n">Natură</button>
+        <button class="on" data-f="all">Toate</button><button data-f="a">Cabane A-frame</button><button data-f="t">Casa tradițională</button><button data-f="n">Natură</button><button data-f="w">Iarnă</button>
       </div>
       <div class="masonry" id="masonry">
         <a href="img/09.jpg" data-c="a"><img src="t/09.jpg" alt="Cabana A-frame la apus" loading="lazy"></a>
@@ -434,6 +470,10 @@ footer .logo{font-size:19px}
         <a href="img/03.jpg" data-c="a"><img src="t/03.jpg" alt="Pat din bușteni" loading="lazy"></a>
         <a href="img/10.jpg" data-c="t n"><img src="t/10.jpg" alt="Indicatorul Cabanele Rus" loading="lazy"></a>
         <a href="img/01.jpg" data-c="a"><img src="t/01.jpg" alt="Colț de dormit în vârful cabanei" loading="lazy"></a>
+        <a href="img/20.jpg" data-c="w a"><img src="t/20.jpg" alt="Cabana iarna, cu luminițe" loading="lazy"></a>
+        <a href="img/17.jpg" data-c="w"><img src="t/17.jpg" alt="Familie lângă omul de zăpadă" loading="lazy"></a>
+        <a href="img/18.jpg" data-c="w"><img src="t/18.jpg" alt="Joacă în zăpadă" loading="lazy"></a>
+        <a href="img/19.jpg" data-c="w"><img src="t/19.jpg" alt="Om de zăpadă în fața cabanei" loading="lazy"></a>
       </div>
       <p class="credit">Fotografii: Cabanele Rus · o parte dintre ele de Florin Iordache Studio.</p>
     </div>
@@ -557,6 +597,9 @@ footer .logo{font-size:19px}
   })
   links.forEach(function (a) { a.onclick = function (e) { e.preventDefault(); var vis = links.filter(function (x) { return !x.classList.contains('hide') }); openLb(vis.map(function (x) { return x.href }), vis.indexOf(a)) } })
 
+  // pozele de iarnă se deschid pe tot ecranul
+  var wl = [].slice.call(d.querySelectorAll('[data-lb="winter"]'))
+  wl.forEach(function (a, i) { a.addEventListener('click', function (e) { e.preventDefault(); openLb(wl.map(function (x) { return x.href }), i) }) })
   // lightbox cu glisare
   var lb = d.getElementById('lb'), lbimg = d.getElementById('lbimg'), lbc = d.getElementById('lbc'), list = [], li = 0
   function show(i) { li = (i + list.length) % list.length; lbimg.style.opacity = 0; setTimeout(function () { lbimg.src = list[li]; lbimg.style.opacity = 1 }, 120); lbc.textContent = (li + 1) + ' / ' + list.length }
