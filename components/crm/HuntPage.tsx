@@ -1137,6 +1137,17 @@ function HuntPanel({ country, googleKey, onProgress, onInfo }: { country: Countr
   }
 
   const pct = info ? Math.min(100, Math.round((info.pool / info.target) * 100)) : 0
+  async function cleanupDb() {
+    try {
+      const p = await api<{ keep: number; remove: number }>('/api/crm/cleanup')
+      if (!p.remove) { alert(`Nimic de șters: toate cele ${p.keep} firme sunt contactate / clienți.`); return }
+      if (!confirm(`Se șterg ${p.remove} firme necontactate (cu demo-urile lor netrimise).\nRămân ${p.keep}: contactate, interesate, clienți, plus cele marcate „nu e potrivit” / „fără WhatsApp”, ca să nu reapară.\n\nNu se poate anula. Continui?`)) return
+      const r = await api<{ removed: number }>('/api/crm/cleanup', { json: { confirm: 'STERGE' } })
+      alert(`Gata: am șters ${r.removed} firme. Baza de date e acum mult mai mică.`)
+      location.reload()
+    } catch (e) { alert(e instanceof Error ? e.message : String(e)) }
+  }
+
   return (
     <section className="bg-slate-900 text-white rounded-xl p-4">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
@@ -1168,6 +1179,7 @@ function HuntPanel({ country, googleKey, onProgress, onInfo }: { country: Countr
         <div className="mt-3 text-[12px] text-slate-400 space-y-0.5">
           <div>Azi: {info.state.steps_today} căutări · {info.newToday} firme noi salvate</div>
           <div>💰 Google (estimat de aplicație, toate țările): azi <b className="text-slate-200">${info.googleCostToday.toFixed(2)}</b> · luna asta <b className="text-slate-200">${(info.googleCostMonth || 0).toFixed(2)}</b> · <a className="underline text-teal-300" href="https://console.cloud.google.com/billing" target="_blank" rel="noreferrer">costul real în Google Cloud</a> · <a className="underline text-teal-300" href="https://console.cloud.google.com/apis/dashboard" target="_blank" rel="noreferrer">nr. de apeluri</a></div>
+          <div><button className="underline text-amber-300" onClick={cleanupDb}>🧹 Curăță baza de date (rămân doar firmele contactate și clienții)</button></div>
           <div>{info.placesMode === 'legacy'
             ? <>API Google vechi (~$0.40 la 20 de firme). Activează „Places API (New)” în Google Cloud și costă de ~10 ori mai puțin — aplicația trece singură pe el.</>
             : info.placesMode === 'new' ? <>API Google nou (ieftin: un apel pentru 20 de firme).</> : <>Prima căutare verifică ce API Google e activ la cheia ta.</>}</div>

@@ -14,7 +14,7 @@ import { hasCmsMarkers, cmsPromptAddon, extractInitial, sanitizeContent, publish
 import { friendlyAnthropicError } from '@/lib/anthropic-error'
 import type { RebuildLead } from '@/lib/rebuild'
 
-export const DEMO_STALE_MIN = 10 // după 10 minute un demo „în lucru” e considerat blocat (se poate reporni)
+export const DEMO_STALE_MIN = 6 // funcția Vercel trăiește max. 5 minute: după 6 minute un demo „în lucru” e sigur blocat (se poate reporni)
 
 interface DemoLeadRow {
   id: string; name: string; category: string; city: string; address: string | null; phone: string | null; phone_e164: string | null

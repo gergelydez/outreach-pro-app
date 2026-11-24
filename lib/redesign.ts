@@ -87,6 +87,11 @@ export async function generateHtml(client: Anthropic, prompt: string | Anthropic
     messages: [{ role: 'user', content: prompt }],
   })
 
+  // Vercel oprește funcția după 5 minute: ne oprim noi înainte, ca să salvăm o eroare clară (nu „în lucru” la nesfârșit)
+  const limitS = Number(process.env.GENERATE_MAX_SECONDS) || 270
+  let timedOut = false
+  const timer = setTimeout(() => { timedOut = true; stream.abort() }, limitS * 1000)
+
   if (onProgress) {
     let chars = 0
     let lastSent = 0
@@ -96,7 +101,11 @@ export async function generateHtml(client: Anthropic, prompt: string | Anthropic
     })
   }
 
-  const msg = await stream.finalMessage()
+  let msg: Awaited<ReturnType<typeof stream.finalMessage>>
+  try { msg = await stream.finalMessage() } catch (e) {
+    if (timedOut) throw new Error(`Claude a avut nevoie de mai mult de ${Math.round(limitS / 60)} minute și generarea a fost oprită. Încearcă din nou (de obicei merge a doua oară) sau cere modificări mai puține deodată.`)
+    throw e
+  } finally { clearTimeout(timer) }
   if (msg.stop_reason === 'refusal') throw new Error('Modelul a refuzat cererea')
 
   // Dacă a intervenit un model de rezervă, textul valid e cel de după ultimul bloc 'fallback'
