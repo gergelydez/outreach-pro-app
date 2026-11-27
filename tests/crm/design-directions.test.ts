@@ -23,7 +23,7 @@ describe('art directions: every demo looks different', () => {
       expect(d.groups).toContain('hospitality')
       recent.unshift(d.id)
     }
-    expect(directionPrompt(DIRECTIONS[0])).toContain('DESIGN DE NIVEL GALERIE')
+    expect(directionPrompt(DIRECTIONS[0])).toContain('SITE MODERN, DE NIVEL PREMIUM')
   })
 
   it('a demo gets a style in its prompt, saves it, and the next demo gets a different one', async () => {
@@ -44,9 +44,9 @@ describe('art directions: every demo looks different', () => {
     expect(prompts[0]).toContain('DIRECȚIA ARTISTICĂ')
     expect(prompts[0]).toContain('data-cms-form') // formularul funcțional e cerut la fiecare demo
     // stil ales manual
-    const r = await startDemo(ids[0], { origin: 'https://app.test', style: 'swiss-grid' }, deps)
+    const r = await startDemo(ids[0], { origin: 'https://app.test', style: 'ocean-glass' }, deps)
     await r.job
-    expect((await one<{ demo_style: string }>('SELECT demo_style FROM businesses WHERE id = $1', [ids[0]]))!.demo_style).toBe('swiss-grid')
-    expect(prompts.at(-1)).toContain('Grilă elvețiană')
+    expect((await one<{ demo_style: string }>('SELECT demo_style FROM businesses WHERE id = $1', [ids[0]]))!.demo_style).toBe('ocean-glass')
+    expect(prompts.at(-1)).toContain('Ocean de sticlă')
   })
 })
