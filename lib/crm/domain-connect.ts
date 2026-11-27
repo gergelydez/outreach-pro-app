@@ -21,7 +21,7 @@ type F = typeof fetch
 
 let teamCache: string | null | undefined
 // Echipa în care e proiectul: VERCEL_TEAM_ID dacă e setat; altfel o caută singură (contul personal sau fiecare echipă)
-async function findTeam(f: F): Promise<string | null> {
+export async function findTeam(f: F): Promise<string | null> {
   if (process.env.VERCEL_TEAM_ID) return process.env.VERCEL_TEAM_ID
   if (teamCache !== undefined) return teamCache
   const h = { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` }

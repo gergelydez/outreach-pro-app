@@ -1,7 +1,7 @@
 // Preia setările Cloudflare R2 din celălalt proiect Vercel (dashboard), le pune în acest proiect,
 // adaugă CRM_DB_SECRET (codul bazei de date = vechiul BLOB_READ_WRITE_TOKEN) și republică aplicația.
 // Caută în contul personal și în toate echipele la care are acces tokenul; acceptă și numele R2_*.
-import { vercel, project, DomainError } from './domain-connect'
+import { vercel, project, findTeam, DomainError } from './domain-connect'
 
 const KEYS = ['S3_BUCKET', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY', 'S3_ENDPOINT'] as const
 type Key = typeof KEYS[number]
@@ -32,12 +32,18 @@ export async function adoptR2FromOtherProject(f: F = fetch) {
   const ownId = String(own.data.id)
 
   // toate locurile unde pot fi proiecte: contul personal + fiecare echipă
+  const ownTeam = await findTeam(f).catch(() => null)
   const teams = await api(f, '/v2/teams?limit=50', null)
-  const scopes: (string | null)[] = [null, ...(((teams.data.teams as { id: string }[]) || []).map(t => t.id))]
+  const teamList = ((teams.data.teams as { id: string; name?: string; slug?: string }[]) || [])
+  const scopes: (string | null)[] = Array.from(new Set([ownTeam, ...teamList.map(t => t.id), null]))
   const seen: string[] = []
+  const report: string[] = []
 
   for (const scope of scopes) {
     const list = await api(f, '/v9/projects?limit=100', scope)
+    const label = scope ? (teamList.find(t => t.id === scope)?.name || teamList.find(t => t.id === scope)?.slug || (scope === ownTeam ? 'echipa aplicației' : scope)) : 'contul personal'
+    const names = ((list.data.projects as { name: string }[]) || []).map(x => x.name)
+    report.push(list.ok ? `${label}: ${names.length ? names.join(', ') : 'niciun proiect'}` : `${label}: fără acces (${list.status})`)
     for (const p of ((list.data.projects as { id: string; name: string }[]) || [])) {
       if (p.id === ownId || seen.some(s => s.startsWith(`${p.name}:`) || s === p.name)) continue
       const envs = await api(f, `/v9/projects/${p.id}/env`, scope)
@@ -73,5 +79,5 @@ export async function adoptR2FromOtherProject(f: F = fetch) {
       return { from: p.name, keys: items.map(i => i.key), redeployed }
     }
   }
-  throw new DomainError(`Nu am găsit setările R2 (bucket + chei) în niciun proiect Vercel la care are acces cheia. Proiecte verificate: ${seen.length ? seen.join(' · ') : 'niciunul'}. Dacă dashboard-ul e în alt cont Vercel, cheia VERCEL_TOKEN trebuie să aibă acces și acolo (Scope: Full Account).`)
+  throw new DomainError(`Nu am găsit setările R2 (S3_BUCKET + chei) în proiectele pe care le vede cheia VERCEL_TOKEN.\nCe vede cheia → ${report.join(' | ')}.\n${seen.length ? `Variabile găsite: ${seen.join(' · ')}.\n` : ''}Dacă proiectul dashboard nu apare mai sus, cheia nu are acces la el: creează în Vercel → Account Settings → Tokens o cheie cu Scope „Full Account”, pune-o în locul lui VERCEL_TOKEN, fă Redeploy și apasă din nou.`)
 }
