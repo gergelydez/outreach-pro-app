@@ -42,24 +42,20 @@ const HU: UkTemplates = {
 }
 
 const RO: UkTemplates = {
-  me: "Grig",
-  intro_nosite: "Bună ziua! Sunt {me} 👋 Am găsit afacerea dumneavoastră pe Google ({name}) și am observat că, spre deosebire de alte firme din zonă, nu aveți un site, așa că v-am făcut gratuit un site funcțional. Dacă vă place, îl personalizez și îl pun online.",
-  intro_social: "Bună ziua! Sunt {me} 👋 Am găsit afacerea dumneavoastră pe Google ({name}) și am observat că aveți doar pagină de Facebook/Instagram, nu un site propriu, așa că v-am făcut gratuit un site funcțional. Dacă vă place, îl personalizez și îl pun online.",
-  intro_site: "Bună ziua! Sunt {me} 👋 Am găsit afacerea dumneavoastră pe Google ({name}) și m-am uitat pe site-ul dumneavoastră: am observat că {problem}. Așa că v-am făcut gratuit un site nou, modern și funcțional. Dacă vă place, îl personalizez și îl pun online.",
-  offer: "Plătiți doar dacă vă place: punerea online ar fi în jur de 700 de lei. Vi-l trimit să vă uitați? 🙂",
-  offer_site: "Plătiți doar dacă vă place: punerea online ar fi în jur de 700 de lei. Vi-l trimit să vă uitați? 🙂",
-  price: "Plătiți doar dacă vă place: punerea online ar fi în jur de 700 de lei. Vă pot oferi și factură pe firmă, dacă doriți.",
-  demo: "Iată site-ul pe care vi l-am făcut: {link}\nUitați-vă pe telefon și spuneți-mi ce părere aveți 🙂 Dacă vă place, îl pun online pentru aproximativ 700 de lei.",
-  followup: "Revin pe scurt 🙂 Site-ul pe care vi l-am făcut vă așteaptă. Vi-l trimit să vă uitați? Plătiți doar dacă vă place.",
+  me: "",
+  intro_nosite: "Bună ziua! 👋 Am găsit afacerea dumneavoastră pe Google ({name}) și am observat că, spre deosebire de alte firme din zonă, nu aveți un site. Un site modern, făcut cum trebuie, vă poate aduce mult mai mulți clienți, oameni care acum ajung la concurență. În următoarele zile fac site-uri sub prețul pieței: în loc de 3.500 de lei (700 €), doar 700 de lei, ca să ajut afacerile locale să crească.",
+  intro_social: "Bună ziua! 👋 Am găsit afacerea dumneavoastră pe Google ({name}) și am observat că aveți doar pagină de Facebook/Instagram, nu un site propriu. Un site modern, făcut cum trebuie, vă poate aduce mult mai mulți clienți, oameni care acum ajung la concurență. În următoarele zile fac site-uri sub prețul pieței: în loc de 3.500 de lei (700 €), doar 700 de lei, ca să ajut afacerile locale să crească.",
+  intro_site: "Bună ziua! 👋 Am găsit afacerea dumneavoastră pe Google ({name}) și m-am uitat pe site-ul dumneavoastră: am observat că {problem}. Un site modern, făcut cum trebuie, vă poate aduce mult mai mulți clienți. În următoarele zile fac site-uri sub prețul pieței: în loc de 3.500 de lei (700 €), doar 700 de lei, ca să ajut afacerile locale să crească.",
+  offer: "Vă pot oferi și factură pe firmă, dacă doriți. Dacă îmi trimiteți câteva poze și informații, vă arăt gratuit cum ar arăta site-ul dumneavoastră. 🙂",
+  offer_site: "Vă pot oferi și factură pe firmă, dacă doriți. Dacă îmi trimiteți câteva poze și informații, vă arăt gratuit cum ar arăta noul site. 🙂",
+  price: "Site-ul costă 700 de lei în loc de 3.500 de lei (700 €). Vă pot oferi și factură pe firmă, dacă doriți.",
+  demo: "Iată cum ar arăta site-ul dumneavoastră: {link}\nUitați-vă pe telefon și spuneți-mi ce părere aveți 🙂 Dacă vă place, îl pun online pentru 700 de lei.",
+  followup: "Revin pe scurt 🙂 Oferta de site la 700 de lei (în loc de 3.500) mai e valabilă doar câteva zile. Dacă îmi trimiteți câteva poze, vă arăt gratuit cum ar arăta site-ul dumneavoastră.",
 }
 
 // Variante de formulare (același sens și același preț), alternate între firme ca mesajele să nu fie identice.
 // Se folosesc doar cât timp textul din șablon e cel implicit (dacă îl modifici în aplicație, rămâne textul tău).
 const VARIANTS: Partial<Record<Country, Partial<Record<'intro_nosite' | 'offer', string[]>>>> = {
-  RO: {
-    intro_nosite: [RO.intro_nosite, "Bună ziua, sunt {me} 👋 [[Am văzut {name} pe Google: {rating}★ din {reviews_ro}, felicitări! Nu am găsit însă||Am văzut {name} pe Google, dar nu am găsit]] un site al dumneavoastră, așa că v-am făcut gratuit unul funcțional. Dacă vă place, îl personalizez și îl pun online.", "Bună ziua! Mă numesc {me} 😊 Am dat de {name} pe Google și am observat că încă nu aveți un site, deși mulți clienți vă caută acolo. V-am făcut gratuit un site funcțional; dacă vă place, îl personalizez și îl pun online."],
-    offer: [RO.offer, "Nu plătiți nimic dacă nu vă place. Dacă vă place, punerea online costă în jur de 700 de lei. Să vi-l trimit?", "Plata e doar dacă vă place: aproximativ 700 de lei ca să-l pun online. Vreți să-l vedeți? 🙂"],
-  },
 }
 
 // același index pentru aceeași firmă (reamintirea și notițele rămân coerente)

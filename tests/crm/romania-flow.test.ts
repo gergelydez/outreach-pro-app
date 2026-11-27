@@ -25,9 +25,10 @@ describe('România', () => {
   })
   it('writes the messages in Romanian, with a reminder', () => {
     const m = buildMessages(TEMPLATES.RO, { name: 'Pensiunea Bradul', trades: 'pensiune', website_status: 'NO_WEBSITE', findingCodes: [], country: 'RO' })
-    expect(m.first).toMatch(/Sunt Grig 👋/)
-    expect(m.first).toMatch(/v-am făcut gratuit un site funcțional/)
-    expect(m.second).toBe('Plătiți doar dacă vă place: punerea online ar fi în jur de 700 de lei. Vi-l trimit să vă uitați? 🙂')
+    expect(m.first).toMatch(/^Bună ziua! 👋 Am găsit afacerea dumneavoastră pe Google \(Pensiunea Bradul\)/)
+    expect(m.first).toMatch(/în loc de 3\.500 de lei \(700 €\), doar 700 de lei/)
+    expect(m.first).not.toMatch(/Grig|Sunt /)
+    expect(m.second).toBe('Vă pot oferi și factură pe firmă, dacă doriți. Dacă îmi trimiteți câteva poze și informații, vă arăt gratuit cum ar arăta site-ul dumneavoastră. 🙂')
     expect(m.price).toMatch(/factură pe firmă/)
     expect(m.first + m.second).not.toMatch(/\bHi\b|website/i)
     expect(m.followup.length).toBeGreaterThan(10)
@@ -90,23 +91,14 @@ describe('search by name or phone', () => {
   })
 })
 
-describe('Romanian message variants', () => {
-  it('rotates three wordings between businesses, keeps one per business, and reads naturally', async () => {
-    const { buildMessages, TEMPLATES, variantIndex } = await import('@/lib/crm/uk-templates')
+describe('Romanian messages: one approved wording, no name', () => {
+  it('every business gets the approved text (no rotation, no signature); a custom text still wins', async () => {
+    const { buildMessages, TEMPLATES } = await import('@/lib/crm/uk-templates')
     const base = { name: 'Casa Roxana', trades: 'pensiune', website_status: 'NO_WEBSITE', findingCodes: [], country: 'RO' as const }
-    const v = (n: number, extra = {}) => buildMessages(TEMPLATES.RO, { ...base, variant: n, ...extra })
-    expect(new Set([0, 1, 2].map(n => v(n).first)).size).toBe(3)
-    expect(new Set([0, 1, 2].map(n => v(n).second)).size).toBe(3)
-    expect(v(0).first).toBe(buildMessages(TEMPLATES.RO, base).first) // A = textul aprobat
-    expect(v(1, { rating: 4.8, reviews: 58 }).first).toContain('4.8★ din 58 de recenzii, felicitări! Nu am găsit însă un site')
-    expect(v(1, { rating: 4.8, reviews: 12 }).first).toContain('4.8★ din 12 recenzii')
-    expect(v(1).first).toBe('Bună ziua, sunt Grig 👋 Am văzut Casa Roxana pe Google, dar nu am găsit un site al dumneavoastră, așa că v-am făcut gratuit unul funcțional. Dacă vă place, îl personalizez și îl pun online.')
-    for (let n = 0; n < 3; n++) expect(v(n).second).toMatch(/700 de lei/)
-    expect(variantIndex('abc')).toBe(variantIndex('abc'))
-    // dacă utilizatorul și-a scris propriul text, rămâne textul lui
+    const firsts = new Set([0, 1, 2].map(n => buildMessages(TEMPLATES.RO, { ...base, variant: n }).first))
+    expect(firsts.size).toBe(1)
+    expect(buildMessages(TEMPLATES.RO, base).first).not.toMatch(/Grig|sunt /i)
     const own = { ...TEMPLATES.RO, intro_nosite: 'Textul meu pentru {name}' }
     expect(buildMessages(own, { ...base, variant: 2 }).first).toBe('Textul meu pentru Casa Roxana')
-    // UK/HU fără variante deocamdată
-    expect(buildMessages(TEMPLATES.HU, { ...base, country: 'HU', variant: 1 }).first).toBe(buildMessages(TEMPLATES.HU, { ...base, country: 'HU' }).first)
   })
 })

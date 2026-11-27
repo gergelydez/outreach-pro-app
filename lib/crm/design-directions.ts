@@ -1,6 +1,6 @@
 // Direcții artistice pentru demo-uri: fiecare site primește alt stil (tipografie, paletă, compoziție, semnătură),
 // ales automat după meserie și diferit de ultimele demo-uri, ca portofoliul să nu arate ca un șablon repetat.
-// Regulile de „craft” sunt adaptate după principiile de design din skill-ul MotionSites (gallery-grade pages).
+// Toate sunt moderne (gradiente, sticlă, mișcare, carusele, galerie), după modelul site-ului Cabanele Rus, dar cu alt caracter.
 
 export type CategoryGroup = 'hospitality' | 'beauty' | 'food' | 'trades' | 'auto' | 'services'
 
@@ -20,126 +20,105 @@ export interface DesignDirection {
 
 export const DIRECTIONS: DesignDirection[] = [
   {
-    id: 'alpine-editorial', name: 'Editorial alpin', groups: ['hospitality', 'food', 'services'],
-    mood: 'calm, natural, premium',
-    fonts: 'Instrument Serif (italic pentru 1–3 cuvinte-accent din titlu, într-o nuanță mai stinsă) + Inter 300–500 pentru rest',
-    palette: 'fundal #f7f5f0, text #141414, gri #6f6f6f, borduri rgba(20,20,20,.12), accent verde de pădure #2f5d46 (doar pe butonul principal, puncte și un glif)',
-    hero: 'inset-frame: hero-ul stă într-un padding de 16px, cu poza principală full-bleed într-un container cu radius 32px; titlul ancorat jos-stânga peste poză (text-shadow 0 16px 38px rgba(0,0,0,.32)), un element secundar jos-dreapta (rating Google + număr recenzii)',
-    headline: 'rândurile titlului urcă din 110% în overflow:hidden (masked line rise), 0.9s, cubic-bezier(0.22,1,0.36,1), 0.12s între rânduri',
-    nav: 'pastilă albă plutitoare (logo-text cu ®-ul mic · linkuri 14px · buton închis la culoare), umbră moale după scroll',
-    signature: 'secțiunile se suprapun ca niște foi: fiecare secțiune nouă are border-radius 48px 48px 0 0 și margin-top -48px, alternând crem și verde închis #1d3a2c',
-    sections: 'despre în grilă asimetrică 26% / 1fr / 48% cu poze aliniate la final; galerie bento 7/5/5/7; recenzii ca citate mari în serif italic',
+    id: 'forest-ember', name: 'Modern · Pădure & jar', groups: ['hospitality', 'food', 'services'],
+    mood: 'natural, cald, primitor, premium',
+    fonts: 'Fraunces 400–700 (serif modern) pentru titluri + Inter 400–600 pentru text',
+    palette: 'bază închisă #0f1d16 și #16291f, hârtie #fbf7f0 / crem #f7f0e4, text #1d1a16, gri #6b645a; accent GRADIENT #f2b65a → #e2725b → #c8442e',
+    hero: 'slideshow pe tot ecranul (100svh) cu 3–5 cele mai bune poze, fiecare cu zoom lent (Ken Burns) și trecere prin fade; voal în gradient de la stânga și de jos, pentru lizibilitate; indicatori verticali în dreapta',
+    headline: 'titlu mare Fraunces, cu 2–3 cuvinte-accent în gradient animat (background-clip:text)',
+    nav: 'transparentă peste hero, devine sticlă închisă (backdrop-filter blur 18px) după scroll; buton principal pastilă în gradient',
+    signature: 'bandă cu cuvinte care rulează între hero și conținut + o ștampilă rotundă în gradient care se rotește încet peste colajul de poze',
+    sections: 'intro cu colaj de 3 poze suprapuse; carduri mari pe fundal închis, cu carusel de poze; bento cu legende din sticlă; galerie masonry cu filtre; secțiune CTA cu poză în fundal; contact cu card închis și formular alb',
   },
   {
-    id: 'nocturne-cinematic', name: 'Cinematic nocturn', groups: ['hospitality', 'beauty', 'food', 'auto'],
-    mood: 'nocturn, cinematic, scump',
-    fonts: 'Instrument Serif italic pentru titluri mari (weight 400) + Barlow 300–500 pentru text și UI',
-    palette: 'fundal #0a0a0a, text crem #DEDBC8, gri #8e8e8e, carduri #121212–#1a1a1a, borduri rgba(222,219,200,.14), accent chihlimbar #c8a46a pe maximum 3 tipuri de elemente',
-    hero: 'centred stack peste poza principală full-bleed (100dvh), cu fade jos spre culoarea fundalului (fără voal negru plat), un badge mic deasupra titlului și 2 butoane pastilă',
-    headline: 'cuvintele apar pe rând cu blur 10px→0 și opacity 0→1, 100ms între cuvinte',
-    nav: 'nav transparent cu material de sticlă (backdrop-filter blur 14px, fundal rgba(255,255,255,.06)) pe pastila linkurilor; butonul principal crem, text negru',
-    signature: 'un strat fin de grain SVG (fractal noise, opacity .06, pointer-events:none) peste toată pagina, care unește pozele și interfața',
-    sections: 'carduri media 16/9 cu radius 24px, zoom 1.05 în 700ms la hover și disc de sticlă ↗; statistici mari subțiri (weight 300) cu etichete mici; secțiune de recenzii cu stele aurii',
+    id: 'ocean-glass', name: 'Modern · Ocean de sticlă', groups: ['services', 'trades', 'beauty'],
+    mood: 'proaspăt, curat, luminos, de încredere',
+    fonts: 'Plus Jakarta Sans 500–800 pentru titluri + Inter 400–600 pentru text',
+    palette: 'bază #06232e (petrol închis), hârtie #f3fbfc, text #0b1f26, gri #5a7078; accent GRADIENT #22d3ee → #0ea5e9 → #14b8a6',
+    hero: 'hero împărțit: text la stânga, la dreapta un teanc de 2–3 carduri din sticlă care plutesc ușor, fiecare cu o poză sau o iconiță SVG mare; în fundal, forme în gradient (mesh) care se mișcă foarte încet',
+    headline: 'titlu sans îngroșat (800), strâns (tracking -0.03em), cu un cuvânt subliniat de o linie în gradient care se desenează la încărcare',
+    nav: 'pastilă din sticlă albă care plutește la 12px de sus, cu umbră moale; butonul „Sună” plin, în gradient',
+    signature: 'carduri din sticlă (fundal rgba alb, blur 16px, bordură subțire luminoasă) folosite peste tot, plus o linie ondulată SVG între secțiuni',
+    sections: 'servicii în grilă de carduri cu iconițe SVG și hover cu înclinare ușoară; pași „Cum lucrăm” pe o linie de timp; listă cu bife „Ce primești”; întrebări frecvente în acordeon; zona deservită; contact',
   },
   {
-    id: 'swiss-grid', name: 'Grilă elvețiană', groups: ['trades', 'services', 'auto'],
-    mood: 'precis, sobru, de încredere',
-    fonts: 'Inter Tight 500 pentru titluri (tracking −0.045em, niciodată bold) + Inter pentru text + JetBrains Mono 10–12px pentru etichete (uppercase, +0.2em, opacitate 55%)',
-    palette: 'fundal #fcfcfc, text #111111, gri #8e8e8e, linii 1px rgba(17,17,17,.12), accent roșu semnal #e63b2e (buton principal, numere de index, un punct)',
-    hero: 'editorial four corners: titlu foarte mare în centru-stânga, iar în cele 4 colțuri etichete mono (oraș + ora locală, „Disponibili azi”, rating, „Din anul …” doar dacă e cunoscut); o poză decupată dreapta',
-    headline: 'per-caracter slide, 30ms între litere, o singură dată',
-    nav: 'nav pe o linie, linkuri cu contor superscript mono (Servicii⁶), sublinierea crește de la stânga la hover',
-    signature: 'grilă de 12 coloane vizibilă subtil (linii verticale 1px la marginile containerului) și indici [ 01 ] … [ 05 ] la fiecare secțiune',
-    sections: 'servicii ca listă numerotată „/ NUME SERVICIU” cu descrieri scurte; proces în 3–4 pași cu „01 ——”; contact cu tabel de date clar',
+    id: 'noir-gold', name: 'Modern · Noir auriu', groups: ['beauty', 'food', 'auto', 'hospitality'],
+    mood: 'elegant, nocturn, exclusivist',
+    fonts: 'Playfair Display 400–700 italic pentru titluri + Inter 300–500 pentru text',
+    palette: 'bază #0b0b0c, carduri #141414, hârtie #f6f1e7, text crem #ece6d8, gri #8d8778; accent GRADIENT auriu #f5d08a → #c9973f',
+    hero: 'poza principală pe tot ecranul, cu vignetă și o trecere lentă între 3 poze; titlu centrat, deasupra lui o etichetă cu linii aurii fine de o parte și de alta',
+    headline: 'cuvintele apar pe rând (blur → clar), unul sau două în italic auriu',
+    nav: 'transparentă, cu linkuri subțiri; devine neagră din sticlă la scroll; buton contur auriu',
+    signature: 'secțiuni numerotate (01, 02, 03) cu cifre mari aurii în contur, linii aurii de 1px și colțuri ușor teșite',
+    sections: 'servicii sau meniu ca listă elegantă cu prețuri doar dacă există; galerie pe coloane cu efect de mărire; citate mari; rezervare sau programare; contact pe fond negru',
   },
   {
-    id: 'poster-bold', name: 'Afiș îndrăzneț', groups: ['trades', 'auto', 'services'],
-    mood: 'energic, direct, curajos',
-    fonts: 'Anton (uppercase, pentru cuvinte uriașe 14–22vw, line-height .82) + Inter 400–500 pentru text',
-    palette: 'fundal #f0f0ee, text #0c0c0c, gri #6f6f6f, accent galben de siguranță #f5c400 (fundalul butonului principal și o bandă), negru #0c0c0c pentru secțiunile contrastante',
-    hero: 'un cuvânt uriaș (meseria sau orașul) pe toată lățimea, cu poza principală tăiată într-un dreptunghi cu radius 24px suprapus peste partea de jos a cuvântului; dedesubt, o bandă cu 3 statistici despărțite de bare verticale',
-    headline: 'cuvântul uriaș apare cu scale 0.96→1 și opacity 0→1 în 0.8s; restul pe rând de jos în sus',
-    nav: 'pastilă neagră agățată de marginea de sus (hanging tab, radius jos 20px), linkuri albe 14px',
-    signature: 'bandă marquee lentă (30s, liniară) cu serviciile, între secțiuni, pe fundal galben',
-    sections: 'servicii în carduri mari cu iconițe SVG simple; secțiune „de ce noi” cu numere uriașe; CTA final pe fundal negru cu buton galben',
+    id: 'sage-terracotta', name: 'Modern · Salvie & teracotă', groups: ['food', 'hospitality', 'beauty'],
+    mood: 'artizanal, cald, mediteranean',
+    fonts: 'DM Serif Display pentru titluri + DM Sans 400–600 pentru text',
+    palette: 'bază #1f2a24 (salvie închisă), hârtie #f4efe6, text #22201c, gri #6f675d; accent GRADIENT #e07a5f → #f2cc8f',
+    hero: 'cadru inserat: hero-ul stă într-un container cu colțuri de 32px și padding de 14px, cu slideshow de poze și zoom lent; titlul jos-stânga, iar jos-dreapta un card din sticlă cu un detaliu real (oraș, program sau rating)',
+    headline: 'rândurile titlului urcă pe rând dintr-o mască (overflow hidden), 0.9s',
+    nav: 'albă, solidă, cu linie fină jos; butonul principal în teracotă',
+    signature: 'secțiunile se suprapun ca niște foi (colțuri de 48px sus, margin-top -48px), alternând crem cu salvie închisă',
+    sections: 'poveste scurtă cu 2 poze în arc; carduri cu carusel; bento cu poze; recenzii doar dacă există; galerie cu filtre; contact',
   },
   {
-    id: 'soft-atelier', name: 'Atelier pastel', groups: ['beauty', 'food', 'services'],
-    mood: 'delicat, luminos, feminin-modern',
-    fonts: 'Source Serif 4 italic pentru accente + Poppins 300–500 pentru titluri și text',
-    palette: 'fundal hârtie #fdf1e1, text #111411, gri #7d6f66, accent trandafiriu prăfuit #b5656b, carduri albe cu umbră 0 4px 16px rgba(0,0,0,.08) și radius 36px',
-    hero: 'left column centrat vertical (titlu, subtitlu, 2 butoane, avatar stack cu 3 poze de clienți + rating) și dreapta un colaj de 3 poze în forme arcuite (border-radius 999px 999px 32px 32px)',
-    headline: 'titlu în două tonuri: prima parte în culoarea textului, restul în accent mai deschis; apariție cu translateY 24px→0',
-    nav: 'logo într-un cerc de 44px separat, linkurile într-o pastilă #f3e4d2, buton principal închis',
-    signature: 'pastile-etichetă pentru servicii (min-height 40px, fundal hârtie, umbră 0 12px 30px rgba(0,0,0,.12)) plutind peste poze',
-    sections: 'listă de prețuri elegantă cu linii punctate între serviciu și preț; galerie în tile-uri cu radius 40px; recenzii în carduri albe',
+    id: 'midnight-neon', name: 'Modern · Neon de noapte', groups: ['auto', 'trades', 'services'],
+    mood: 'tehnic, energic, precis',
+    fonts: 'Space Grotesk 500–700 pentru titluri + Inter 400–500 pentru text',
+    palette: 'bază #0a0f1f, carduri #111833, hârtie #eef2ff, text #e6ebff, gri #8a93b8; accent GRADIENT #6366f1 → #22d3ee',
+    hero: 'hero împărțit: titlu uriaș la stânga, la dreapta poza principală într-un chenar cu bordură luminoasă în gradient care se rotește încet; fundal cu grilă fină de linii',
+    headline: 'titlu cu un cuvânt în gradient și un cursor care clipește la final (doar la încărcare)',
+    nav: 'bară din sticlă închisă, cu un punct verde „Disponibil acum” lângă butonul de sunat',
+    signature: 'carduri cu bordură luminoasă care urmărește cursorul (pe desktop) și cifre mari pentru pași / ani / zone, doar cu informații reale',
+    sections: 'servicii în carduri tehnice cu iconițe; proces în pași numerotați; lucrări în galerie cu filtre; zonă deservită; contact cu buton mare de sunat',
   },
   {
-    id: 'terracotta-rustic', name: 'Rustic teracotă', groups: ['hospitality', 'food', 'trades'],
-    mood: 'cald, autentic, primitor',
-    fonts: 'DM Serif Display pentru titluri + Manrope 400–600 pentru text',
-    palette: 'fundal #f4ece1, text #2b1d14, gri #7a6a5c, accent teracotă #c0643a, secțiuni contrastante în maro închis #2b1d14 cu text #f4ece1',
-    hero: 'bottom-anchored: poza mare full-bleed, titlul jos-stânga pe o bandă cu fade de la transparent la fundal, iar jos-dreapta un card mic cu programul sau „Rezervă din timp”',
-    headline: 'titlul pe 2–3 rânduri rupte manual, apariție cu blur 8px→0',
-    nav: 'nav simplu pe fundal, logo-text cu ✦ după nume, buton teracotă',
-    signature: 'texturi fine de hârtie (grain .05) și ilustrații SVG de linie (frunze, munți sau unelte, potrivit meseriei) ca ornamente mici lângă titlurile de secțiune',
-    sections: 'poveste cu 2 poze suprapuse decalat; facilități ca iconițe SVG de linie cu text scurt; recenzii pe fundal maro',
+    id: 'rose-blush', name: 'Modern · Roz pudrat', groups: ['beauty', 'services', 'food'],
+    mood: 'feminin, delicat, luxos',
+    fonts: 'Cormorant Garamond 500–700 pentru titluri + Montserrat 400–500 pentru text',
+    palette: 'bază #2a1720 (prună), hârtie #fff6f4, text #2b1d22, gri #85707a; accent GRADIENT #f9a8d4 → #fb7185 → #f97316',
+    hero: 'poza principală într-o formă cu colțuri foarte rotunjite (arc sus) la dreapta, text la stânga, sfere de culoare estompate (blur mare) în fundal care se mișcă foarte încet',
+    headline: 'titlu serif mare, cu un cuvânt în italic și gradient',
+    nav: 'pastilă din sticlă roz pal, centrată; buton „Programează-te” în gradient',
+    signature: 'forme de arc pentru poze, iconițe fine cu linie subțire și separatoare cu ornament mic',
+    sections: 'servicii ca meniu elegant; înainte/după sau galerie dacă sunt poze; echipa doar dacă există; programare; contact',
   },
   {
-    id: 'nordic-calm', name: 'Nordic calm', groups: ['services', 'hospitality', 'beauty'],
-    mood: 'curat, liniștit, profesionist',
-    fonts: 'Manrope 400–600 singur, titluri mari weight 500 cu tracking −0.035em',
-    palette: 'fundal #f9fafb, text bleumarin închis #0D212C, gri #6b7a83, accent salvie #336443 cu nuanța deschisă #85AB8B pentru partea a doua a titlurilor',
-    hero: 'centred stack aerisit: badge „Nou” cu cip interior, titlu în două tonuri, subtitlu de maximum 32rem, 2 butoane; dedesubt poza principală într-un container lat cu radius 32px',
-    headline: 'apariție lină de jos în sus, în ordinea badge → titlu → subtitlu → butoane, 0.15s între ele',
-    nav: 'pastilă plutitoare: logo · separator 1×20px · linkuri · separator · buton; capătă umbră după scroll',
-    signature: 'butoane cu umbră fizică stratificată (0 1px 2px rgba(5,26,36,.1), 0 4px 4px rgba(5,26,36,.09), 0 9px 6px rgba(5,26,36,.05), inset 0 2px 8px rgba(255,255,255,.5))',
-    sections: 'beneficii în carduri albe cu iconițe SVG de linie; întrebări frecvente în acordeon; contact cu formular curat pe 2 coloane',
+    id: 'sunny-fresh', name: 'Modern · Proaspăt & vesel', groups: ['trades', 'services', 'food'],
+    mood: 'prietenos, optimist, accesibil',
+    fonts: 'Plus Jakarta Sans 600–800 pentru titluri (cu accente în Fraunces italic) + Inter pentru text',
+    palette: 'bază #0f2a1d, hârtie #fffdf6, text #18241c, gri #66705f; accent GRADIENT #a3e635 → #22c55e → #14b8a6, plus un galben cald #facc15 pentru etichete',
+    hero: 'hero luminos: text mare la stânga, la dreapta un colaj jucăuș de poze sau ilustrații SVG cu insigne rotunde care se rotesc încet; fundal cu forme organice în gradient',
+    headline: 'titlu îndrăzneț, cu un cuvânt evidențiat ca un marcator (bandă de culoare în spatele textului care se desenează)',
+    nav: 'albă, cu buton „Sună acum” în gradient și număr de telefon vizibil pe desktop',
+    signature: 'insigne-autocolant rotunde („Rapid”, „Garantat” doar dacă e adevărat), colțuri foarte rotunjite (28px) și mici animații la hover',
+    sections: 'servicii în carduri colorate; cum lucrăm în 3 pași; ce primești (listă cu bife); întrebări frecvente; zonă deservită; contact cu formular scurt',
   },
   {
-    id: 'midnight-tech', name: 'Tehnic de noapte', groups: ['auto', 'services', 'trades'],
-    mood: 'tehnic, precis, modern',
-    fonts: 'Geist 400–500 pentru titluri și text + Geist Mono pentru etichete și cifre',
-    palette: 'fundal #050505, text #ffffff, gri hsl(0 0% 60%), carduri hsl(0 0% 6%), borduri hsl(0 0% 14%), accent turcoaz #3fd0c9 doar pe butonul principal și indicatori (fără mov sau indigo)',
-    hero: 'left column: titlu mare, subtitlu, 2 butoane, iar dreapta poza principală într-un card cu radius 24px și etichete mono plutitoare (ex. „Garanție”, „Programări azi”)',
-    headline: 'efect de scramble scurt pe titlu (sub 1s), apoi rămâne fix',
-    nav: 'nav cu linii-ghid verticale 1px rgba(255,255,255,.1) la marginile containerului, linkuri mono mici',
-    signature: 'grilă bento întunecată (span 7/5/5/7) cu carduri care se luminează subtil sub cursor (radial-gradient ce urmărește mouse-ul, doar pe desktop)',
-    sections: 'servicii în bento; statistici cu count-up 1.5s; proces în pași cu indici mono',
-  },
-  {
-    id: 'sunlit-magazine', name: 'Revistă luminoasă', groups: ['hospitality', 'beauty', 'food'],
-    mood: 'însorit, elegant, de vacanță',
-    fonts: 'Cormorant Garamond italic pentru titluri mari (line-height .85) + Outfit 300–500 pentru text',
-    palette: 'fundal #fffaf2, text #1a1a1a, gri #7c7468, accent albastru adânc #1f5f8b',
-    hero: 'titlu uriaș în serif italic pe două rânduri, cu poza principală într-o fereastră arcuită (border-radius 999px 999px 0 0) suprapusă peste al doilea rând; text mic de revistă în colțuri (nr. ediție, oraș)',
-    headline: 'litere care apar pe rând, 30ms între ele',
-    nav: 'nav centrat cu logo-text în mijloc și linkurile despărțite stânga/dreapta, separate prin puncte •',
-    signature: 'layout de revistă: coloane de text cu literă inițială mare (drop cap) în secțiunea despre și legende mici sub poze',
-    sections: 'galerie orizontală cu scroll-snap; camere/servicii în carduri înalte 3/4; recenzii ca pull-quotes',
-  },
-  {
-    id: 'craft-workshop', name: 'Atelier meșteșugăresc', groups: ['trades', 'auto', 'food'],
-    mood: 'solid, meșteșugăresc, sincer',
-    fonts: 'Barlow Condensed 600–800 uppercase pentru titluri (line-height .9) + Barlow 400 pentru text',
-    palette: 'fundal verde-gri închis #1c1f1d, text #e9e4d8, gri #9a958a, carduri #252925, accent cupru #d08a4a',
-    hero: 'inset-frame cu poza principală, titlu din majuscule condensate pe 3 rânduri stivuite jos-stânga, iar dreapta-jos un cerc cu „Garanție” sau anii de experiență (doar dacă sunt cunoscuți)',
-    headline: 'rândurile stivuite apar unul după altul de jos în sus, 0.12s între ele',
-    nav: 'nav cu fundal opac închis, butonul principal cupru cu săgeată într-un cerc care se rotește −45° la hover',
-    signature: 'proces de lucru numerotat mare („01 —— Evaluare”, „02 —— Lucru”, „03 —— Predare”) cu linie de 64×1.5px',
-    sections: 'lucrări realizate în galerie cu înainte/după dacă există poze potrivite; zone deservite ca listă de pastile; contact cu buton mare de sunat',
+    id: 'alpine-blue', name: 'Modern · Albastru alpin', groups: ['hospitality', 'auto', 'services'],
+    mood: 'aerisit, panoramic, liniștit',
+    fonts: 'Syne 600–800 pentru titluri + Inter 400–500 pentru text',
+    palette: 'bază #0c1b2e, hârtie #f4f7fb, text #0f1b2a, gri #63738a; accent GRADIENT #93c5fd → #3b82f6 → #1e3a8a',
+    hero: 'panoramă pe tot ecranul cu parallax ușor la scroll și 3 carduri de sticlă jos cu informații reale (locație, capacitate, ce oferă)',
+    headline: 'titlu mare, majuscule largi (Syne), care apare literă cu literă',
+    nav: 'transparentă, devine albă din sticlă la scroll',
+    signature: 'secțiuni largi cu poze panoramice pe toată lățimea, separate de bande cu statistici reale în sticlă',
+    sections: 'unități de cazare sau servicii cu carusel; experiențe în bento; galerie cu filtre; cum ajungi; contact',
   },
 ]
 
-export const CRAFT_RULES = `DESIGN DE NIVEL GALERIE (obligatoriu, nu un șablon):
-- Primul ecran are O singură idee: logo + nav + un titlu + un subtitlu + 1–2 butoane + o poză/zonă vizuală, plus cel mult o bandă discretă (rating, statistici). Fără grile de carduri în primul ecran.
-- Tipografie: cel mult 2 familii Google Fonts (+ opțional un mono pentru etichete), încărcate cu preconnect și display=swap, doar greutățile folosite. Titlul H1 cu clamp(): 36–48px pe mobil, 72–96px pe desktop, line-height 0.9–1.05, tracking −0.02…−0.05em, weight 400–500 (niciodată bold gros). Text 15–18px, line-height 1.5–1.6. Etichete 10–13px uppercase cu +0.15…0.3em. Titlurile rupte manual pe 2–3 rânduri.
-- Culoare: 1 fundal, 1 culoare de text, 1–2 griuri și cel mult 1 accent, folosit pe maximum 3 tipuri de elemente. Ierarhia vine din opacitate, nu din culori noi. Fără gradiente mov/indigo, bule luminoase sau umbre grele. Prima regulă CSS setează fundalul pe html, body. Culoarea de selecție a textului e personalizată.
-- Componente: un singur „material” reutilizat (de exemplu sticlă sau hârtie). Butoanele sunt pastile (cu excepția stilurilor tehnice, radius 6–7px), cel principal plin și invers față de fundal. Iconițe doar SVG inline, niciodată emoji. Radii consecvente.
-- Mișcare: apariții în ordinea nav → eticheta → titlu → subtitlu → butoane, 0.1–0.2s între ele, totul gata în ~1.5s, cu cubic-bezier(0.22,1,0.36,1). Apariții la scroll o singură dată (prag 15%, translateY 24px, 0.7s). Hover mic (scale ≤1.05). Fără animații infinite, pulsări sau bule plutitoare. Ramură prefers-reduced-motion. STAREA DE BAZĂ E VIZIBILĂ: dacă JavaScript nu rulează, tot conținutul se vede (animațiile doar îl aduc, nu îl ascund permanent).
-- Text: titlul are 3–9 cuvinte, specific afacerii, cu un punct de vedere, nu generic; subtitlul are 15–30 de cuvinte, cu un beneficiu concret. Butoane de 2–3 cuvinte care încep cu un verb. Fără lorem ipsum, „Serviciul 1/2/3” sau texte de umplutură.
-- Fără probleme: fără scroll orizontal (overflow-x: clip pe root), 100dvh pentru hero pe mobil, raporturi de aspect rezervate pentru poze (fără salturi de layout), meniul de pe mobil blochează scroll-ul paginii și se închide la click pe link sau Esc, efectele de hover doar pe dispozitive cu hover.
-- Structura secțiunilor e aleasă pentru afacerea asta (nu ordinea standard hero → servicii → despre → recenzii → contact de fiecare dată). Fiecare secțiune are o idee clară; mai puține secțiuni puternice sunt mai bune decât multe slabe.`
+export const CRAFT_RULES = `SITE MODERN, DE NIVEL PREMIUM (obligatoriu), după modelul celor mai bune site-uri din nișa afacerii:
+- Folosește tot ce e modern și arată bine: gradiente (din paleta direcției), glassmorphism (fundal semitransparent + backdrop-filter blur + bordură subțire luminoasă), mișcare discretă și elegantă, poze mari. Totul adaptat nișei: natural pentru cazare, curat pentru servicii, elegant pentru beauty etc.
+- POZELE SUNT VEDETA: dacă există poze, primul ecran le folosește (slideshow cu zoom lent sau compoziția din direcție). Dacă sunt multe poze: carusele (scroll-snap, săgeți, contor „1 / 8”), galerie masonry cu filtre și vizualizare pe tot ecranul (lightbox cu glisare pe telefon, săgeți și Esc pe desktop, contor). Dacă sunt puține sau deloc: ilustrații SVG, forme în gradient și iconițe, niciodată poze inventate.
+- Structură potrivită afacerii (alege și ordonează): hero; bandă scurtă cu ce o face specială; intro cu colaj de poze; serviciile / unitățile (carduri cu carusel sau iconițe); de ce noi / experiențe (bento cu legende din sticlă); galerie; cum lucrăm sau cum ajungi; întrebări frecvente (doar întrebări reale, cu răspunsuri care nu inventează); secțiune finală cu îndemn (CTA) și poză în fundal; contact (card închis cu date + formular alb); subsol.
+- Tipografie: 2 familii Google Fonts (preconnect, display=swap). H1 cu clamp(40px, 7vw, 96px), line-height 1–1.1. Etichete mici uppercase cu linie în gradient în față.
+- Butoane pastilă: principal în gradient, cu umbră colorată și ridicare la hover; secundar din sticlă.
+- Mișcare: apariții la scroll cu IntersectionObserver (translateY 30px + opacity, 0.9s, cubic-bezier(.22,1,.36,1), cu mici întârzieri între elemente). OBLIGATORIU: clasa care ascunde elementele se aplică doar după ce JS pornește (html.js), iar după 2,5 s totul devine vizibil oricum; parallax limitat la ±60px; ramură prefers-reduced-motion care oprește animațiile. Fără animații care țin conținutul ascuns.
+- Pe telefon: meniu ☰ pe tot ecranul (se închide la click pe link), o bară fixă jos din sticlă cu „Sună” și „WhatsApp” (sau „Cere ofertă”) care apare după hero, fără scroll orizontal, carduri pe o coloană, poze cu înălțimi fixe.
+- Text: în limba site-ului, specific afacerii, cu beneficii concrete; titluri de 3–9 cuvinte; fără lorem ipsum. Nu inventa prețuri, ani, număr de clienți, recenzii sau premii.
+- Cod compact (ca să se genereze repede): CSS cu variabile în :root, fără biblioteci externe în afară de Google Fonts, JavaScript vanilla scurt (sub ~150 de rânduri).`
 
 export function categoryGroup(key: string): CategoryGroup {
   const k = (key || '').toLowerCase()

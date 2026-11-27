@@ -39,7 +39,7 @@ interface Stats { contacted: number; replied: number; interested: number; won: n
 const COUNTRY_TITLE: Record<Country, string> = { UK: 'UK 🇬🇧', HU: 'Ungaria 🇭🇺', RO: 'România 🇷🇴' }
 const LANG_RO: Record<Country, string> = { UK: 'engleză', HU: 'maghiară', RO: 'română' }
 // varianta veche a mesajelor (cu „student / proiect la facultate”), salvată pe telefon înainte de schimbare
-const OLD_TEXTS = /university student|egyetemista|proiect la facultate|firmele locale să crească|below market price to help local businesses|70 000 Ft-tól indulnak|ca să ajut afacerile să crească/
+const OLD_TEXTS = /university student|egyetemista|proiect la facultate|firmele locale să crească|below market price to help local businesses|70 000 Ft-tól indulnak/
 // Ce WhatsApp deschid butoanele verzi (Android): Business / normal / ce alege telefonul.
 // Secure Folder nu poate fi deschis din afara lui: acolo aplicația trebuie deschisă din browserul din Secure Folder.
 type WaApp = 'business' | 'personal' | 'auto'
@@ -100,8 +100,9 @@ export default function HuntPage({ country }: { country: Country }) {
     try {
       const saved = JSON.parse(localStorage.getItem(TPL_KEY(country)) || 'null')
       if (saved && OLD_TEXTS.test(`${saved.offer || ''} ${saved.offer_site || ''} ${saved.intro_nosite || ''}`)) { const me = saved.me; for (const k of Object.keys(saved)) delete saved[k]; if (me) saved.me = me; localStorage.setItem(TPL_KEY(country), JSON.stringify(saved)) }
-      // în România numele e „Grig” (nu numele din Setări / vechiul „Geri”)
-      if (country === 'RO' && saved && (!saved.me || saved.me === 'Geri')) { saved.me = 'Grig'; localStorage.setItem(TPL_KEY(country), JSON.stringify(saved)) }
+      // România: textele noi (fără nume, cu oferta 700 lei în loc de 3.500); textele vechi salvate în browser se înlocuiesc o dată
+      if (country === 'RO' && saved && localStorage.getItem('ro_templates_v') !== '3') { for (const k of Object.keys(saved)) delete saved[k]; localStorage.setItem(TPL_KEY(country), '{}') }
+      if (country === 'RO') localStorage.setItem('ro_templates_v', '3')
       setTemplates({ ...TEMPLATES[country], ...(s.senderName && country !== 'RO' ? { me: s.senderName.split(' ')[0] } : {}), ...(saved || {}) })
     } catch { /* ignore */ }
   }, [country])
